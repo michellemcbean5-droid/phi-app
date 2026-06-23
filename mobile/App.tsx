@@ -44,6 +44,7 @@ type MonetizationPlan = {
   label: string;
   description: string;
   displayPrice: string;
+  amount: number;
   offerToken?: string;
 };
 
@@ -64,18 +65,24 @@ const starterLoads: Load[] = [
 
 const subscriptionSkus = ['phi_premium_monthly', 'phi_growth_monthly'];
 
+const getFirstAndroidOfferToken = (product: {
+  subscriptionOffers?: { offerTokenAndroid?: string | null }[] | null;
+}) => product.subscriptionOffers?.[0]?.offerTokenAndroid ?? undefined;
+
 const fallbackPlanCatalog: MonetizationPlan[] = [
   {
     id: 'phi_premium_monthly',
     label: 'PHI Premium Monthly',
     description: 'AI dispatch + route optimization + compliance automation',
     displayPrice: '$39.99/mo',
+    amount: 39.99,
   },
   {
     id: 'phi_growth_monthly',
     label: 'PHI Growth Monthly',
     description: 'Everything in Premium + fleet dashboards + priority support',
     displayPrice: '$79.99/mo',
+    amount: 79.99,
   },
 ];
 
@@ -110,24 +117,10 @@ export default function App() {
   const monetizationRevenue = adRevenue + subscriptionRevenue;
   const netRevenue = grossRevenue - fuelCost + monetizationRevenue;
 
-  const parseDisplayPrice = (displayPrice: string) => {
-    let normalized = displayPrice.replace(/[^\d.,]/g, '');
-
-    if (normalized.includes(',') && !normalized.includes('.')) {
-      normalized = normalized.replace(/,/g, '.');
-    } else {
-      normalized = normalized.replace(/,/g, '');
-    }
-
-    const amount = Number.parseFloat(normalized);
-    return Number.isFinite(amount) ? amount : 0;
-  };
-
   const getPlanRevenueBySku = useCallback(
     (sku: string) => {
       const matchedPlan = plans.find((plan) => plan.id === sku);
-      if (!matchedPlan) return 0;
-      return parseDisplayPrice(matchedPlan.displayPrice);
+      return matchedPlan?.amount ?? 0;
     },
     [plans],
   );
@@ -173,8 +166,8 @@ export default function App() {
           label: plan.displayName ?? plan.title,
           description: plan.description,
           displayPrice: plan.displayPrice,
-          offerToken:
-            'subscriptionOffers' in plan ? plan.subscriptionOffers?.[0]?.offerTokenAndroid ?? undefined : undefined,
+          amount: plan.price ?? 0,
+          offerToken: 'subscriptionOffers' in plan ? getFirstAndroidOfferToken(plan) : undefined,
         })) ?? [];
 
       if (subscriptionCatalog.length > 0) {

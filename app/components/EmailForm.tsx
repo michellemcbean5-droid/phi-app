@@ -24,7 +24,6 @@ export default function EmailForm() {
         type="email"
         placeholder="Enter your email"
         required
-        aria-label="Email address"
         className="flex-1 max-w-sm px-5 py-4 rounded-xl text-base outline-none border"
         style={{
           background: "var(--navy-light)",

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import EmailForm from "./components/EmailForm";
 
 const BRAND_IMAGES = {
   hero: "https://github.com/user-attachments/assets/95e5303d-c419-4828-be8b-08b11825953c",
@@ -256,7 +257,7 @@ export default function Home() {
               ].map((feature) => (
                 <div
                   key={feature.title}
-                  className="p-5 rounded-xl border transition-all hover:border-yellow-500"
+                  className="feature-card p-5 rounded-xl border transition-all"
                   style={{ background: "var(--navy)", borderColor: "var(--navy-light)" }}
                 >
                   <div className="text-3xl mb-2">{feature.icon}</div>
@@ -316,25 +317,7 @@ export default function Home() {
           <p className="text-lg mb-10" style={{ color: "var(--foreground)", opacity: 0.75 }}>
             Whether you&apos;re an owner-operator or running a full fleet, PHI gives you the AI edge to find better loads, cut costs, and grow faster.
           </p>
-          <form className="flex flex-col sm:flex-row gap-4 justify-center">
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="flex-1 max-w-sm px-5 py-4 rounded-xl text-base outline-none border"
-              style={{
-                background: "var(--navy-light)",
-                color: "var(--foreground)",
-                borderColor: "var(--navy-light)",
-              }}
-            />
-            <button
-              type="submit"
-              className="px-8 py-4 rounded-xl text-base font-bold transition-all hover:scale-105 shadow-lg"
-              style={{ background: "var(--gold)", color: "var(--navy)" }}
-            >
-              Get Early Access
-            </button>
-          </form>
+          <EmailForm />
           <p className="mt-4 text-xs" style={{ color: "var(--foreground)", opacity: 0.5 }}>
             No credit card required. Free to start.
           </p>

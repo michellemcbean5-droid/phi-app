@@ -136,7 +136,7 @@ Operational stability depends on proactive compliance management. The manual mod
 
 A functional PHI mobile app is now included in this repository at:
 
-- `/home/runner/work/phi-app/phi-app/mobile`
+- `./mobile`
 
 ### 4.1 What Works in the App
 
@@ -151,7 +151,7 @@ A functional PHI mobile app is now included in this repository at:
 ### 4.2 Preview the App
 
 ```bash
-cd /home/runner/work/phi-app/phi-app/mobile
+cd ./mobile
 npm install
 npm run start
 ```

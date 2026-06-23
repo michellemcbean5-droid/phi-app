@@ -111,11 +111,15 @@ export default function App() {
   const netRevenue = grossRevenue - fuelCost + monetizationRevenue;
 
   const parseDisplayPrice = (displayPrice: string) => {
-    const normalized = displayPrice.replace(',', '.');
-    const match = normalized.match(/\d+(?:\.\d{1,2})?/);
-    if (!match) return 0;
+    let normalized = displayPrice.replace(/[^\d.,]/g, '');
 
-    const amount = Number.parseFloat(match[0]);
+    if (normalized.includes(',') && !normalized.includes('.')) {
+      normalized = normalized.replace(/,/g, '.');
+    } else {
+      normalized = normalized.replace(/,/g, '');
+    }
+
+    const amount = Number.parseFloat(normalized);
     return Number.isFinite(amount) ? amount : 0;
   };
 

@@ -192,7 +192,7 @@ The app now includes a real billing integration layer using `react-native-iap` i
 
 #### Important preview/testing note
 
-- **Expo Go / web preview cannot complete real Google Play purchases.**
+- **Expo Go / Web preview cannot complete real Google Play purchases.**
 - Real billing checkout requires an Android build installed on device/emulator and products created/activated in Google Play Console.
 
 #### Production monetization checklist

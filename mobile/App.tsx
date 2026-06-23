@@ -111,12 +111,20 @@ export default function App() {
   const monetizationRevenue = adRevenue + subscriptionRevenue;
   const netRevenue = grossRevenue - fuelCost + monetizationRevenue;
 
+  const getPlanRevenueBySku = (sku: string) => {
+    const matchedPlan = plans.find((plan) => plan.id === sku);
+    if (!matchedPlan) return 0;
+
+    const amount = Number(matchedPlan.displayPrice.replace(/[^\d.]/g, ''));
+    return Number.isFinite(amount) ? amount : 0;
+  };
+
   useEffect(() => {
     const purchaseSubscription = purchaseUpdatedListener(async (purchase: Purchase) => {
       try {
         await finishTransaction({ purchase, isConsumable: false });
         setActiveSubscriptionSku(purchase.productId);
-        setSubscriptionRevenue((prev) => prev + 40);
+        setSubscriptionRevenue((prev) => prev + getPlanRevenueBySku(purchase.productId));
         setStatusMessage(`Purchase complete for ${purchase.productId}. Subscription is now active.`);
       } catch {
         setStatusMessage('Purchase succeeded but failed to finalize transaction. Retry restore purchases.');
@@ -133,7 +141,7 @@ export default function App() {
       errorSubscription.remove();
       void endConnection().catch(() => undefined);
     };
-  }, []);
+  }, [plans]);
 
   const mapStorePlans = (storePlans: ProductSubscription[]): MonetizationPlan[] => {
     return storePlans.map((plan) => ({

@@ -131,3 +131,42 @@ Manual financial control is based on load-level profitability. Revenue is tracke
 
 ### 3.4 Compliance, Safety, and Reliability
 Operational stability depends on proactive compliance management. The manual model requires strict Hours of Service tracking, preventive maintenance scheduling, insurance and document renewal monitoring, and incident-ready recordkeeping. This discipline lowers risk, prevents downtime, and protects long-term carrier credibility while the organization transitions into deeper automation.
+
+## Section 4: Mobile App Implementation (Expo React Native)
+
+A functional PHI mobile app is now included in this repository at:
+
+- `/home/runner/work/phi-app/phi-app/mobile`
+
+### 4.1 What Works in the App
+
+- Dashboard with live operating stats and quick-action navigation
+- Load Board with selectable/bookable loads
+- Route Map screen with route optimization action
+- Financials screen with live revenue/expense/net updates
+- Compliance screen with working checklist actions
+- Settings with role switching and notification toggles
+- Every button in the app is connected to an action and updates app state/status
+
+### 4.2 Run the App Locally
+
+```bash
+cd /home/runner/work/phi-app/phi-app/mobile
+npm install
+npm run android
+```
+
+You can also run:
+
+- `npm run ios` (macOS/Xcode required)
+- `npm run web`
+
+### 4.3 Google Play Release Path
+
+To publish and monetize on Google Play, complete these production steps:
+
+1. Configure final package ID/signing keys in Expo/EAS.
+2. Build an Android App Bundle (`.aab`) with EAS Build.
+3. Create a Google Play Console app listing and content rating.
+4. Add monetization (subscriptions, paid app, or ads) with your preferred billing/ads integration.
+5. Pass Play policy, privacy policy, and data safety requirements before release.

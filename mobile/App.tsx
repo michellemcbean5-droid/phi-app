@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   endConnection,
   fetchProducts,
@@ -19,7 +19,6 @@ import {
   purchaseErrorListener,
   purchaseUpdatedListener,
   requestPurchase,
-  type ProductSubscription,
   type Purchase,
 } from 'react-native-iap';
 
@@ -111,13 +110,23 @@ export default function App() {
   const monetizationRevenue = adRevenue + subscriptionRevenue;
   const netRevenue = grossRevenue - fuelCost + monetizationRevenue;
 
-  const getPlanRevenueBySku = (sku: string) => {
-    const matchedPlan = plans.find((plan) => plan.id === sku);
-    if (!matchedPlan) return 0;
+  const parseDisplayPrice = (displayPrice: string) => {
+    const normalized = displayPrice.replace(',', '.');
+    const match = normalized.match(/\d+(?:\.\d{1,2})?/);
+    if (!match) return 0;
 
-    const amount = Number(matchedPlan.displayPrice.replace(/[^\d.]/g, ''));
+    const amount = Number.parseFloat(match[0]);
     return Number.isFinite(amount) ? amount : 0;
   };
+
+  const getPlanRevenueBySku = useCallback(
+    (sku: string) => {
+      const matchedPlan = plans.find((plan) => plan.id === sku);
+      if (!matchedPlan) return 0;
+      return parseDisplayPrice(matchedPlan.displayPrice);
+    },
+    [plans],
+  );
 
   useEffect(() => {
     const purchaseSubscription = purchaseUpdatedListener(async (purchase: Purchase) => {
@@ -141,17 +150,7 @@ export default function App() {
       errorSubscription.remove();
       void endConnection().catch(() => undefined);
     };
-  }, [plans]);
-
-  const mapStorePlans = (storePlans: ProductSubscription[]): MonetizationPlan[] => {
-    return storePlans.map((plan) => ({
-      id: plan.id,
-      label: plan.displayName ?? plan.title,
-      description: plan.description,
-      displayPrice: plan.displayPrice,
-      offerToken: plan.subscriptionOffers?.[0]?.offerTokenAndroid ?? undefined,
-    }));
-  };
+  }, [getPlanRevenueBySku]);
 
   const connectBilling = async () => {
     if (Platform.OS === 'web') {
@@ -164,9 +163,21 @@ export default function App() {
       setBillingConnected(true);
 
       const catalog = await fetchProducts({ skus: subscriptionSkus, type: 'subs' });
-      if (catalog && catalog.length > 0) {
-        setPlans(mapStorePlans(catalog as ProductSubscription[]));
-        setStatusMessage(`Billing connected. Loaded ${catalog.length} subscription plans from the store.`);
+      const subscriptionCatalog =
+        catalog?.map((plan) => ({
+          id: plan.id,
+          label: plan.displayName ?? plan.title,
+          description: plan.description,
+          displayPrice: plan.displayPrice,
+          offerToken:
+            'subscriptionOffers' in plan ? plan.subscriptionOffers?.[0]?.offerTokenAndroid ?? undefined : undefined,
+        })) ?? [];
+
+      if (subscriptionCatalog.length > 0) {
+        setPlans(subscriptionCatalog);
+        setStatusMessage(
+          `Billing connected. Loaded ${subscriptionCatalog.length} subscription plans from the store.`,
+        );
         return;
       }
 

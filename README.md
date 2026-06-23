@@ -160,7 +160,7 @@ Then choose one preview path:
 
 - **Phone (fastest):** Install **Expo Go** on Android/iPhone, then scan the QR code from the terminal.
 - **Android emulator:** Start Android Studio emulator and press `a` in the Expo terminal (or run `npm run android`).
-- **Web preview:** run `npm run web` to open the app in a browser.
+- **Web preview:** run `npm run web` to open the app in a browser (UI testing only; billing checkout is unavailable on web).
 - **iOS simulator (Mac):** run `npm run ios`.
 
 ### 4.3 Google Play Release Path

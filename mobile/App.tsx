@@ -115,7 +115,7 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
       <View style={styles.header}>
-        <Image source={require('./assets/icon.png')} style={styles.logo} />
+        <Image source={require('./assets/splash-icon.png')} style={styles.logo} />
         <View>
           <Text style={styles.title}>Prince Haul Intelligence</Text>
           <Text style={styles.subtitle}>AI trucking command center</Text>

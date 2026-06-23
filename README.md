@@ -148,18 +148,20 @@ A functional PHI mobile app is now included in this repository at:
 - Settings with role switching and notification toggles
 - Every button in the app is connected to an action and updates app state/status
 
-### 4.2 Run the App Locally
+### 4.2 Preview the App
 
 ```bash
 cd /home/runner/work/phi-app/phi-app/mobile
 npm install
-npm run android
+npm run start
 ```
 
-You can also run:
+Then choose one preview path:
 
-- `npm run ios` (macOS/Xcode required)
-- `npm run web`
+- **Phone (fastest):** Install **Expo Go** on Android/iPhone, then scan the QR code from the terminal.
+- **Android emulator:** Start Android Studio emulator and press `a` in the Expo terminal (or run `npm run android`).
+- **Web preview:** run `npm run web` to open the app in a browser.
+- **iOS simulator (Mac):** run `npm run ios`.
 
 ### 4.3 Google Play Release Path
 

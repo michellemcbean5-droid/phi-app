@@ -172,3 +172,33 @@ To publish and monetize on Google Play, complete these production steps:
 3. Create a Google Play Console app listing and content rating.
 4. Add monetization (subscriptions, paid app, or ads) with your preferred billing/ads integration.
 5. Pass Play policy, privacy policy, and data safety requirements before release.
+
+### 4.4 In-App Billing Flow (Google Play)
+
+The app now includes a real billing integration layer using `react-native-iap` in:
+
+- `./mobile/App.tsx`
+
+#### Implemented billing actions in-app
+
+- Connect to Google Play Billing (`Connect Billing`)
+- Load subscription catalog from product IDs:
+  - `phi_premium_monthly`
+  - `phi_growth_monthly`
+- Start subscription checkout (`Subscribe`)
+- Listen for purchase updates/errors and finalize transactions
+- Restore prior purchases (`Restore Purchases`)
+- Track subscription/ad revenue in Financials and Dashboard
+
+#### Important preview/testing note
+
+- **Expo Go / web preview cannot complete real Google Play purchases.**
+- Real billing checkout requires an Android build installed on device/emulator and products created/activated in Google Play Console.
+
+#### Production monetization checklist
+
+1. Create subscription products in Google Play Console with the exact product IDs above (or update IDs in app code).
+2. Upload an Android build and test purchases on an internal testing track.
+3. Verify backend receipt validation before granting permanent premium access.
+4. Connect your payout and tax setup in Google Play Console.
+5. Promote to production after policy + billing tests pass.

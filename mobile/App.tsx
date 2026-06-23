@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import {
   Image,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -8,9 +9,28 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  endConnection,
+  fetchProducts,
+  finishTransaction,
+  getAvailablePurchases,
+  initConnection,
+  purchaseErrorListener,
+  purchaseUpdatedListener,
+  requestPurchase,
+  type ProductSubscription,
+  type Purchase,
+} from 'react-native-iap';
 
-type Tab = 'Dashboard' | 'Load Board' | 'Route Map' | 'Financials' | 'Compliance' | 'Settings';
+type Tab =
+  | 'Dashboard'
+  | 'Load Board'
+  | 'Route Map'
+  | 'Financials'
+  | 'Compliance'
+  | 'Monetization'
+  | 'Settings';
 
 type Load = {
   id: string;
@@ -18,6 +38,14 @@ type Load = {
   rate: number;
   miles: number;
   deadhead: number;
+};
+
+type MonetizationPlan = {
+  id: string;
+  label: string;
+  description: string;
+  displayPrice: string;
+  offerToken?: string;
 };
 
 const palette = {
@@ -35,6 +63,23 @@ const starterLoads: Load[] = [
   { id: 'L-103', lane: 'Charlotte, NC → Miami, FL', rate: 2800, miles: 720, deadhead: 48 },
 ];
 
+const subscriptionSkus = ['phi_premium_monthly', 'phi_growth_monthly'];
+
+const fallbackPlanCatalog: MonetizationPlan[] = [
+  {
+    id: 'phi_premium_monthly',
+    label: 'PHI Premium Monthly',
+    description: 'AI dispatch + route optimization + compliance automation',
+    displayPrice: '$39.99/mo',
+  },
+  {
+    id: 'phi_growth_monthly',
+    label: 'PHI Growth Monthly',
+    description: 'Everything in Premium + fleet dashboards + priority support',
+    displayPrice: '$79.99/mo',
+  },
+];
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('Dashboard');
   const [loads] = useState(starterLoads);
@@ -48,6 +93,14 @@ export default function App() {
   const [role, setRole] = useState<'Owner-Operator' | 'Fleet Manager' | 'Dispatcher'>('Owner-Operator');
   const [statusMessage, setStatusMessage] = useState('Welcome to Prince Haul Intelligence.');
 
+  const [billingConnected, setBillingConnected] = useState(false);
+  const [plans, setPlans] = useState<MonetizationPlan[]>(fallbackPlanCatalog);
+  const [activeSubscriptionSku, setActiveSubscriptionSku] = useState<string | null>(null);
+  const [restoredSubscriptionCount, setRestoredSubscriptionCount] = useState(0);
+  const [adRevenue, setAdRevenue] = useState(0);
+  const [subscriptionRevenue, setSubscriptionRevenue] = useState(0);
+  const [payoutLinked, setPayoutLinked] = useState(false);
+
   const bookedLoads = loads.filter((load) => bookedLoadIds.includes(load.id));
   const selectedLoad = loads.find((load) => load.id === selectedLoadId) ?? loads[0];
 
@@ -55,7 +108,127 @@ export default function App() {
     () => bookedLoads.reduce((sum, load) => sum + load.rate, 0),
     [bookedLoads],
   );
-  const netRevenue = grossRevenue - fuelCost;
+  const monetizationRevenue = adRevenue + subscriptionRevenue;
+  const netRevenue = grossRevenue - fuelCost + monetizationRevenue;
+
+  useEffect(() => {
+    const purchaseSubscription = purchaseUpdatedListener(async (purchase: Purchase) => {
+      try {
+        await finishTransaction({ purchase, isConsumable: false });
+        setActiveSubscriptionSku(purchase.productId);
+        setSubscriptionRevenue((prev) => prev + 40);
+        setStatusMessage(`Purchase complete for ${purchase.productId}. Subscription is now active.`);
+      } catch {
+        setStatusMessage('Purchase succeeded but failed to finalize transaction. Retry restore purchases.');
+      }
+    });
+
+    const errorSubscription = purchaseErrorListener((error) => {
+      const message = error.message || 'unknown billing error';
+      setStatusMessage(`Billing error: ${message}`);
+    });
+
+    return () => {
+      purchaseSubscription.remove();
+      errorSubscription.remove();
+      void endConnection().catch(() => undefined);
+    };
+  }, []);
+
+  const mapStorePlans = (storePlans: ProductSubscription[]): MonetizationPlan[] => {
+    return storePlans.map((plan) => ({
+      id: plan.id,
+      label: plan.displayName ?? plan.title,
+      description: plan.description,
+      displayPrice: plan.displayPrice,
+      offerToken: plan.subscriptionOffers?.[0]?.offerTokenAndroid ?? undefined,
+    }));
+  };
+
+  const connectBilling = async () => {
+    if (Platform.OS === 'web') {
+      setStatusMessage('Google Play billing is unavailable on web preview. Use Android build/device.');
+      return;
+    }
+
+    try {
+      await initConnection();
+      setBillingConnected(true);
+
+      const catalog = await fetchProducts({ skus: subscriptionSkus, type: 'subs' });
+      if (catalog && catalog.length > 0) {
+        setPlans(mapStorePlans(catalog as ProductSubscription[]));
+        setStatusMessage(`Billing connected. Loaded ${catalog.length} subscription plans from the store.`);
+        return;
+      }
+
+      setPlans(fallbackPlanCatalog);
+      setStatusMessage('Billing connected. Store products not found yet; using configured fallback plan labels.');
+    } catch (error) {
+      setBillingConnected(false);
+      const message = error instanceof Error ? error.message : 'billing service unavailable';
+      setStatusMessage(`Failed to connect billing: ${message}`);
+    }
+  };
+
+  const purchasePlan = async (plan: MonetizationPlan) => {
+    if (!billingConnected) {
+      setStatusMessage('Connect Google Play billing first.');
+      return;
+    }
+
+    try {
+      await requestPurchase({
+        type: 'subs',
+        request: {
+          apple: { sku: plan.id },
+          google: {
+            skus: [plan.id],
+            subscriptionOffers: plan.offerToken
+              ? [{ sku: plan.id, offerToken: plan.offerToken }]
+              : undefined,
+          },
+        },
+      });
+      setStatusMessage(`Purchase flow started for ${plan.label}. Complete checkout in Google Play.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unable to start purchase flow';
+      setStatusMessage(`Purchase failed to start: ${message}`);
+    }
+  };
+
+  const restoreBillingPurchases = async () => {
+    if (!billingConnected) {
+      setStatusMessage('Connect Google Play billing first.');
+      return;
+    }
+
+    try {
+      const purchases = await getAvailablePurchases();
+      const subscriptions = purchases.filter((purchase) => subscriptionSkus.includes(purchase.productId));
+
+      setRestoredSubscriptionCount(subscriptions.length);
+      if (subscriptions.length > 0) {
+        setActiveSubscriptionSku(subscriptions[0].productId);
+        setStatusMessage(`Restored ${subscriptions.length} active subscription(s).`);
+      } else {
+        setStatusMessage('No active subscriptions found to restore.');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'restore failed';
+      setStatusMessage(`Restore purchases failed: ${message}`);
+    }
+  };
+
+  const addAdRevenue = () => {
+    setAdRevenue((prev) => prev + 12);
+    setStatusMessage('Ad revenue event captured: +$12.');
+  };
+
+  const linkPayoutAccount = () => {
+    setPayoutLinked((prev) => !prev);
+    setStatusMessage(`Payout account ${payoutLinked ? 'disconnected' : 'linked'} for monetization payouts.`);
+  };
 
   const bookLoad = (load: Load) => {
     setSelectedLoadId(load.id);
@@ -123,17 +296,25 @@ export default function App() {
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabBar}>
-        {(['Dashboard', 'Load Board', 'Route Map', 'Financials', 'Compliance', 'Settings'] as Tab[]).map(
-          (tab) => (
-            <Pressable
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              style={[styles.tabButton, activeTab === tab && styles.activeTabButton]}
-            >
-              <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
-            </Pressable>
-          ),
-        )}
+        {(
+          [
+            'Dashboard',
+            'Load Board',
+            'Route Map',
+            'Financials',
+            'Compliance',
+            'Monetization',
+            'Settings',
+          ] as Tab[]
+        ).map((tab) => (
+          <Pressable
+            key={tab}
+            onPress={() => setActiveTab(tab)}
+            style={[styles.tabButton, activeTab === tab && styles.activeTabButton]}
+          >
+            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
+          </Pressable>
+        ))}
       </ScrollView>
 
       <View style={styles.statusCard}>
@@ -146,6 +327,7 @@ export default function App() {
           <View style={styles.stack}>
             <StatCard label="Booked Loads" value={`${bookedLoads.length}`} />
             <StatCard label="Gross Revenue" value={`$${grossRevenue.toLocaleString()}`} />
+            <StatCard label="Monetization Revenue" value={`$${monetizationRevenue.toLocaleString()}`} />
             <StatCard label="Net Revenue" value={`$${netRevenue.toLocaleString()}`} />
             <StatCard
               label="Compliance"
@@ -154,7 +336,7 @@ export default function App() {
             <View style={styles.rowWrap}>
               <ActionButton label="Find Load" onPress={() => setActiveTab('Load Board')} />
               <ActionButton label="Plan Route" onPress={() => setActiveTab('Route Map')} />
-              <ActionButton label="Track Profit" onPress={() => setActiveTab('Financials')} />
+              <ActionButton label="Monetize" onPress={() => setActiveTab('Monetization')} />
             </View>
           </View>
         )}
@@ -191,6 +373,8 @@ export default function App() {
           <View style={styles.stack}>
             <StatCard label="Gross Revenue" value={`$${grossRevenue.toLocaleString()}`} />
             <StatCard label="Fuel Expense" value={`$${fuelCost.toLocaleString()}`} />
+            <StatCard label="Subscription Revenue" value={`$${subscriptionRevenue.toLocaleString()}`} />
+            <StatCard label="Ad Revenue" value={`$${adRevenue.toLocaleString()}`} />
             <StatCard label="Net Margin" value={`$${netRevenue.toLocaleString()}`} />
             <StatCard label="Invoices Paid" value={`${invoicePaidCount}`} />
             <View style={styles.rowWrap}>
@@ -214,6 +398,37 @@ export default function App() {
               onToggle={toggleMaintenance}
               buttonText={maintenanceComplete ? 'Reopen' : 'Complete'}
             />
+          </View>
+        )}
+
+        {activeTab === 'Monetization' && (
+          <View style={styles.stack}>
+            <StatCard label="Billing Connection" value={billingConnected ? 'Connected ✅' : 'Not connected'} />
+            <StatCard label="Active Subscription" value={activeSubscriptionSku ?? 'None'} />
+            <StatCard label="Restored Purchases" value={`${restoredSubscriptionCount}`} />
+            <StatCard label="Payout Account" value={payoutLinked ? 'Linked ✅' : 'Not linked'} />
+            <View style={styles.rowWrap}>
+              <ActionButton label="Connect Billing" onPress={connectBilling} />
+              <ActionButton label="Restore Purchases" onPress={restoreBillingPurchases} />
+            </View>
+
+            {plans.map((plan) => (
+              <View key={plan.id} style={styles.planCard}>
+                <Text style={styles.planTitle}>{plan.label}</Text>
+                <Text style={styles.planText}>{plan.description}</Text>
+                <Text style={styles.planPrice}>{plan.displayPrice}</Text>
+                <ActionButton label="Subscribe" onPress={() => purchasePlan(plan)} compact />
+              </View>
+            ))}
+
+            <View style={styles.rowWrap}>
+              <ActionButton label="Record Ad Revenue" onPress={addAdRevenue} />
+              <ActionButton label="Link Payout" onPress={linkPayoutAccount} />
+            </View>
+            <Text style={styles.disclaimerText}>
+              Note: Real billing checkout requires an Android build (not Expo Go web preview) and active
+              subscription products in Google Play Console.
+            </Text>
           </View>
         )}
 
@@ -434,5 +649,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  planCard: {
+    borderWidth: 1,
+    borderColor: palette.charcoalBlack,
+    borderRadius: 14,
+    padding: 12,
+    backgroundColor: palette.mint,
+    gap: 4,
+  },
+  planTitle: {
+    color: palette.charcoalBlack,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  planText: {
+    color: palette.charcoalBlack,
+    fontWeight: '500',
+  },
+  planPrice: {
+    color: palette.charcoalBlack,
+    fontWeight: '900',
+    marginBottom: 6,
+  },
+  disclaimerText: {
+    color: palette.charcoalBlack,
+    fontSize: 12,
+    fontWeight: '500',
   },
 });

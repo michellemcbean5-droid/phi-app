@@ -2,7 +2,7 @@
 
 Prince Haul Intelligence (PHI) is a bright, supportive, AI-powered trucking platform designed to help owner-operators and small fleets run smarter, more profitable operations. This master playbook defines the brand rules, writing standards, product blueprint, and operational direction that all PHI content and assets must follow.
 
-## Section 1: The Manus Playbook
+## Section 1: The Master Playbook
 
 ### 1.1 Brand Rules: The Foundation of Prince Haul Intelligence
 
@@ -119,3 +119,15 @@ PHI scales in phases: solo truckers, small fleets, brokers, and white-label ente
 ## Section 3: The Full Business Plan — Manual Operations
 
 PHI’s manual-operations business plan establishes the baseline operating model before full AI maturity. It documents executive strategy, operating procedures, and financial planning in beginner-friendly language so users can understand how to run a high-performing trucking business with or without full automation.
+
+### 3.1 Executive Strategy and Positioning
+The PHI manual model begins with a clear market position: support owner-operators and small fleets that want premium earnings without enterprise overhead. The business focuses on disciplined lane selection, strong broker relationships, and predictable customer communication. In this phase, leadership maintains a weekly operating cadence that reviews revenue targets, cost control, safety outcomes, and service quality.
+
+### 3.2 Manual Operations Workflow
+Before full automation, operations follow a repeatable human-led workflow: source loads, validate profitability, dispatch with clear trip instructions, execute safely, deliver documentation, and invoice immediately. Every trip is tracked with a standardized checklist that captures pickup status, in-transit updates, delivery confirmation, and paperwork submission. This structure reduces missed tasks and creates clean data for later AI optimization.
+
+### 3.3 Financial Plan and Profit Discipline
+Manual financial control is based on load-level profitability. Revenue is tracked per load and per week, while costs are categorized into fuel, maintenance, insurance, permits, tolls, and fixed overhead. A minimum target margin is enforced before accepting freight, and weekly financial reviews identify corrective actions such as lane changes, broker renegotiation, or expense reductions.
+
+### 3.4 Compliance, Safety, and Reliability
+Operational stability depends on proactive compliance management. The manual model requires strict Hours of Service tracking, preventive maintenance scheduling, insurance and document renewal monitoring, and incident-ready recordkeeping. This discipline lowers risk, prevents downtime, and protects long-term carrier credibility while the organization transitions into deeper automation.

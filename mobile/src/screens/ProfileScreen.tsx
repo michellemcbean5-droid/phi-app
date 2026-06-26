@@ -1,42 +1,97 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { PHI_COLORS } from '../assets/brandColors';
+import { RootStackParamList } from '../navigation/RootNavigator';
+import { TabParamList } from '../navigation/TabNavigator';
+import useAuthStore from '../store/authStore';
 
-const menuItems = [
-  { icon: 'document-text-outline', label: 'My Documents' },
-  { icon: 'car-outline', label: 'My Vehicle' },
-  { icon: 'shield-checkmark-outline', label: 'Insurance & Compliance' },
-  { icon: 'notifications-outline', label: 'Notifications' },
-  { icon: 'settings-outline', label: 'Settings' },
-  { icon: 'help-circle-outline', label: 'Help & Support' },
-  { icon: 'log-out-outline', label: 'Sign Out' },
-] as const;
+type ProfileNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<TabParamList, 'Profile'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
+type ProfileMenuAction =
+  | 'AICommandCenter'
+  | 'Documents'
+  | 'Vehicle'
+  | 'Compliance'
+  | 'Notifications'
+  | 'Settings'
+  | 'Subscription'
+  | 'signOut';
+
+const menuItems: Array<{
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  action: ProfileMenuAction;
+}> = [
+  { icon: 'hardware-chip-outline', label: 'AI Command Center', action: 'AICommandCenter' },
+  { icon: 'document-text-outline', label: 'My Documents', action: 'Documents' },
+  { icon: 'car-outline', label: 'My Vehicle', action: 'Vehicle' },
+  { icon: 'shield-checkmark-outline', label: 'Insurance & Compliance', action: 'Compliance' },
+  { icon: 'notifications-outline', label: 'Notifications', action: 'Notifications' },
+  { icon: 'settings-outline', label: 'Settings', action: 'Settings' },
+  { icon: 'card-outline', label: 'Subscription', action: 'Subscription' },
+  { icon: 'log-out-outline', label: 'Sign Out', action: 'signOut' },
+];
 
 export default function ProfileScreen() {
+  const navigation = useNavigation<ProfileNavigationProp>();
+  const logout = useAuthStore((state) => state.logout);
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
+      <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.avatar}>
-          <Ionicons name="person" size={60} color="#fff" />
+          <Ionicons name="person" size={60} color={PHI_COLORS.white} />
         </View>
         <Text style={styles.name}>Prince Haul Driver</Text>
-        <Text style={styles.cdl}>CDL-A • MC #123456</Text>
+        <Text style={styles.cdl}>CDL-A Owner Operator Profile</Text>
+
+        <View style={styles.formCard}>
+          {(
+            [
+              ['MC Number', 'MC-123456'],
+              ['DOT Number', 'DOT-987654'],
+              ['Equipment Type', '53\' Dry Van'],
+            ] as const
+          ).map(([label, value]) => (
+            <View key={label} style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>{label}</Text>
+              <TextInput value={value} editable={false} style={styles.input} placeholderTextColor="#7F8FB3" />
+            </View>
+          ))}
+        </View>
 
         <View style={styles.statsRow}>
-          {[['2.1M', 'Miles Driven'], ['98%', 'On-Time'], ['4.9★', 'Rating']].map(([val, lbl]) => (
-            <View key={lbl} style={styles.statBox}>
-              <Text style={styles.statVal}>{val}</Text>
-              <Text style={styles.statLbl}>{lbl}</Text>
+          {[['2.1M', 'Miles Driven'], ['98%', 'On-Time'], ['4.9★', 'Rating']].map(([value, label]) => (
+            <View key={label} style={styles.statBox}>
+              <Text style={styles.statVal}>{value}</Text>
+              <Text style={styles.statLbl}>{label}</Text>
             </View>
           ))}
         </View>
 
         {menuItems.map((item) => (
-          <TouchableOpacity key={item.label} style={styles.menuRow}>
-            <Ionicons name={item.icon} size={22} color="#e94560" style={{ width: 32 }} />
+          <TouchableOpacity
+            key={item.label}
+            style={styles.menuRow}
+            onPress={() => {
+              if (item.action === 'signOut') {
+                logout();
+                return;
+              }
+              navigation.navigate(item.action);
+            }}
+          >
+            <Ionicons name={item.icon} size={22} color={PHI_COLORS.sunshineYellow} style={{ width: 32 }} />
             <Text style={styles.menuLabel}>{item.label}</Text>
-            <Ionicons name="chevron-forward" size={18} color="#555" />
+            <Ionicons name="chevron-forward" size={18} color="#A8B7D8" />
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -45,14 +100,19 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f3460' },
-  avatar: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#e94560', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 12 },
-  name: { color: '#fff', fontSize: 22, fontWeight: 'bold', textAlign: 'center' },
-  cdl: { color: '#aaa', fontSize: 13, textAlign: 'center', marginBottom: 20 },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: '#16213e', borderRadius: 12, padding: 16, marginBottom: 24 },
+  container: { flex: 1, backgroundColor: PHI_COLORS.surface },
+  content: { padding: 16, gap: 16 },
+  avatar: { width: 100, height: 100, borderRadius: 50, backgroundColor: PHI_COLORS.royalBlue, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
+  name: { color: PHI_COLORS.white, fontSize: 22, fontWeight: '900', textAlign: 'center' },
+  cdl: { color: '#D7E3FF', textAlign: 'center' },
+  formCard: { backgroundColor: PHI_COLORS.card, borderRadius: 16, padding: 16, gap: 12 },
+  fieldGroup: { gap: 8 },
+  fieldLabel: { color: PHI_COLORS.white, fontWeight: '700' },
+  input: { backgroundColor: '#132B52', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: PHI_COLORS.white, borderWidth: 1, borderColor: '#29508C' },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: PHI_COLORS.card, borderRadius: 16, padding: 16 },
   statBox: { alignItems: 'center' },
-  statVal: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
-  statLbl: { color: '#aaa', fontSize: 11, marginTop: 4 },
-  menuRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#16213e', borderRadius: 10, padding: 14, marginBottom: 10 },
-  menuLabel: { color: '#fff', flex: 1, fontSize: 15 },
+  statVal: { color: PHI_COLORS.white, fontWeight: '900', fontSize: 18 },
+  statLbl: { color: '#D7E3FF', fontSize: 11, marginTop: 4 },
+  menuRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: PHI_COLORS.card, borderRadius: 12, padding: 14 },
+  menuLabel: { color: PHI_COLORS.white, flex: 1, fontSize: 15, fontWeight: '700' },
 });

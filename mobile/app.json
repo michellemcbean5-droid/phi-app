@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "PHI App",
+    "name": "Prince Haul Intelligence",
     "slug": "phi-app",
     "version": "1.0.0",
-    "sdkVersion": "52.0.0",
+    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

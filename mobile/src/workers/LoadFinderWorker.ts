@@ -2,6 +2,8 @@ import { generateOutreachEmail } from './NegotiationStrategyWorker';
 import { scoreLoad } from './LoadScoringWorker';
 import { Load } from './workers-15x';
 
+export { scoreLoad } from './LoadScoringWorker';
+
 interface AxiosStyleResponse<T> {
   data: T;
 }

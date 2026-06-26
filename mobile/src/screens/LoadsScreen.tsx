@@ -9,8 +9,7 @@ import { RootStackParamList } from '../navigation/RootNavigator';
 import { TabParamList } from '../navigation/TabNavigator';
 import useLoadsStore from '../store/loadsStore';
 import { executeBooking } from '../workers/AutoBookingEngine';
-import { aggregateLoads } from '../workers/LoadFinderWorker';
-import { scoreLoad } from '../workers/LoadScoringWorker';
+import { aggregateLoads, scoreLoad } from '../workers/LoadFinderWorker';
 import { calculateDeadhead } from '../workers/RouteAnalysisWorker';
 import { Load } from '../workers/workers-15x';
 

@@ -1,73 +1,128 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { PHI_COLORS } from '../assets/brandColors';
 import { RootStackParamList } from '../navigation/RootNavigator';
-import { Ionicons } from '@expo/vector-icons';
+import { TabParamList } from '../navigation/TabNavigator';
+import useLoadsStore from '../store/loadsStore';
+import { executeBooking } from '../workers/AutoBookingEngine';
+import { aggregateLoads } from '../workers/LoadFinderWorker';
+import { scoreLoad } from '../workers/LoadScoringWorker';
+import { calculateDeadhead } from '../workers/RouteAnalysisWorker';
+import { Load } from '../workers/workers-15x';
 
-type Nav = NativeStackNavigationProp<RootStackParamList, 'Main'>;
+type LoadsNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<TabParamList, 'Loads'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
-const LOADS = [
-  { id: 'L001', origin: 'Dallas, TX', destination: 'Atlanta, GA', miles: 781, rate: '$1,950', status: 'In Transit' },
-  { id: 'L002', origin: 'Memphis, TN', destination: 'Chicago, IL', miles: 530, rate: '$1,320', status: 'Pending' },
-  { id: 'L003', origin: 'Houston, TX', destination: 'Phoenix, AZ', miles: 1,173, rate: '$2,800', status: 'Delivered' },
-];
-
-const statusColor: Record<string, string> = {
-  'In Transit': '#e94560',
-  Pending: '#f5a623',
-  Delivered: '#4caf50',
-};
+const currentLocation = { latitude: 32.7555, longitude: -97.3308 };
 
 export default function LoadsScreen() {
-  const navigation = useNavigation<Nav>();
+  const navigation = useNavigation<LoadsNavigationProp>();
+  const { activeLoads, bookingState, setLoads, setBookingState } = useLoadsStore();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadBoard = useMemo(
+    () => [...activeLoads].sort((left, right) => right.rpm - left.rpm),
+    [activeLoads],
+  );
+
+  const refreshLoads = useCallback(async (): Promise<void> => {
+    setRefreshing(true);
+    try {
+      const loads = await aggregateLoads();
+      setLoads(loads);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [setLoads]);
+
+  useEffect(() => {
+    void refreshLoads();
+  }, [refreshLoads]);
+
+  const handleAnalyzeRoute = async (load: Load): Promise<void> => {
+    const analysis = await calculateDeadhead(currentLocation, load.origin, load.totalMiles);
+    Alert.alert(
+      'Route Analysis',
+      `${load.id}: ${analysis.deadheadMiles.toFixed(1)} deadhead miles (${analysis.deadheadPercentage}%). ${analysis.rejected ? analysis.rejectionReason : 'Route approved.'}`,
+    );
+  };
+
+  const handleBookLoad = async (load: Load): Promise<void> => {
+    setBookingState(load.id, 'pending');
+    const confirmation = await executeBooking(load, 82);
+    setBookingState(load.id, confirmation.booked ? 'booked' : 'rejected');
+    Alert.alert('Booking Update', confirmation.message);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <FlatList
-        data={LOADS}
+        data={loadBoard}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 16 }}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => navigation.navigate('LoadDetails', { loadId: item.id })}
-          >
-            <View style={styles.cardHeader}>
-              <Text style={styles.loadId}>Load #{item.id}</Text>
-              <View style={[styles.badge, { backgroundColor: statusColor[item.status] }]}>
-                <Text style={styles.badgeText}>{item.status}</Text>
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refreshLoads()} tintColor={PHI_COLORS.sunshineYellow} />}
+        ListHeaderComponent={
+          <View style={styles.headerCard}>
+            <Text style={styles.headerTitle}>PHI Load Board</Text>
+            <Text style={styles.headerSubtitle}>Pull to refresh live dry van opportunities from DAT and Truckstop.</Text>
+          </View>
+        }
+        renderItem={({ item }) => {
+          const loadScore = scoreLoad(item);
+          return (
+            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('LoadDetails', { loadId: item.id })}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.loadId}>{item.id}</Text>
+                <View style={[styles.scoreBadge, loadScore === 'Diamond' ? styles.diamondBadge : loadScore === 'Gold' ? styles.goldBadge : styles.standardBadge]}>
+                  <Text style={styles.scoreText}>{loadScore}</Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.route}>
-              <Ionicons name="location-outline" size={16} color="#aaa" />
-              <Text style={styles.routeText}>{item.origin}</Text>
-              <Ionicons name="arrow-forward" size={16} color="#e94560" style={{ marginHorizontal: 6 }} />
-              <Ionicons name="location" size={16} color="#e94560" />
-              <Text style={styles.routeText}>{item.destination}</Text>
-            </View>
-            <View style={styles.details}>
-              <Text style={styles.detail}>{item.miles} mi</Text>
-              <Text style={styles.rate}>{item.rate}</Text>
-            </View>
-          </TouchableOpacity>
-        )}
+              <Text style={styles.routeText}>{item.origin.city}, {item.origin.state} → {item.destination.city}, {item.destination.state}</Text>
+              <Text style={styles.metaText}>Rate: ${item.rate.toFixed(0)} • RPM: {item.rpm.toFixed(2)} • Broker: {item.brokerRating.toFixed(1)}★</Text>
+              <Text style={styles.metaText}>Equipment: {item.equipmentType} • Miles: {item.totalMiles}</Text>
+              <Text style={styles.bookingState}>Booking: {bookingState[item.id] ?? 'unbooked'}</Text>
+              <View style={styles.buttonRow}>
+                <TouchableOpacity style={styles.primaryButton} onPress={() => void handleBookLoad(item)}>
+                  <Text style={styles.primaryButtonText}>Book Load</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.secondaryButton} onPress={() => void handleAnalyzeRoute(item)}>
+                  <Text style={styles.secondaryButtonText}>Analyze Route</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f3460' },
-  card: { backgroundColor: '#16213e', borderRadius: 12, padding: 16, marginBottom: 14 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  loadId: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  badgeText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  route: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' },
-  routeText: { color: '#ccc', fontSize: 13, marginLeft: 4 },
-  details: { flexDirection: 'row', justifyContent: 'space-between' },
-  detail: { color: '#aaa', fontSize: 13 },
-  rate: { color: '#4caf50', fontWeight: 'bold', fontSize: 16 },
+  container: { flex: 1, backgroundColor: PHI_COLORS.surface },
+  content: { padding: 16, gap: 14 },
+  headerCard: { backgroundColor: PHI_COLORS.royalBlue, borderRadius: 18, padding: 18, marginBottom: 14 },
+  headerTitle: { color: PHI_COLORS.white, fontSize: 24, fontWeight: '900' },
+  headerSubtitle: { color: '#E7EEFF', marginTop: 8, lineHeight: 20 },
+  card: { backgroundColor: PHI_COLORS.card, borderRadius: 16, padding: 16, gap: 10, marginBottom: 14 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  loadId: { color: PHI_COLORS.white, fontWeight: '800', fontSize: 18 },
+  scoreBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  diamondBadge: { backgroundColor: '#9BE8FF' },
+  goldBadge: { backgroundColor: PHI_COLORS.sunshineYellow },
+  standardBadge: { backgroundColor: '#B0B8C7' },
+  scoreText: { color: PHI_COLORS.charcoalBlack, fontWeight: '800' },
+  routeText: { color: PHI_COLORS.white, fontSize: 16, fontWeight: '700' },
+  metaText: { color: '#D7E3FF' },
+  bookingState: { color: PHI_COLORS.moneyGreen, fontWeight: '700' },
+  buttonRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  primaryButton: { flex: 1, backgroundColor: PHI_COLORS.sunshineYellow, padding: 12, borderRadius: 12 },
+  secondaryButton: { flex: 1, backgroundColor: PHI_COLORS.royalBlue, padding: 12, borderRadius: 12 },
+  primaryButtonText: { color: PHI_COLORS.charcoalBlack, textAlign: 'center', fontWeight: '800' },
+  secondaryButtonText: { color: PHI_COLORS.white, textAlign: 'center', fontWeight: '800' },
 });

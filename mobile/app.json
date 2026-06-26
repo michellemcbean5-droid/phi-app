@@ -28,10 +28,6 @@
         "RECEIVE_BOOT_COMPLETED"
       ]
     },
-    "plugins": [
-      "expo-notifications",
-      "expo-location"
-    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }

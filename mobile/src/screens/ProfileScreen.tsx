@@ -58,7 +58,7 @@ export default function ProfileScreen() {
             [
               ['MC Number', 'MC-123456'],
               ['DOT Number', 'DOT-987654'],
-              ['Equipment Type', '53\' Dry Van'],
+              ['Equipment Type', "53' Dry Van"],
             ] as const
           ).map(([label, value]) => (
             <View key={label} style={styles.fieldGroup}>
@@ -69,7 +69,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.statsRow}>
-          {[['2.1M', 'Miles Driven'], ['98%', 'On-Time'], ['4.9★', 'Rating']].map(([value, label]) => (
+          {[['2.1M', 'Miles Driven'], ['98%', 'On-Time'], ['4.9\u2605', 'Rating']].map(([value, label]) => (
             <View key={label} style={styles.statBox}>
               <Text style={styles.statVal}>{value}</Text>
               <Text style={styles.statLbl}>{label}</Text>

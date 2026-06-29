@@ -1,26 +1,28 @@
 {
   "name": "phi-app",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
+  "description": "Prince Haul Intelligence - AI-Powered Trucking Platform",
+  "workspaces": ["mobile"],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "mobile:install": "cd mobile && npm install",
+    "mobile:start": "cd mobile && npm start",
+    "mobile:test": "cd mobile && npm test",
+    "mobile:lint": "cd mobile && npm run lint",
+    "mobile:build": "cd mobile && npx eas build",
+    "mobile:submit": "cd mobile && npx eas submit"
   },
-  "dependencies": {
-    "next": "16.2.9",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
+  "engines": {
+    "node": ">=18.0.0"
   },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.9",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  }
+  "keywords": [
+    "trucking",
+    "logistics",
+    "ai",
+    "mobile",
+    "expo",
+    "react-native"
+  ],
+  "author": "Prince Haul Intelligence",
+  "license": "MIT"
 }

@@ -1,0 +1,67 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript type checking
+        run: npx tsc --noEmit
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Prettier check
+        run: npm run format:check
+
+      - name: Check for any types
+        run: |
+          if grep -r "as any" src/ || grep -r "any)" src/ || grep -r ": any" src/; then
+            echo "Found 'any' types in code. Please use proper types."
+            exit 1
+          fi
+
+      - name: Check for console statements
+        run: |
+          if grep -r "console\." src/; then
+            echo "Found console statements in code. Please remove or use proper logging."
+            exit 1
+          fi
+
+      - name: Check file sizes
+        run: |
+          # Check for large files
+          find src/ -type f \( -name "*.ts" -o -name "*.tsx" \) -size +50k -exec echo "Large file found: {}" \;
+          
+          # Check for long lines
+          if grep -r -E ".{200,}" src/; then
+            echo "Found lines longer than 200 characters. Please break them up."
+            exit 1
+          fi

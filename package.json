@@ -10,7 +10,6 @@
     "mobile:test": "cd mobile && npm test",
     "mobile:build": "cd mobile && eas build"
   },
-  "workspaces": ["mobile"],
   "keywords": ["trucking", "logistics", "ai", "automation"],
   "author": "Prince Haul Intelligence",
   "license": "MIT"

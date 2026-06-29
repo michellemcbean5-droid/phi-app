@@ -1,20 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation, NativeStackNavigationProp } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PHI_COLORS } from '../assets/brandColors';
 import { RootStackParamList } from '../navigation/RootNavigator';
-import { TabParamList } from '../navigation/TabNavigator';
 import { rotateAPIKey } from '../utils/encryption';
 
 const keyNames = ['DAT_API_KEY', 'TWILIO_API_KEY', 'SAMSARA_API_KEY'] as const;
 
-type SettingsNavigationProp = CompositeNavigationProp<
-  BottomTabNavigationProp<TabParamList, 'Profile'>,
-  NativeStackNavigationProp<RootStackParamList>
->;
+type SettingsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Settings'>;
 
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsNavigationProp>();
@@ -39,7 +33,7 @@ export default function SettingsScreen() {
 
         <View style={styles.card}>
           <Text style={styles.title}>Subscription Tier</Text>
-          <Text style={styles.label}>Fleet • 10 AI workers unlocked</Text>
+          <Text style={styles.label}>Fleet  10 AI workers unlocked</Text>
           <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('Subscription')}>
             <Text style={styles.primaryButtonText}>Manage Subscription</Text>
           </TouchableOpacity>

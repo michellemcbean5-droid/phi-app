@@ -87,8 +87,8 @@ export default function AICommandCenterScreen() {
             <View style={styles.cardHeader}>
               <View style={styles.cardLeft}>
                 <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[worker.status] }]} />
-                <View>
-                  <Text style={styles.workerName}>{worker.name}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.workerRole}>{worker.role}</Text>
                   <Text style={styles.heartbeat}>⚡ {formatHeartbeat(worker.lastHeartbeat)}</Text>
                 </View>
               </View>
@@ -98,6 +98,9 @@ export default function AICommandCenterScreen() {
                 </Text>
               </View>
             </View>
+
+            <Text style={styles.workerDesc}>{worker.description}</Text>
+            <Text style={styles.aiPoweredBy}>Powered by: {worker.aiPoweredBy}</Text>
 
             <View style={styles.metricsRow}>
               <View style={styles.inlineMetric}>
@@ -149,7 +152,9 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   statusDot: { width: 10, height: 10, borderRadius: 5 },
-  workerName: { color: PHI_COLORS.white, fontSize: 15, fontWeight: '700' },
+  workerRole: { color: PHI_COLORS.white, fontSize: 14, fontWeight: '800' },
+  workerDesc: { color: '#A8B7D8', fontSize: 12, lineHeight: 18 },
+  aiPoweredBy: { color: PHI_COLORS.sunshineYellow, fontSize: 11, fontWeight: '700' },
   heartbeat: { color: '#C7D7FF', fontSize: 11, marginTop: 2 },
   statusBadge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   statusBadgeText: { fontWeight: '800', fontSize: 10 },

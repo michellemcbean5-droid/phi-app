@@ -3,6 +3,9 @@ export type WorkerStatus = 'active' | 'idle' | 'error';
 export interface WorkerBase {
   id: string;
   name: string;
+  role: string;
+  description: string;
+  aiPoweredBy: string;
   status: WorkerStatus;
   tasksToday: number;
   revenueImpact: number;
@@ -74,21 +77,126 @@ export interface Load {
 const buildWorker = <T extends WorkerDefinition>(worker: T): T => worker;
 
 export const WORKER_DEFINITIONS: WorkerDefinition[] = [
-  buildWorker({ id: 'load-finder', name: 'LoadFinderWorker', status: 'active', tasksToday: 18, revenueImpact: 1280, lastHeartbeat: new Date().toISOString() }),
-  buildWorker({ id: 'negotiation-strategy', name: 'NegotiationStrategyWorker', status: 'active', tasksToday: 12, revenueImpact: 940, lastHeartbeat: new Date().toISOString() }),
-  buildWorker({ id: 'route-analysis', name: 'RouteAnalysisWorker', status: 'active', tasksToday: 14, revenueImpact: 720, lastHeartbeat: new Date().toISOString() }),
-  buildWorker({ id: 'fuel-optimizer', name: 'FuelOptimizerWorker', status: 'active', tasksToday: 9, revenueImpact: 430, lastHeartbeat: new Date().toISOString() }),
-  buildWorker({ id: 'compliance-audit', name: 'ComplianceAuditWorker', status: 'idle', tasksToday: 5, revenueImpact: 0, lastHeartbeat: new Date().toISOString() }),
-  buildWorker({ id: 'auto-booking', name: 'AutoBookingEngine', status: 'active', tasksToday: 6, revenueImpact: 1650, lastHeartbeat: new Date().toISOString() }),
-  buildWorker({ id: 'load-scoring', name: 'LoadScoringWorker', status: 'active', tasksToday: 22, revenueImpact: 1080, lastHeartbeat: new Date().toISOString() }),
-  buildWorker({ id: 'profit-analyst', name: 'ProfitAnalystWorker', status: 'active', tasksToday: 11, revenueImpact: 860, lastHeartbeat: new Date().toISOString() }),
-  buildWorker({ id: 'driver-availability', name: 'DriverAvailabilityWorker', status: 'active', tasksToday: 8, revenueImpact: 390, lastHeartbeat: new Date().toISOString() }),
-  buildWorker({ id: 'market-analysis', name: 'MarketAnalysisWorker', status: 'idle', tasksToday: 7, revenueImpact: 0, lastHeartbeat: new Date().toISOString() }),
-  buildWorker({ id: 'document-processing', name: 'DocumentProcessingWorker', status: 'active', tasksToday: 15, revenueImpact: 510, lastHeartbeat: new Date().toISOString() }),
-  buildWorker({ id: 'social-scheduler', name: 'SocialSchedulerWorker', status: 'idle', tasksToday: 3, revenueImpact: 0, lastHeartbeat: new Date().toISOString() }),
-  buildWorker({ id: 'customer-support', name: 'CustomerSupportWorker', status: 'active', tasksToday: 19, revenueImpact: 275, lastHeartbeat: new Date().toISOString() }),
-  buildWorker({ id: 'analytics', name: 'AnalyticsWorker', status: 'active', tasksToday: 10, revenueImpact: 640, lastHeartbeat: new Date().toISOString() }),
-  buildWorker({ id: 'notification', name: 'NotificationWorker', status: 'active', tasksToday: 24, revenueImpact: 310, lastHeartbeat: new Date().toISOString() }),
+  buildWorker({
+    id: 'load-finder',
+    name: 'LoadFinderWorker',
+    role: '🔍 Load Scout',
+    description: 'Continuously scans DAT and Truckstop-style boards for loads matching your home base, equipment type, and RPM floor. Surfaces only pre-filtered, high-value opportunities.',
+    aiPoweredBy: 'Claude AI + DAT API',
+    status: 'active', tasksToday: 18, revenueImpact: 1280, lastHeartbeat: new Date().toISOString(),
+  }),
+  buildWorker({
+    id: 'negotiation-strategy',
+    name: 'NegotiationStrategyWorker',
+    role: '💬 Rate Negotiator',
+    description: 'Crafts broker-specific negotiation emails based on current market rates, load age, and broker history. Recommends walk-away rates and counter-offer tactics to maximize RPM.',
+    aiPoweredBy: 'Claude AI + Market Data',
+    status: 'active', tasksToday: 12, revenueImpact: 940, lastHeartbeat: new Date().toISOString(),
+  }),
+  buildWorker({
+    id: 'route-analysis',
+    name: 'RouteAnalysisWorker',
+    role: '🗺️ Route Optimizer',
+    description: 'Calculates truck-legal routes using OpenRouteService HGV routing, accounting for weight restrictions, bridge clearances, and HazMat zones. Returns true miles and deadhead cost.',
+    aiPoweredBy: 'OpenRouteService + Claude AI',
+    status: 'active', tasksToday: 14, revenueImpact: 720, lastHeartbeat: new Date().toISOString(),
+  }),
+  buildWorker({
+    id: 'fuel-optimizer',
+    name: 'FuelOptimizerWorker',
+    role: '⛽ Fuel Strategist',
+    description: 'Pulls live national diesel prices from EIA Open Data and identifies the cheapest fueling stops along your route. Calculates real fuel cost per load and toll corridor estimates.',
+    aiPoweredBy: 'EIA Open Data + Claude AI',
+    status: 'active', tasksToday: 9, revenueImpact: 430, lastHeartbeat: new Date().toISOString(),
+  }),
+  buildWorker({
+    id: 'compliance-audit',
+    name: 'ComplianceAuditWorker',
+    role: '📋 DOT Compliance Officer',
+    description: 'Monitors Hours of Service using real GPS clock-in timestamps. Flags HOS violations before they happen, audits daily transaction logs, and generates AI-powered DOT safety reports.',
+    aiPoweredBy: 'Claude AI + GPS (expo-location)',
+    status: 'idle', tasksToday: 5, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
+  }),
+  buildWorker({
+    id: 'auto-booking',
+    name: 'AutoBookingEngine',
+    role: '🤖 Auto Dispatcher',
+    description: 'When auto-book mode is ON, automatically books loads that exceed your RPM trigger — no driver action required. Sends push confirmation and logs the booking to your earnings.',
+    aiPoweredBy: 'Claude AI + Driver Prefs Store',
+    status: 'active', tasksToday: 6, revenueImpact: 1650, lastHeartbeat: new Date().toISOString(),
+  }),
+  buildWorker({
+    id: 'load-scoring',
+    name: 'LoadScoringWorker',
+    role: '⭐ Load Ranker',
+    description: 'Scores every available load on a 0–100 composite index using RPM, broker rating, deadhead miles, pickup urgency, and lane profitability. Drives the Diamond/Gold/Standard filter UI.',
+    aiPoweredBy: 'Scoring Algorithm + Claude AI',
+    status: 'active', tasksToday: 22, revenueImpact: 1080, lastHeartbeat: new Date().toISOString(),
+  }),
+  buildWorker({
+    id: 'profit-analyst',
+    name: 'ProfitAnalystWorker',
+    role: '💰 Profit Tracker',
+    description: 'Calculates net profit per load after fuel, tolls, maintenance reserves, and insurance proration. Tracks RPM trends, projects annual earnings, and flags loads that look good but run negative.',
+    aiPoweredBy: 'Profit Formula + Claude AI',
+    status: 'active', tasksToday: 11, revenueImpact: 860, lastHeartbeat: new Date().toISOString(),
+  }),
+  buildWorker({
+    id: 'driver-availability',
+    name: 'DriverAvailabilityWorker',
+    role: '⏱️ HOS Guardian',
+    description: 'Tracks remaining drive hours and rest resets in real time. Blocks load suggestions that would cause an HOS violation and alerts the driver when the warning threshold is approaching.',
+    aiPoweredBy: 'GPS Session Tracker + HOS Rules Engine',
+    status: 'active', tasksToday: 8, revenueImpact: 390, lastHeartbeat: new Date().toISOString(),
+  }),
+  buildWorker({
+    id: 'market-analysis',
+    name: 'MarketAnalysisWorker',
+    role: '📊 Market Intel',
+    description: 'Analyzes lane rate trends, seasonal demand patterns, and regional market conditions. Tells you when rates are rising or dropping so you know when to hold for better freight.',
+    aiPoweredBy: 'Claude AI + DAT Market Data',
+    status: 'idle', tasksToday: 7, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
+  }),
+  buildWorker({
+    id: 'document-processing',
+    name: 'DocumentProcessingWorker',
+    role: '📄 Doc Manager',
+    description: 'Manages BOL uploads, insurance certificates, registration renewals, and IFTA mileage logs. Sends expiry reminders and keeps your compliance documents audit-ready.',
+    aiPoweredBy: 'Claude AI + expo-document-picker',
+    status: 'active', tasksToday: 15, revenueImpact: 510, lastHeartbeat: new Date().toISOString(),
+  }),
+  buildWorker({
+    id: 'social-scheduler',
+    name: 'SocialSchedulerWorker',
+    role: '📣 Brand Builder',
+    description: 'Generates social posts and load updates for driver recruitment and brand building. Schedules content about your operation to attract brokers and shippers directly.',
+    aiPoweredBy: 'Claude AI',
+    status: 'idle', tasksToday: 3, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
+  }),
+  buildWorker({
+    id: 'customer-support',
+    name: 'CustomerSupportWorker',
+    role: '🎧 Broker Relations',
+    description: 'Manages broker communication threads, follows up on unpaid invoices, and escalates payment disputes. Keeps relationships warm even when you\'re on the road and unavailable.',
+    aiPoweredBy: 'Claude AI',
+    status: 'active', tasksToday: 19, revenueImpact: 275, lastHeartbeat: new Date().toISOString(),
+  }),
+  buildWorker({
+    id: 'analytics',
+    name: 'AnalyticsWorker',
+    role: '📈 Revenue Intelligence',
+    description: 'Aggregates all worker data into your earnings dashboard. Tracks weekly revenue vs targets, identifies your most profitable lanes and brokers, and generates monthly P&L snapshots.',
+    aiPoweredBy: 'Affiliate Tracker + Profit Formula',
+    status: 'active', tasksToday: 10, revenueImpact: 640, lastHeartbeat: new Date().toISOString(),
+  }),
+  buildWorker({
+    id: 'notification',
+    name: 'NotificationWorker',
+    role: '🔔 Alert System',
+    description: 'Delivers push alerts for new load matches, HOS warnings, auto-book confirmations, and compliance flags. Uses Expo Push Notifications — free, no third-party SMS cost.',
+    aiPoweredBy: 'Expo Push Notifications (free)',
+    status: 'active', tasksToday: 24, revenueImpact: 310, lastHeartbeat: new Date().toISOString(),
+  }),
 ];
 
 export class WorkerOrchestrator {

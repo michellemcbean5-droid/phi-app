@@ -1,7 +1,19 @@
+import useAPIKeyStore from '../store/apiKeyStore';
+
 const ANTHROPIC_BASE = 'https://api.anthropic.com/v1';
 const PHI_MODEL = 'claude-haiku-4-5-20251001';
 
-const getApiKey = (): string => process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '';
+const getApiKey = (): string => {
+  try {
+    const customerKey = useAPIKeyStore.getState().getEffectiveKey(
+      'anthropicKey',
+      process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '',
+    );
+    return customerKey;
+  } catch {
+    return process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '';
+  }
+};
 
 export interface ClaudeMessage {
   role: 'user' | 'assistant';

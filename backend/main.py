@@ -23,6 +23,11 @@ Endpoint map:
   GET  /api/v1/jobs/{job_id}          → Poll async job status
   GET  /api/v1/jobs                   → List all jobs (paginated)
 
+  PUT  /api/v1/drivers/{id}/fcm-token → Register driver FCM device token
+  POST /api/v1/notifications/load-locked  → Push: Freight Negotiator locked a load
+  POST /api/v1/notifications/hos-alert    → Push: HOS violation detected
+  POST /api/v1/notifications/emergency    → Push: Breakdown / OTR crisis alert
+
   WS   /ws/{driver_id}                → Live agent activity, GPS/ETA, in-cab AI chat
 
 Production note: Replace the in-memory _job_store dict with Redis + Celery or
@@ -49,6 +54,13 @@ from tasks import (
 )
 from agents import ALL_AGENTS, AGENT_GROUPS
 from app.websocket_manager import manager as ws_manager
+from app.database import SessionLocal, set_fcm_token, get_fcm_token
+
+try:
+    from services.push import notify_load_locked, notify_hos_violation, notify_emergency
+    _PUSH_AVAILABLE = True
+except ImportError:
+    _PUSH_AVAILABLE = False
 
 load_dotenv()
 
@@ -88,11 +100,14 @@ _job_store: dict[str, dict[str, Any]] = {}
 
 
 @app.on_event("startup")
-async def _bind_websocket_loop() -> None:
-    # CrewAI's task_callback fires from a worker thread; this lets it hop
-    # back onto the main event loop to broadcast over open WebSockets.
+async def _startup() -> None:
     import asyncio
+    from app.database import init_db
 
+    # Ensure all SQLAlchemy tables exist (SQLite dev + bare Postgres without schema.sql).
+    init_db()
+    # CrewAI task_callback fires from a worker thread; capture the main event loop
+    # so broadcast_to_driver_sync can hop back onto it.
     ws_manager.bind_loop(asyncio.get_running_loop())
 
 
@@ -278,6 +293,10 @@ class DeliveryConfirmation(BaseModel):
     factoring_company: str = Field(
         default="OTR Capital",
         description="Factoring company to submit invoice to"
+    )
+    factoring_email: str = Field(
+        default="",
+        description="Factoring company's invoice submission email (e.g. invoices@otrcapital.com)"
     )
     days_on_road: int = Field(
         default=1,
@@ -754,6 +773,173 @@ def post_delivery_sync(confirmation: DeliveryConfirmation):
     except Exception as exc:
         logger.error(f"[post-delivery/sync] Error: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DRIVER DEVICE MANAGEMENT & PUSH NOTIFICATION ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class FCMTokenUpdate(BaseModel):
+    token: str = Field(description="Firebase Cloud Messaging device registration token")
+
+
+class LoadLockedPayload(BaseModel):
+    driver_id: str
+    load_id: str
+    origin: str
+    destination: str
+    rpm: float = Field(gt=0)
+
+
+class HOSAlertPayload(BaseModel):
+    driver_id: str
+    hours_remaining: float = Field(ge=0, le=11)
+    violation_type: str = Field(default="11-Hour Driving Limit")
+
+
+class EmergencyPayload(BaseModel):
+    driver_id: str
+    load_id: str
+    summary: str = Field(description="Brief description of the breakdown or emergency")
+
+
+@app.put(
+    "/api/v1/drivers/{driver_id}/fcm-token",
+    tags=["drivers"],
+    summary="Register driver FCM device token",
+)
+def register_fcm_token(driver_id: str, body: FCMTokenUpdate):
+    """
+    Store the driver's Firebase Cloud Messaging device token so the backend
+    can send push notifications to their phone. Call this on every app launch
+    to handle token rotation.
+    """
+    db = SessionLocal()
+    try:
+        ok = set_fcm_token(db, driver_id, body.token)
+    finally:
+        db.close()
+
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"Driver '{driver_id}' not found.")
+    return {"status": "ok", "driver_id": driver_id, "token_registered": True}
+
+
+@app.post(
+    "/api/v1/notifications/load-locked",
+    tags=["notifications"],
+    summary="Push: Freight Negotiator locked a high-paying load",
+)
+def push_load_locked(payload: LoadLockedPayload):
+    """
+    Immediately push a 'load locked' alert to the driver's device.
+    Called by the Freight Negotiator workflow after successfully booking a load,
+    or triggered manually from an agent's tool.
+    Requires a valid FCM device token registered via PUT /api/v1/drivers/{id}/fcm-token.
+    """
+    if not _PUSH_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Push notifications not configured (firebase-admin not installed).")
+
+    db = SessionLocal()
+    try:
+        token = get_fcm_token(db, payload.driver_id)
+    finally:
+        db.close()
+
+    if not token:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No FCM token found for driver '{payload.driver_id}'. "
+                   "Register it with PUT /api/v1/drivers/{id}/fcm-token first.",
+        )
+
+    try:
+        msg_id = notify_load_locked(
+            token,
+            load_id=payload.load_id,
+            origin=payload.origin,
+            destination=payload.destination,
+            rpm=payload.rpm,
+        )
+    except Exception as exc:
+        logger.error("FCM load-locked push failed: %s", exc)
+        raise HTTPException(status_code=502, detail=f"FCM delivery failed: {exc}")
+
+    return {"status": "sent", "fcm_message_id": msg_id, "driver_id": payload.driver_id}
+
+
+@app.post(
+    "/api/v1/notifications/hos-alert",
+    tags=["notifications"],
+    summary="Push: Compliance Officer detected an HOS violation",
+)
+def push_hos_alert(payload: HOSAlertPayload):
+    """
+    Immediately push an Hours of Service (HOS) compliance alert to the driver.
+    Called automatically from agent_events.py when the DOT Compliance Auditor
+    flags a violation, or triggered manually from compliance monitoring tools.
+    """
+    if not _PUSH_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Push notifications not configured.")
+
+    db = SessionLocal()
+    try:
+        token = get_fcm_token(db, payload.driver_id)
+    finally:
+        db.close()
+
+    if not token:
+        raise HTTPException(status_code=404, detail=f"No FCM token for driver '{payload.driver_id}'.")
+
+    try:
+        msg_id = notify_hos_violation(
+            token,
+            hours_remaining=payload.hours_remaining,
+            violation_type=payload.violation_type,
+        )
+    except Exception as exc:
+        logger.error("FCM HOS push failed: %s", exc)
+        raise HTTPException(status_code=502, detail=f"FCM delivery failed: {exc}")
+
+    return {"status": "sent", "fcm_message_id": msg_id, "driver_id": payload.driver_id}
+
+
+@app.post(
+    "/api/v1/notifications/emergency",
+    tags=["notifications"],
+    summary="Push: Emergency Crisis Controller — breakdown or OTR crisis alert",
+)
+def push_emergency(payload: EmergencyPayload):
+    """
+    Immediately push a breakdown or over-the-road crisis alert to the driver.
+    Called by the 24/7 Emergency Crisis Controller when a critical situation
+    is detected (mechanical failure, accident, cargo issue, etc.).
+    This endpoint fires as high-priority FCM — the driver's phone sounds an
+    alert even in Do Not Disturb mode (subject to OS permissions).
+    """
+    if not _PUSH_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Push notifications not configured.")
+
+    db = SessionLocal()
+    try:
+        token = get_fcm_token(db, payload.driver_id)
+    finally:
+        db.close()
+
+    if not token:
+        raise HTTPException(status_code=404, detail=f"No FCM token for driver '{payload.driver_id}'.")
+
+    try:
+        msg_id = notify_emergency(token, load_id=payload.load_id, summary=payload.summary)
+    except Exception as exc:
+        logger.error("FCM emergency push failed: %s", exc)
+        raise HTTPException(status_code=502, detail=f"FCM delivery failed: {exc}")
+
+    logger.warning(
+        "EMERGENCY ALERT sent to driver %s for load %s: %s",
+        payload.driver_id, payload.load_id, payload.summary,
+    )
+    return {"status": "sent", "fcm_message_id": msg_id, "driver_id": payload.driver_id}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

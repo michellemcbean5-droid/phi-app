@@ -43,9 +43,13 @@ create table if not exists users (
                         check (subscription_tier in ('Solo', 'Fleet', 'Enterprise')),
   min_rpm             numeric(6,2) default 2.50,
   auto_book_enabled   boolean default false,
+  fcm_device_token    text,                        -- Firebase Cloud Messaging token for push alerts
   created_at          timestamptz not null default now(),
   updated_at          timestamptz not null default now()
 );
+
+-- Idempotent column add for databases created before fcm_device_token was introduced.
+alter table users add column if not exists fcm_device_token text;
 
 drop trigger if exists trg_users_updated_at on users;
 create trigger trg_users_updated_at

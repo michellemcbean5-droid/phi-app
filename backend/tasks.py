@@ -444,7 +444,7 @@ def build_dispatch_transit_crew(load: dict, driver: dict) -> Crew:
         ],
         process=Process.sequential,
         verbose=True,
-        task_callback=make_task_callback(driver.get("id"), load.get("id")),
+        task_callback=make_task_callback(driver.get("id"), load.get("id"), load_info=load),
     )
 
 

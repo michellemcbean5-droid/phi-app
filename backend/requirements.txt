@@ -20,6 +20,14 @@ pydantic-settings==2.6.0
 sqlalchemy==2.0.35
 aiosqlite==0.20.0
 
+# ─── Database (PostgreSQL driver for production) ──────────────────────────────
+psycopg2-binary==2.9.9
+
 # ─── Environment & HTTP ───────────────────────────────────────────────────────
 python-dotenv==1.0.1
 httpx==0.27.0
+
+# ─── Live Communication & Notifications ───────────────────────────────────────
+twilio==9.4.2
+sendgrid==6.11.0
+firebase-admin==6.5.0

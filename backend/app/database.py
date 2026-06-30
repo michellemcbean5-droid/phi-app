@@ -14,10 +14,16 @@ import uuid
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./phi.db")
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
-)
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,  # detect stale connections before handing them out
+        pool_recycle=3600,   # recycle connections after 1 hour to avoid server-side timeouts
+    )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -51,6 +57,7 @@ class User(Base):
     subscription_tier = Column(String, nullable=False, default="Solo")
     min_rpm = Column(Float, default=2.50)
     auto_book_enabled = Column(Boolean, default=False)
+    fcm_device_token = Column(String)  # Firebase Cloud Messaging token for push alerts
     created_at = Column(DateTime, default=_now)
     updated_at = Column(DateTime, default=_now, onupdate=_now)
 
@@ -153,6 +160,22 @@ class FinancialVault(Base):
             name="ck_financial_vault_factoring_status",
         ),
     )
+
+
+def get_fcm_token(db, driver_id: str) -> str | None:
+    """Look up a driver's FCM device token by their user ID. Returns None if not set."""
+    user = db.query(User).filter(User.id == driver_id).first()
+    return user.fcm_device_token if user else None
+
+
+def set_fcm_token(db, driver_id: str, token: str) -> bool:
+    """Persist a driver's FCM device token. Returns True on success."""
+    user = db.query(User).filter(User.id == driver_id).first()
+    if not user:
+        return False
+    user.fcm_device_token = token
+    db.commit()
+    return True
 
 
 def get_db():

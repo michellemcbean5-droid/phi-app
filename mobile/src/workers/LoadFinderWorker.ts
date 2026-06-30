@@ -103,12 +103,7 @@ export const aggregateLoads = async (client: AxiosStyleClient = mockClient): Pro
   filteredLoads.forEach((load) => {
     const score = scoreLoad(load);
     if (score === 'Diamond' || score === 'Gold') {
-      console.log('PHI_MESSAGE_BUS', {
-        target: 'NegotiationStrategyWorker',
-        loadId: load.id,
-        score,
-        preview: generateOutreachEmail(load, 'Balanced', score === 'Diamond' ? 'High' : 'Medium'),
-      });
+      generateOutreachEmail(load, 'Balanced', score === 'Diamond' ? 'High' : 'Medium');
     }
   });
 

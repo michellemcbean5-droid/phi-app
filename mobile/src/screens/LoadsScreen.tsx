@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
@@ -7,10 +7,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { PHI_COLORS } from '../assets/brandColors';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { TabParamList } from '../navigation/TabNavigator';
-import useLoadsStore from '../store/loadsStore';
+import useLoadsStore, { SortOption } from '../store/loadsStore';
 import { executeBooking } from '../workers/AutoBookingEngine';
 import { aggregateLoads } from '../workers/LoadFinderWorker';
-import { scoreLoad } from '../workers/LoadScoringWorker';
+import { scoreLoad, LoadScore } from '../workers/LoadScoringWorker';
 import { calculateDeadhead } from '../workers/RouteAnalysisWorker';
 import { Load } from '../workers/workers-15x';
 
@@ -21,15 +21,25 @@ type LoadsNavigationProp = CompositeNavigationProp<
 
 const currentLocation = { latitude: 32.7555, longitude: -97.3308 };
 
+const SCORE_FILTERS = ['All', 'Diamond', 'Gold', 'Standard'] as const;
+const SORT_OPTIONS: { label: string; value: SortOption }[] = [
+  { label: 'RPM', value: 'rpm' },
+  { label: 'Rate', value: 'rate' },
+  { label: 'Miles', value: 'miles' },
+];
+
 export default function LoadsScreen() {
   const navigation = useNavigation<LoadsNavigationProp>();
-  const { activeLoads, bookingState, setLoads, setBookingState } = useLoadsStore();
-  const [refreshing, setRefreshing] = useState(false);
+  const { activeLoads, bookingState, filter, sortBy, setLoads, setBookingState, setFilter, setSortBy } = useLoadsStore();
+  const [refreshing, setRefreshing] = React.useState(false);
 
-  const loadBoard = useMemo(
-    () => [...activeLoads].sort((left, right) => right.rpm - left.rpm),
-    [activeLoads],
-  );
+  const loadBoard = useMemo(() => {
+    const scored = activeLoads.filter((load) => {
+      if (filter === 'All') return true;
+      try { return scoreLoad(load) === (filter as LoadScore); } catch { return false; }
+    });
+    return [...scored].sort((a, b) => b[sortBy] - a[sortBy]);
+  }, [activeLoads, filter, sortBy]);
 
   const refreshLoads = useCallback(async (): Promise<void> => {
     setRefreshing(true);
@@ -68,10 +78,35 @@ export default function LoadsScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refreshLoads()} tintColor={PHI_COLORS.sunshineYellow} />}
         ListHeaderComponent={
-          <View style={styles.headerCard}>
-            <Text style={styles.headerTitle}>PHI Load Board</Text>
-            <Text style={styles.headerSubtitle}>Pull to refresh live dry van opportunities from DAT and Truckstop.</Text>
-          </View>
+          <>
+            <View style={styles.headerCard}>
+              <Text style={styles.headerTitle}>PHI Load Board</Text>
+              <Text style={styles.headerSubtitle}>Pull to refresh live dry van opportunities from DAT and Truckstop.</Text>
+            </View>
+            <View style={styles.controlRow}>
+              {SCORE_FILTERS.map((f) => (
+                <TouchableOpacity
+                  key={f}
+                  style={[styles.chip, filter === f && styles.chipActive]}
+                  onPress={() => setFilter(f)}
+                >
+                  <Text style={[styles.chipText, filter === f && styles.chipTextActive]}>{f}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.controlRow}>
+              <Text style={styles.sortLabel}>Sort:</Text>
+              {SORT_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.chip, sortBy === opt.value && styles.chipActive]}
+                  onPress={() => setSortBy(opt.value)}
+                >
+                  <Text style={[styles.chipText, sortBy === opt.value && styles.chipTextActive]}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
         }
         renderItem={({ item }) => {
           const loadScore = scoreLoad(item);
@@ -106,7 +141,13 @@ export default function LoadsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: PHI_COLORS.surface },
   content: { padding: 16, gap: 14 },
-  headerCard: { backgroundColor: PHI_COLORS.royalBlue, borderRadius: 18, padding: 18, marginBottom: 14 },
+  headerCard: { backgroundColor: PHI_COLORS.royalBlue, borderRadius: 18, padding: 18, marginBottom: 10 },
+  controlRow: { flexDirection: 'row', gap: 8, marginBottom: 10, alignItems: 'center', flexWrap: 'wrap' },
+  chip: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7, backgroundColor: PHI_COLORS.card, borderWidth: 1, borderColor: '#29508C' },
+  chipActive: { backgroundColor: PHI_COLORS.sunshineYellow, borderColor: PHI_COLORS.sunshineYellow },
+  chipText: { color: '#D7E3FF', fontWeight: '700', fontSize: 13 },
+  chipTextActive: { color: PHI_COLORS.charcoalBlack },
+  sortLabel: { color: '#D7E3FF', fontWeight: '700', fontSize: 13 },
   headerTitle: { color: PHI_COLORS.white, fontSize: 24, fontWeight: '900' },
   headerSubtitle: { color: '#E7EEFF', marginTop: 8, lineHeight: 20 },
   card: { backgroundColor: PHI_COLORS.card, borderRadius: 16, padding: 16, gap: 10, marginBottom: 14 },

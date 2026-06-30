@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DriverAvailability } from '../api/samsaraConnector';
 import { PHI_COLORS } from '../assets/brandColors';
@@ -22,6 +22,14 @@ const transactions: DailyTransaction[] = [
 export default function ComplianceScreen() {
   const report = useMemo(() => auditDailyTransactions(transactions, hosSnapshot), []);
 
+  const handleGenerateAuditReport = (): void => {
+    Alert.alert(
+      'DOT Audit Report',
+      `Safety Score: ${report.summary.safetyScore}%\nCompliant: ${report.compliant ? 'Yes' : 'No'}\nFlagged Loads: ${report.flaggedTransactions.length}\nTransactions: ${report.summary.totalTransactions}\nTotal Revenue: $${report.summary.totalRevenue}`,
+      [{ text: 'OK' }],
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -31,7 +39,7 @@ export default function ComplianceScreen() {
           <Text style={styles.heroSubtext}>On-duty: {hosSnapshot.availableOnDutyHours.toFixed(1)} hrs • Cycle: {hosSnapshot.cycleHoursRemaining.toFixed(1)} hrs</Text>
         </View>
 
-        <TouchableOpacity style={styles.auditButton}>
+        <TouchableOpacity style={styles.auditButton} onPress={handleGenerateAuditReport}>
           <Text style={styles.auditButtonText}>Generate DOT Audit Report</Text>
         </TouchableOpacity>
 

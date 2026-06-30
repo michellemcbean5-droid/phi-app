@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PHI_COLORS } from '../assets/brandColors';
 
@@ -9,17 +9,21 @@ const documents = [
   { id: 'doc-3', name: 'Insurance Certificate.pdf', status: 'Archived' },
 ];
 
+const showUploadPlaceholder = (type: string): void => {
+  Alert.alert('Upload Document', `${type} upload will open the camera or file picker in the production build.`, [{ text: 'OK' }]);
+};
+
 export default function DocumentsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <TouchableOpacity style={styles.uploadCard}>
+        <TouchableOpacity style={styles.uploadCard} onPress={() => showUploadPlaceholder('Bill of Lading')}>
           <Text style={styles.uploadTitle}>Upload Bill of Lading</Text>
-          <Text style={styles.uploadText}>Tap to add delivery paperwork placeholder</Text>
+          <Text style={styles.uploadText}>Tap to add delivery paperwork</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.uploadCard}>
+        <TouchableOpacity style={styles.uploadCard} onPress={() => showUploadPlaceholder('Rate Confirmation')}>
           <Text style={styles.uploadTitle}>Upload Rate Confirmation</Text>
-          <Text style={styles.uploadText}>Tap to add broker confirmation placeholder</Text>
+          <Text style={styles.uploadText}>Tap to add broker confirmation</Text>
         </TouchableOpacity>
 
         <View style={styles.listCard}>

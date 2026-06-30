@@ -2,10 +2,13 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { PHI_COLORS } from '../assets/brandColors';
 import AICommandCenterScreen from '../screens/AICommandCenterScreen';
+import APIKeysScreen from '../screens/APIKeysScreen';
 import ComplianceScreen from '../screens/ComplianceScreen';
 import DocumentsScreen from '../screens/DocumentsScreen';
+import DriverPrefsScreen from '../screens/DriverPrefsScreen';
 import LoadDetailsScreen from '../screens/LoadDetailsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import PromoCodeScreen from '../screens/PromoCodeScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import VehicleScreen from '../screens/VehicleScreen';
@@ -21,6 +24,9 @@ export type RootStackParamList = {
   Settings: undefined;
   Vehicle: undefined;
   Subscription: undefined;
+  PromoCode: undefined;
+  APIKeys: undefined;
+  DriverPrefs: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -44,6 +50,9 @@ export default function RootNavigator() {
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
       <Stack.Screen name="Vehicle" component={VehicleScreen} options={{ title: 'Vehicle' }} />
       <Stack.Screen name="Subscription" component={SubscriptionScreen} options={{ title: 'Subscription' }} />
+      <Stack.Screen name="PromoCode" component={PromoCodeScreen} options={{ title: 'Promo Codes' }} />
+      <Stack.Screen name="APIKeys" component={APIKeysScreen} options={{ title: 'API Keys' }} />
+      <Stack.Screen name="DriverPrefs" component={DriverPrefsScreen} options={{ title: 'AI Dispatcher Settings' }} />
     </Stack.Navigator>
   );
 }

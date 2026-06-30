@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { Ionicons } from '@expo/vector-icons';
+import { PHI_COLORS } from '../assets/brandColors';
 import useLoadsStore from '../store/loadsStore';
 import { Load } from '../workers/workers-15x';
 
@@ -57,7 +58,7 @@ export default function LoadDetailsScreen({ route }: Props) {
         
         {rows.map((r) => (
           <View key={r.label} style={styles.row}>
-            <Ionicons name={r.icon} size={20} color="#e94560" style={{ width: 28 }} />
+            <Ionicons name={r.icon} size={20} color={PHI_COLORS.sunshineYellow} style={{ width: 28 }} />
             <Text style={styles.label}>{r.label}</Text>
             <Text style={styles.value}>{r.value}</Text>
           </View>
@@ -68,11 +69,11 @@ export default function LoadDetailsScreen({ route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f3460' },
+  container: { flex: 1, backgroundColor: PHI_COLORS.surface },
   header: { marginBottom: 20, alignItems: 'center' },
-  loadId: { color: '#fff', fontSize: 24, fontWeight: 'bold', marginBottom: 5 },
-  status: { color: '#00C853', fontSize: 16, fontWeight: '600' },
-  row: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#16213e', borderRadius: 10, padding: 14, marginBottom: 10 },
-  label: { color: '#aaa', fontSize: 14, flex: 1, marginLeft: 4 },
-  value: { color: '#fff', fontSize: 14, fontWeight: '600', flex: 2, textAlign: 'right' },
+  loadId: { color: PHI_COLORS.white, fontSize: 24, fontWeight: '900', marginBottom: 5 },
+  status: { color: PHI_COLORS.moneyGreen, fontSize: 16, fontWeight: '700' },
+  row: { flexDirection: 'row', alignItems: 'center', backgroundColor: PHI_COLORS.card, borderRadius: 14, padding: 14, marginBottom: 10 },
+  label: { color: '#A8B7D8', fontSize: 14, flex: 1, marginLeft: 4 },
+  value: { color: PHI_COLORS.white, fontSize: 14, fontWeight: '700', flex: 2, textAlign: 'right' },
 });

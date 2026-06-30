@@ -38,7 +38,7 @@ export default function EarningsScreen() {
         <View style={styles.heroCard}>
           <Text style={styles.heroLabel}>Live Net Profit</Text>
           <Text style={styles.heroValue}>${profit.netProfit.toLocaleString()}</Text>
-          <Text style={styles.heroSubtext}>Margin {profit.profitMargin}% • Operating cost ${profit.operatingCost.toLocaleString()}</Text>
+          <Text style={styles.heroSubtext}>Margin {Math.round(profit.profitMargin)}% • Operating cost ${profit.operatingCost.toLocaleString()}</Text>
         </View>
 
         <View style={styles.sectionCard}>

@@ -1,3 +1,8 @@
+// Routing via OpenRouteService (free tier: 2,000 req/day — openrouteservice.org)
+// Falls back to haversine formula when EXPO_PUBLIC_ORS_API_KEY is not set.
+
+const ORS_BASE = 'https://api.openrouteservice.org/v2';
+
 export interface Coordinates {
   latitude: number;
   longitude: number;
@@ -11,37 +16,73 @@ export interface RouteWaypoint {
 export interface DistanceMatrixResult {
   distanceMiles: number;
   durationMinutes: number;
+  source: 'openrouteservice' | 'haversine';
 }
 
 const EARTH_RADIUS_MILES = 3958.8;
-
-const toRadians = (degrees: number): number => (degrees * Math.PI) / 180;
+const toRadians = (deg: number): number => (deg * Math.PI) / 180;
 
 const haversineMiles = (origin: Coordinates, destination: Coordinates): number => {
-  const latitudeDelta = toRadians(destination.latitude - origin.latitude);
-  const longitudeDelta = toRadians(destination.longitude - origin.longitude);
-  const latitude1 = toRadians(origin.latitude);
-  const latitude2 = toRadians(destination.latitude);
-
+  const dLat = toRadians(destination.latitude - origin.latitude);
+  const dLon = toRadians(destination.longitude - origin.longitude);
+  const lat1 = toRadians(origin.latitude);
+  const lat2 = toRadians(destination.latitude);
   const a =
-    Math.sin(latitudeDelta / 2) ** 2 +
-    Math.cos(latitude1) * Math.cos(latitude2) * Math.sin(longitudeDelta / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return EARTH_RADIUS_MILES * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
 
-  return EARTH_RADIUS_MILES * c;
+const haversineMatrix = (origin: Coordinates, destination: Coordinates): DistanceMatrixResult => {
+  const directMiles = haversineMiles(origin, destination);
+  const distanceMiles = Number((directMiles * 1.12).toFixed(2));
+  return {
+    distanceMiles,
+    durationMinutes: Math.round((distanceMiles / 55) * 60),
+    source: 'haversine',
+  };
 };
 
 export const fetchDistanceMatrix = async (
   origin: Coordinates,
   destination: Coordinates,
 ): Promise<DistanceMatrixResult> => {
-  const directMiles = haversineMiles(origin, destination);
-  const distanceMiles = Number((directMiles * 1.12).toFixed(2));
+  const key = process.env.EXPO_PUBLIC_ORS_API_KEY ?? '';
+  if (!key) return haversineMatrix(origin, destination);
 
-  return {
-    distanceMiles,
-    durationMinutes: Math.round((distanceMiles / 55) * 60),
-  };
+  try {
+    const response = await fetch(`${ORS_BASE}/matrix/driving-hgv`, {
+      method: 'POST',
+      headers: {
+        Authorization: key,
+        'Content-Type': 'application/json',
+        Accept: 'application/json, application/geo+json',
+      },
+      body: JSON.stringify({
+        locations: [
+          [origin.longitude, origin.latitude],
+          [destination.longitude, destination.latitude],
+        ],
+        metrics: ['distance', 'duration'],
+        units: 'mi',
+      }),
+    });
+
+    if (!response.ok) throw new Error(`ORS ${response.status}`);
+
+    const data = await response.json() as {
+      distances: number[][];
+      durations: number[][];
+    };
+
+    return {
+      distanceMiles: Number(data.distances[0][1].toFixed(2)),
+      durationMinutes: Math.round(data.durations[0][1] / 60),
+      source: 'openrouteservice',
+    };
+  } catch {
+    return haversineMatrix(origin, destination);
+  }
 };
 
 export const calculateMultiStopRoute = async (
@@ -54,16 +95,13 @@ export const calculateMultiStopRoute = async (
   let totalMiles = 0;
   let totalMinutes = 0;
 
-  for (let index = 0; index < waypoints.length - 1; index += 1) {
-    const leg = await fetchDistanceMatrix(waypoints[index].coordinates, waypoints[index + 1].coordinates);
+  for (let i = 0; i < waypoints.length - 1; i += 1) {
+    const leg = await fetchDistanceMatrix(waypoints[i].coordinates, waypoints[i + 1].coordinates);
     totalMiles += leg.distanceMiles;
     totalMinutes += leg.durationMinutes;
   }
 
-  return {
-    totalMiles: Number(totalMiles.toFixed(2)),
-    totalMinutes,
-  };
+  return { totalMiles: Number(totalMiles.toFixed(2)), totalMinutes };
 };
 
 export const calculateGPSDeadhead = async (

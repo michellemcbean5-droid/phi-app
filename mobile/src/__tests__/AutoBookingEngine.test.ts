@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('../api/twilioConnector', () => ({
+  sendLoadBookedSMS: vi.fn().mockResolvedValue({ success: true, sid: 'mock-sid', message: 'mocked' }),
+}));
 import { executeBooking } from '../workers/AutoBookingEngine';
 
 const mockLoad = {

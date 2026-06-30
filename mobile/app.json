@@ -34,6 +34,23 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0057FF",
+          "sounds": []
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "PHI uses your location to calculate deadhead miles and find nearby loads.",
+          "locationAlwaysAndWhenInUsePermission": "PHI uses your location in the background to track route progress and HOS drive time."
+        }
+      ]
+    ]
   }
 }

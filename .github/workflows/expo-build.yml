@@ -29,4 +29,6 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: npx eas build --platform android --profile preview --non-interactive
+        run: |
+          npx eas init --non-interactive --force 2>/dev/null || true
+          npx eas build --platform android --profile preview --non-interactive

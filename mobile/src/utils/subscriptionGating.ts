@@ -26,7 +26,7 @@ export const getWorkerLimit = (tier: UserTier): number => {
     case 'Fleet':
       return 10;
     case 'Enterprise':
-      return 15;
+      return 10;
     default: {
       const exhaustiveCheck: never = tier;
       return exhaustiveCheck;

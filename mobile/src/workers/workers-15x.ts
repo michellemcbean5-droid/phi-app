@@ -16,37 +16,27 @@ interface NamedWorker<Name extends string> extends WorkerBase {
   name: Name;
 }
 
-export interface LoadFinderWorker extends NamedWorker<'LoadFinderWorker'> {}
-export interface NegotiationStrategyWorker extends NamedWorker<'NegotiationStrategyWorker'> {}
-export interface RouteAnalysisWorker extends NamedWorker<'RouteAnalysisWorker'> {}
+export interface DispatchCoordinatorWorker extends NamedWorker<'DispatchCoordinatorWorker'> {}
+export interface FreightNegotiatorWorker extends NamedWorker<'FreightNegotiatorWorker'> {}
+export interface RouteOptimizerWorker extends NamedWorker<'RouteOptimizerWorker'> {}
+export interface ComplianceSafetyWorker extends NamedWorker<'ComplianceSafetyWorker'> {}
+export interface InvoiceSpecialistWorker extends NamedWorker<'InvoiceSpecialistWorker'> {}
 export interface FuelOptimizerWorker extends NamedWorker<'FuelOptimizerWorker'> {}
-export interface ComplianceAuditWorker extends NamedWorker<'ComplianceAuditWorker'> {}
-export interface AutoBookingEngine extends NamedWorker<'AutoBookingEngine'> {}
 export interface LoadScoringWorker extends NamedWorker<'LoadScoringWorker'> {}
 export interface ProfitAnalystWorker extends NamedWorker<'ProfitAnalystWorker'> {}
-export interface DriverAvailabilityWorker extends NamedWorker<'DriverAvailabilityWorker'> {}
-export interface MarketAnalysisWorker extends NamedWorker<'MarketAnalysisWorker'> {}
-export interface DocumentProcessingWorker extends NamedWorker<'DocumentProcessingWorker'> {}
-export interface SocialSchedulerWorker extends NamedWorker<'SocialSchedulerWorker'> {}
-export interface CustomerSupportWorker extends NamedWorker<'CustomerSupportWorker'> {}
-export interface AnalyticsWorker extends NamedWorker<'AnalyticsWorker'> {}
+export interface DocumentManagerWorker extends NamedWorker<'DocumentManagerWorker'> {}
 export interface NotificationWorker extends NamedWorker<'NotificationWorker'> {}
 
 export type WorkerDefinition =
-  | LoadFinderWorker
-  | NegotiationStrategyWorker
-  | RouteAnalysisWorker
+  | DispatchCoordinatorWorker
+  | FreightNegotiatorWorker
+  | RouteOptimizerWorker
+  | ComplianceSafetyWorker
+  | InvoiceSpecialistWorker
   | FuelOptimizerWorker
-  | ComplianceAuditWorker
-  | AutoBookingEngine
   | LoadScoringWorker
   | ProfitAnalystWorker
-  | DriverAvailabilityWorker
-  | MarketAnalysisWorker
-  | DocumentProcessingWorker
-  | SocialSchedulerWorker
-  | CustomerSupportWorker
-  | AnalyticsWorker
+  | DocumentManagerWorker
   | NotificationWorker;
 
 export interface LocationPoint {
@@ -78,124 +68,84 @@ const buildWorker = <T extends WorkerDefinition>(worker: T): T => worker;
 
 export const WORKER_DEFINITIONS: WorkerDefinition[] = [
   buildWorker({
-    id: 'load-finder',
-    name: 'LoadFinderWorker',
-    role: '🔍 Load Scout',
-    description: 'Continuously scans DAT and Truckstop-style boards for loads matching your home base, equipment type, and RPM floor. Surfaces only pre-filtered, high-value opportunities.',
-    aiPoweredBy: 'Claude AI + DAT API',
-    status: 'active', tasksToday: 18, revenueImpact: 1280, lastHeartbeat: new Date().toISOString(),
+    id: 'dispatch-coordinator',
+    name: 'DispatchCoordinatorWorker',
+    role: '📡 Dispatch Coordinator',
+    description: 'The command center. Acts as the main bridge between freight brokers and the truck on the road — assigning loads, confirming pickups, relaying delivery updates, and managing the full load lifecycle so the driver never has to chase a broker.',
+    aiPoweredBy: 'Claude AI + DAT API + Driver Prefs',
+    status: 'active', tasksToday: 24, revenueImpact: 1850, lastHeartbeat: new Date().toISOString(),
   }),
   buildWorker({
-    id: 'negotiation-strategy',
-    name: 'NegotiationStrategyWorker',
-    role: '💬 Rate Negotiator',
-    description: 'Crafts broker-specific negotiation emails based on current market rates, load age, and broker history. Recommends walk-away rates and counter-offer tactics to maximize RPM.',
-    aiPoweredBy: 'Claude AI + Market Data',
-    status: 'active', tasksToday: 12, revenueImpact: 940, lastHeartbeat: new Date().toISOString(),
+    id: 'freight-negotiator',
+    name: 'FreightNegotiatorWorker',
+    role: '💬 Freight Negotiator',
+    description: 'Scans DAT and Truckstop-style load boards 24/7. Analyzes live market rates by lane, bids on high-paying freight, and negotiates with human or AI brokers to secure the best rate per mile — without the driver lifting a finger.',
+    aiPoweredBy: 'Claude AI + DAT Market Data + Rate Analysis',
+    status: 'active', tasksToday: 18, revenueImpact: 1420, lastHeartbeat: new Date().toISOString(),
   }),
   buildWorker({
-    id: 'route-analysis',
-    name: 'RouteAnalysisWorker',
+    id: 'route-optimizer',
+    name: 'RouteOptimizerWorker',
     role: '🗺️ Route Optimizer',
-    description: 'Calculates truck-legal routes using OpenRouteService HGV routing, accounting for weight restrictions, bridge clearances, and HazMat zones. Returns true miles and deadhead cost.',
-    aiPoweredBy: 'OpenRouteService + Claude AI',
-    status: 'active', tasksToday: 14, revenueImpact: 720, lastHeartbeat: new Date().toISOString(),
+    description: 'Maps every trip using live traffic data, incoming weather storms, bridge height and weight restrictions, and HazMat zones. Delivers the fastest, safest, most fuel-efficient route possible — updated in real time as conditions change.',
+    aiPoweredBy: 'OpenRouteService HGV + Claude AI + Weather API',
+    status: 'active', tasksToday: 16, revenueImpact: 740, lastHeartbeat: new Date().toISOString(),
+  }),
+  buildWorker({
+    id: 'compliance-safety',
+    name: 'ComplianceSafetyWorker',
+    role: '🛡️ Compliance & Safety Officer',
+    description: 'Strictly monitors ELD data and enforces Hours of Service rules before violations happen. Handles IFTA fuel tax reporting, flags inspection risks, and keeps the entire operation DOT compliant — acting as a full-time safety auditor on every run.',
+    aiPoweredBy: 'Claude AI + ELD/GPS Session Tracker + HOS Rules Engine',
+    status: 'active', tasksToday: 12, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
+  }),
+  buildWorker({
+    id: 'invoice-specialist',
+    name: 'InvoiceSpecialistWorker',
+    role: '🧾 Finance & Invoice Specialist',
+    description: 'The moneymaker. The moment a load is delivered and the proof of delivery is signed, this agent instantly generates a professional invoice, submits it to factoring companies for same-day payment, and logs the accounts receivable — so cash hits the bank fast.',
+    aiPoweredBy: 'Claude AI + Stripe + Factoring Integration',
+    status: 'active', tasksToday: 9, revenueImpact: 2100, lastHeartbeat: new Date().toISOString(),
   }),
   buildWorker({
     id: 'fuel-optimizer',
     name: 'FuelOptimizerWorker',
-    role: '⛽ Fuel Strategist',
-    description: 'Pulls live national diesel prices from EIA Open Data and identifies the cheapest fueling stops along your route. Calculates real fuel cost per load and toll corridor estimates.',
-    aiPoweredBy: 'EIA Open Data + Claude AI',
-    status: 'active', tasksToday: 9, revenueImpact: 430, lastHeartbeat: new Date().toISOString(),
-  }),
-  buildWorker({
-    id: 'compliance-audit',
-    name: 'ComplianceAuditWorker',
-    role: '📋 DOT Compliance Officer',
-    description: 'Monitors Hours of Service using real GPS clock-in timestamps. Flags HOS violations before they happen, audits daily transaction logs, and generates AI-powered DOT safety reports.',
-    aiPoweredBy: 'Claude AI + GPS (expo-location)',
-    status: 'idle', tasksToday: 5, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
-  }),
-  buildWorker({
-    id: 'auto-booking',
-    name: 'AutoBookingEngine',
-    role: '🤖 Auto Dispatcher',
-    description: 'When auto-book mode is ON, automatically books loads that exceed your RPM trigger — no driver action required. Sends push confirmation and logs the booking to your earnings.',
-    aiPoweredBy: 'Claude AI + Driver Prefs Store',
-    status: 'active', tasksToday: 6, revenueImpact: 1650, lastHeartbeat: new Date().toISOString(),
+    role: '⛽ Fuel Optimizer',
+    description: 'Fuel is the biggest expense in trucking. This agent scans real-time diesel prices at every truck stop along the route, calculates the optimal fill-up strategy, and tells the driver exactly which stops to use — maximizing profit on every single mile.',
+    aiPoweredBy: 'EIA Open Data (live diesel prices) + Claude AI',
+    status: 'active', tasksToday: 11, revenueImpact: 510, lastHeartbeat: new Date().toISOString(),
   }),
   buildWorker({
     id: 'load-scoring',
     name: 'LoadScoringWorker',
-    role: '⭐ Load Ranker',
-    description: 'Scores every available load on a 0–100 composite index using RPM, broker rating, deadhead miles, pickup urgency, and lane profitability. Drives the Diamond/Gold/Standard filter UI.',
+    role: '⭐ Load Scorer',
+    description: 'Ranks every available load on a composite score using RPM, broker rating, deadhead miles, pickup urgency, and lane profitability history. Only surfaces Diamond and Gold-tier loads — filters out the junk automatically.',
     aiPoweredBy: 'Scoring Algorithm + Claude AI',
-    status: 'active', tasksToday: 22, revenueImpact: 1080, lastHeartbeat: new Date().toISOString(),
+    status: 'active', tasksToday: 22, revenueImpact: 980, lastHeartbeat: new Date().toISOString(),
   }),
   buildWorker({
     id: 'profit-analyst',
     name: 'ProfitAnalystWorker',
-    role: '💰 Profit Tracker',
-    description: 'Calculates net profit per load after fuel, tolls, maintenance reserves, and insurance proration. Tracks RPM trends, projects annual earnings, and flags loads that look good but run negative.',
+    role: '💰 Profit Analyst',
+    description: 'Tracks net profit per load after fuel, tolls, maintenance reserves, and insurance proration. Monitors RPM trends, flags loads that look good on paper but run negative, and projects annual earnings so the driver always knows where they stand.',
     aiPoweredBy: 'Profit Formula + Claude AI',
-    status: 'active', tasksToday: 11, revenueImpact: 860, lastHeartbeat: new Date().toISOString(),
+    status: 'active', tasksToday: 10, revenueImpact: 760, lastHeartbeat: new Date().toISOString(),
   }),
   buildWorker({
-    id: 'driver-availability',
-    name: 'DriverAvailabilityWorker',
-    role: '⏱️ HOS Guardian',
-    description: 'Tracks remaining drive hours and rest resets in real time. Blocks load suggestions that would cause an HOS violation and alerts the driver when the warning threshold is approaching.',
-    aiPoweredBy: 'GPS Session Tracker + HOS Rules Engine',
-    status: 'active', tasksToday: 8, revenueImpact: 390, lastHeartbeat: new Date().toISOString(),
-  }),
-  buildWorker({
-    id: 'market-analysis',
-    name: 'MarketAnalysisWorker',
-    role: '📊 Market Intel',
-    description: 'Analyzes lane rate trends, seasonal demand patterns, and regional market conditions. Tells you when rates are rising or dropping so you know when to hold for better freight.',
-    aiPoweredBy: 'Claude AI + DAT Market Data',
-    status: 'idle', tasksToday: 7, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
-  }),
-  buildWorker({
-    id: 'document-processing',
-    name: 'DocumentProcessingWorker',
-    role: '📄 Doc Manager',
-    description: 'Manages BOL uploads, insurance certificates, registration renewals, and IFTA mileage logs. Sends expiry reminders and keeps your compliance documents audit-ready.',
+    id: 'document-manager',
+    name: 'DocumentManagerWorker',
+    role: '📄 Document Manager',
+    description: 'Manages BOLs, PODs, insurance certificates, registration renewals, and IFTA mileage logs. Sends expiry alerts before documents lapse and keeps a fully audit-ready digital file — so the operation is never shut down over a missing paper.',
     aiPoweredBy: 'Claude AI + expo-document-picker',
-    status: 'active', tasksToday: 15, revenueImpact: 510, lastHeartbeat: new Date().toISOString(),
-  }),
-  buildWorker({
-    id: 'social-scheduler',
-    name: 'SocialSchedulerWorker',
-    role: '📣 Brand Builder',
-    description: 'Generates social posts and load updates for driver recruitment and brand building. Schedules content about your operation to attract brokers and shippers directly.',
-    aiPoweredBy: 'Claude AI',
-    status: 'idle', tasksToday: 3, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
-  }),
-  buildWorker({
-    id: 'customer-support',
-    name: 'CustomerSupportWorker',
-    role: '🎧 Broker Relations',
-    description: 'Manages broker communication threads, follows up on unpaid invoices, and escalates payment disputes. Keeps relationships warm even when you\'re on the road and unavailable.',
-    aiPoweredBy: 'Claude AI',
-    status: 'active', tasksToday: 19, revenueImpact: 275, lastHeartbeat: new Date().toISOString(),
-  }),
-  buildWorker({
-    id: 'analytics',
-    name: 'AnalyticsWorker',
-    role: '📈 Revenue Intelligence',
-    description: 'Aggregates all worker data into your earnings dashboard. Tracks weekly revenue vs targets, identifies your most profitable lanes and brokers, and generates monthly P&L snapshots.',
-    aiPoweredBy: 'Affiliate Tracker + Profit Formula',
-    status: 'active', tasksToday: 10, revenueImpact: 640, lastHeartbeat: new Date().toISOString(),
+    status: 'idle', tasksToday: 7, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
   }),
   buildWorker({
     id: 'notification',
     name: 'NotificationWorker',
     role: '🔔 Alert System',
-    description: 'Delivers push alerts for new load matches, HOS warnings, auto-book confirmations, and compliance flags. Uses Expo Push Notifications — free, no third-party SMS cost.',
+    description: 'The voice of all other agents. Delivers instant push alerts for new load matches, auto-book confirmations, HOS warnings, invoice payment received, and compliance flags — so the driver knows exactly what matters without checking every screen.',
     aiPoweredBy: 'Expo Push Notifications (free)',
-    status: 'active', tasksToday: 24, revenueImpact: 310, lastHeartbeat: new Date().toISOString(),
+    status: 'active', tasksToday: 28, revenueImpact: 310, lastHeartbeat: new Date().toISOString(),
   }),
 ];
 

@@ -41,7 +41,7 @@ const plans: Plan[] = [
     tier: 'Enterprise',
     price: '$399/mo',
     tagline: 'Full PHI intelligence stack for advanced operations.',
-    features: ['15 AI workers', 'Enterprise analytics', 'Priority AI support', 'Multi-driver dispatch', 'White-glove onboarding'],
+    features: ['All 10 AI workers', 'Enterprise analytics', 'Priority AI support', 'Multi-driver dispatch', 'White-glove onboarding'],
   },
 ];
 

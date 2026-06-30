@@ -7,14 +7,18 @@ import ComplianceScreen from '../screens/ComplianceScreen';
 import DocumentsScreen from '../screens/DocumentsScreen';
 import DriverPrefsScreen from '../screens/DriverPrefsScreen';
 import LoadDetailsScreen from '../screens/LoadDetailsScreen';
+import LoadingScreen from '../screens/LoadingScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import PromoCodeScreen from '../screens/PromoCodeScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import VehicleScreen from '../screens/VehicleScreen';
+import WelcomeScreen from '../screens/WelcomeScreen';
 import TabNavigator from './TabNavigator';
 
 export type RootStackParamList = {
+  Loading: undefined;
+  Welcome: undefined;
   Main: undefined;
   LoadDetails: { loadId: string };
   AICommandCenter: undefined;
@@ -34,6 +38,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export default function RootNavigator() {
   return (
     <Stack.Navigator
+      initialRouteName="Loading"
       screenOptions={{
         headerStyle: { backgroundColor: PHI_COLORS.royalBlue },
         headerTintColor: PHI_COLORS.white,
@@ -41,6 +46,8 @@ export default function RootNavigator() {
         contentStyle: { backgroundColor: PHI_COLORS.surface },
       }}
     >
+      <Stack.Screen name="Loading" component={LoadingScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Main" component={TabNavigator} options={{ headerShown: false }} />
       <Stack.Screen name="LoadDetails" component={LoadDetailsScreen} options={{ title: 'Load Details' }} />
       <Stack.Screen name="AICommandCenter" component={AICommandCenterScreen} options={{ title: 'AI Command Center' }} />

@@ -7,6 +7,7 @@ import DashboardScreen from '../screens/DashboardScreen';
 import EarningsScreen from '../screens/EarningsScreen';
 import LoadsScreen from '../screens/LoadsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import GameTabBar from './GameTabBar';
 
 export type TabParamList = {
   Dashboard: undefined;
@@ -21,6 +22,7 @@ const Tab = createBottomTabNavigator<TabParamList>();
 export default function TabNavigator() {
   return (
     <Tab.Navigator
+      tabBar={(props) => <GameTabBar {...props} />}
       screenOptions={({ route }) => ({
         headerStyle: { backgroundColor: PHI_COLORS.royalBlue },
         headerTintColor: PHI_COLORS.white,

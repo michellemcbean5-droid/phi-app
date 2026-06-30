@@ -10,6 +10,12 @@ import { RootStackParamList } from '../navigation/RootNavigator';
 import { TabParamList } from '../navigation/TabNavigator';
 import useWorkerStore from '../store/workerStore';
 import usePromoStore from '../store/promoStore';
+import RibbonBanner from '../components/game/RibbonBanner';
+import GlossyCard from '../components/game/GlossyCard';
+import EfficiencyDial from '../components/game/EfficiencyDial';
+import ProfitBarChart from '../components/game/ProfitBarChart';
+
+const PROFIT_TREND_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'];
 
 type DashboardNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Dashboard'>,
@@ -38,6 +44,8 @@ export default function DashboardScreen() {
   const netProfit = totalRevenue - totalRevenue * cpm;
   const trialActive = isTrialActive();
   const days = daysRemaining();
+  const efficiency = Math.round((activeWorkers / 10) * 100);
+  const profitTrend = [0.55, 0.68, 0.6, 0.78, 0.9, 1].map((factor) => Math.max(1, Math.round(netProfit * factor)));
 
   useEffect(() => {
     Animated.timing(slideAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
@@ -106,6 +114,16 @@ export default function DashboardScreen() {
             </View>
           </View>
         </View>
+
+        {/* Command Dashboard */}
+        <RibbonBanner title="Teamwork" style={styles.teamworkRibbon} />
+        <GlossyCard style={styles.teamworkCard}>
+          <EfficiencyDial value={efficiency} size={140} />
+          <View style={styles.teamworkDivider} />
+          <View style={styles.profitChartWrap}>
+            <ProfitBarChart values={profitTrend} labels={PROFIT_TREND_LABELS} height={120} />
+          </View>
+        </GlossyCard>
 
         {/* Primary Action: Find Freight */}
         <Animated.View style={{ transform: [{ scale: findingFreight ? pulseAnim : 1 }] }}>
@@ -200,6 +218,10 @@ const styles = StyleSheet.create({
   metricValue: { color: PHI_COLORS.white, fontSize: 18, fontWeight: '800' },
   metricLabel: { color: '#7F9FCC', fontSize: 11, marginTop: 3 },
   metricDivider: { width: 1, height: 36, backgroundColor: '#1E3A62' },
+  teamworkRibbon: { marginTop: 4 },
+  teamworkCard: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  teamworkDivider: { width: 1, alignSelf: 'stretch', backgroundColor: '#1E3A62' },
+  profitChartWrap: { flex: 1 },
   findFreightButton: { backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 20, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 14 },
   findFreightButtonActive: { backgroundColor: '#FFE878' },
   findFreightTitle: { color: PHI_COLORS.charcoalBlack, fontSize: 20, fontWeight: '900' },

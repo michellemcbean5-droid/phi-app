@@ -10,10 +10,14 @@ import { RootStackParamList } from '../navigation/RootNavigator';
 import { TabParamList } from '../navigation/TabNavigator';
 import useWorkerStore from '../store/workerStore';
 import usePromoStore from '../store/promoStore';
+import useAgentStore from '../store/agentStore';
+import useAuthStore from '../store/authStore';
+import { validateJWT } from '../middleware/authMiddleware';
 import RibbonBanner from '../components/game/RibbonBanner';
 import GlossyCard from '../components/game/GlossyCard';
 import EfficiencyDial from '../components/game/EfficiencyDial';
 import ProfitBarChart from '../components/game/ProfitBarChart';
+import CoinBurst from '../components/game/CoinBurst';
 
 const PROFIT_TREND_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'];
 
@@ -33,6 +37,8 @@ export default function DashboardScreen() {
   const navigation = useNavigation<DashboardNavigationProp>();
   const { workers, dailyRevenue } = useWorkerStore();
   const { activeTier, isTrialActive, daysRemaining } = usePromoStore();
+  const { token } = useAuthStore();
+  const { activityFeed, coinBurstSeq, connect, disconnect } = useAgentStore();
   const [findingFreight, setFindingFreight] = useState(false);
   const [tripActive, setTripActive] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -56,6 +62,14 @@ export default function DashboardScreen() {
       ]),
     ).start();
   }, [pulseAnim, slideAnim]);
+
+  useEffect(() => {
+    if (!token) return;
+    const payload = validateJWT(token);
+    if (!payload) return;
+    connect(payload.userId);
+    return () => disconnect();
+  }, [token, connect, disconnect]);
 
   const handleFindFreight = (): void => {
     setFindingFreight(true);
@@ -195,7 +209,21 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Live AI Activity Feed (backend WebSocket) */}
+        {activityFeed.length > 0 && (
+          <View style={styles.workerStrip}>
+            <Text style={styles.workerStripTitle}>Live AI Activity</Text>
+            {activityFeed.slice(0, 5).map((entry) => (
+              <View key={entry.id} style={styles.activityRow}>
+                <Text style={styles.activityAgent}>{entry.agentName}</Text>
+                <Text style={styles.activitySummary} numberOfLines={1}>{entry.summary}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
       </ScrollView>
+      <CoinBurst trigger={coinBurstSeq} />
     </SafeAreaView>
   );
 }
@@ -241,4 +269,7 @@ const styles = StyleSheet.create({
   workerRowName: { color: '#D7E3FF', fontSize: 13, flex: 1 },
   workerRowTasks: { color: '#7F9FCC', fontSize: 12 },
   viewAllLink: { color: PHI_COLORS.sunshineYellow, fontWeight: '700', fontSize: 13, marginTop: 4 },
+  activityRow: { gap: 1 },
+  activityAgent: { color: PHI_COLORS.sunshineYellow, fontWeight: '700', fontSize: 12 },
+  activitySummary: { color: '#D7E3FF', fontSize: 12 },
 });

@@ -23,6 +23,8 @@ Endpoint map:
   GET  /api/v1/jobs/{job_id}          → Poll async job status
   GET  /api/v1/jobs                   → List all jobs (paginated)
 
+  WS   /ws/{driver_id}                → Live agent activity, GPS/ETA, in-cab AI chat
+
 Production note: Replace the in-memory _job_store dict with Redis + Celery or
 ARQ for persistent, scalable async job management.
 """
@@ -34,7 +36,7 @@ from datetime import datetime, timezone
 from typing import Optional, Any
 from enum import Enum
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
@@ -46,6 +48,7 @@ from tasks import (
     build_post_delivery_crew,
 )
 from agents import ALL_AGENTS, AGENT_GROUPS
+from app.websocket_manager import manager as ws_manager
 
 load_dotenv()
 
@@ -82,6 +85,15 @@ app.add_middleware(
 
 # In-memory job store. Replace with Redis in production.
 _job_store: dict[str, dict[str, Any]] = {}
+
+
+@app.on_event("startup")
+async def _bind_websocket_loop() -> None:
+    # CrewAI's task_callback fires from a worker thread; this lets it hop
+    # back onto the main event loop to broadcast over open WebSockets.
+    import asyncio
+
+    ws_manager.bind_loop(asyncio.get_running_loop())
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -742,6 +754,29 @@ def post_delivery_sync(confirmation: DeliveryConfirmation):
     except Exception as exc:
         logger.error(f"[post-delivery/sync] Error: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# WEBSOCKET — LIVE AGENT ACTIVITY, GPS/ETA, AND IN-CAB AI CHAT
+# Persistent per-driver channel. The Driver Liaison and Track & Trace agents
+# (and the task_callback hooks in tasks.py) push events here as they happen —
+# REST polling can't keep up with live GPS pings or in-cab chat latency.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.websocket("/ws/{driver_id}")
+async def driver_websocket(websocket: WebSocket, driver_id: str):
+    await ws_manager.connect(driver_id, websocket)
+    try:
+        while True:
+            # Mobile client may send chat messages or location pings; for now
+            # we just echo an ack so the connection round-trips end to end.
+            data = await websocket.receive_json()
+            await ws_manager.broadcast_to_driver(
+                driver_id,
+                {"type": "ack", "received": data.get("type", "unknown")},
+            )
+    except WebSocketDisconnect:
+        ws_manager.disconnect(driver_id, websocket)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -32,6 +32,26 @@ jobs:
         env:
           EXPO_NO_DOTENV: 1
 
+      - name: Disable unused Fresco GIF/WebP decoders (app has no GIF/WebP assets)
+        working-directory: mobile/android
+        run: |
+          sed -i 's/expo.gif.enabled=true/expo.gif.enabled=false/' gradle.properties
+          sed -i 's/expo.webp.enabled=true/expo.webp.enabled=false/' gradle.properties
+
+      - name: Neutralize dead oss.sonatype.org snapshots repo
+        working-directory: mobile/android
+        run: |
+          mkdir -p ~/.gradle/init.d
+          cat > ~/.gradle/init.d/block-dead-sonatype.gradle << 'EOF'
+          allprojects {
+            repositories.all { repo ->
+              if (repo instanceof org.gradle.api.artifacts.repositories.MavenArtifactRepository && repo.url.toString().contains('oss.sonatype.org')) {
+                repo.content { it.excludeGroupByRegex(".*") }
+              }
+            }
+          }
+          EOF
+
       - name: Build debug APK
         working-directory: mobile/android
         run: |

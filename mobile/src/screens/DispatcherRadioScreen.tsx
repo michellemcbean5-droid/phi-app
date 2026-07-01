@@ -6,6 +6,7 @@ import * as Speech from 'expo-speech';
 import { PHI_COLORS } from '../assets/brandColors';
 import useRadioStore, { RadioMessage } from '../store/radioStore';
 import { getDispatcherReply } from '../workers/DispatcherRadioWorker';
+import useWorkerStore from '../store/workerStore';
 
 const SPEAKER_COLORS: Record<RadioMessage['speaker'], string> = {
   Dispatcher: PHI_COLORS.sunshineYellow,
@@ -42,7 +43,10 @@ export default function DispatcherRadioScreen() {
     addMessage('Driver', text);
     setTransmitting(true);
     getDispatcherReply(text)
-      .then((reply) => addMessage('Dispatcher', reply))
+      .then((reply) => {
+        addMessage('Dispatcher', reply);
+        useWorkerStore.getState().recordTaskCompletion('dispatch-coordinator', 0, 'Answered a call on the radio');
+      })
       .finally(() => setTransmitting(false));
   };
 

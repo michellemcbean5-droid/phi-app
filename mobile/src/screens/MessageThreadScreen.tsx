@@ -10,6 +10,7 @@ import { PHI_COLORS } from '../assets/brandColors';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import useInboxStore, { InboxMessage, DISPATCH_THREAD_ID } from '../store/inboxStore';
 import { getDispatcherReply } from '../workers/DispatcherRadioWorker';
+import useWorkerStore from '../store/workerStore';
 
 type ThreadRouteProp = RouteProp<RootStackParamList, 'MessageThread'>;
 
@@ -36,7 +37,10 @@ export default function MessageThreadScreen() {
     if (threadId === DISPATCH_THREAD_ID) {
       setSending(true);
       getDispatcherReply(text)
-        .then((reply) => sendMessage(threadId, 'them', reply))
+        .then((reply) => {
+          sendMessage(threadId, 'them', reply);
+          useWorkerStore.getState().recordTaskCompletion('dispatch-coordinator', 0, 'Replied in Messages');
+        })
         .finally(() => setSending(false));
     }
   };

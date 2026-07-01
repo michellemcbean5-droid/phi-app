@@ -51,7 +51,7 @@ export default function AICommandCenterScreen() {
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.title}>PHI AI Command Center</Text>
-            <Text style={styles.subtitle}>{activeWorkers}/15 workers active</Text>
+            <Text style={styles.subtitle}>{activeWorkers}/{workers.length} workers active</Text>
           </View>
           <Animated.View style={[styles.aiChip, { transform: [{ scale: pulseAnim }] }]}>
             <Text style={styles.aiChipText}>{aiPowered ? '🤖 Claude AI' : '📋 Standard'}</Text>

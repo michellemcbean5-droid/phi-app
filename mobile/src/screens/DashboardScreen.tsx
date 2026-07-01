@@ -10,9 +10,7 @@ import { RootStackParamList } from '../navigation/RootNavigator';
 import { TabParamList } from '../navigation/TabNavigator';
 import useWorkerStore from '../store/workerStore';
 import usePromoStore from '../store/promoStore';
-import useAgentStore from '../store/agentStore';
-import useAuthStore from '../store/authStore';
-import { validateJWT } from '../middleware/authMiddleware';
+import { fetchLiveDieselPrice } from '../utils/fuelOptimizer';
 import RibbonBanner from '../components/game/RibbonBanner';
 import GlossyCard from '../components/game/GlossyCard';
 import EfficiencyDial from '../components/game/EfficiencyDial';
@@ -20,6 +18,8 @@ import ProfitBarChart from '../components/game/ProfitBarChart';
 import CoinBurst from '../components/game/CoinBurst';
 
 const PROFIT_TREND_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'];
+const AVG_TRUCK_MPG = 6.5;
+const FALLBACK_CPM = 0.68;
 
 type DashboardNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Dashboard'>,
@@ -35,23 +35,27 @@ const GREETING = (() => {
 
 export default function DashboardScreen() {
   const navigation = useNavigation<DashboardNavigationProp>();
-  const { workers, dailyRevenue } = useWorkerStore();
+  const { workers, dailyRevenue, activityLog, coinBurstSeq } = useWorkerStore();
   const { activeTier, isTrialActive, daysRemaining } = usePromoStore();
-  const { token } = useAuthStore();
-  const { activityFeed, coinBurstSeq, connect, disconnect } = useAgentStore();
   const [findingFreight, setFindingFreight] = useState(false);
   const [tripActive, setTripActive] = useState(false);
+  const [cpm, setCpm] = useState(FALLBACK_CPM);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   const activeWorkers = workers.filter((w) => w.status === 'active').length;
   const totalRevenue = dailyRevenue;
-  const cpm = 0.68;
   const netProfit = totalRevenue - totalRevenue * cpm;
   const trialActive = isTrialActive();
   const days = daysRemaining();
   const efficiency = Math.round((activeWorkers / 10) * 100);
   const profitTrend = [0.55, 0.68, 0.6, 0.78, 0.9, 1].map((factor) => Math.max(1, Math.round(netProfit * factor)));
+
+  useEffect(() => {
+    fetchLiveDieselPrice()
+      .then((price) => setCpm(Number((price.nationalAverage / AVG_TRUCK_MPG).toFixed(2))))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     Animated.timing(slideAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
@@ -62,14 +66,6 @@ export default function DashboardScreen() {
       ]),
     ).start();
   }, [pulseAnim, slideAnim]);
-
-  useEffect(() => {
-    if (!token) return;
-    const payload = validateJWT(token);
-    if (!payload) return;
-    connect(payload.userId);
-    return () => disconnect();
-  }, [token, connect, disconnect]);
 
   const handleFindFreight = (): void => {
     setFindingFreight(true);
@@ -219,13 +215,13 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Live AI Activity Feed (backend WebSocket) */}
-        {activityFeed.length > 0 && (
+        {/* Live AI Activity Feed — real actions recorded as workers complete tasks */}
+        {activityLog.length > 0 && (
           <View style={styles.workerStrip}>
             <Text style={styles.workerStripTitle}>Live AI Activity</Text>
-            {activityFeed.slice(0, 5).map((entry) => (
+            {activityLog.slice(0, 5).map((entry) => (
               <View key={entry.id} style={styles.activityRow}>
-                <Text style={styles.activityAgent}>{entry.agentName}</Text>
+                <Text style={styles.activityAgent}>{entry.workerRole}</Text>
                 <Text style={styles.activitySummary} numberOfLines={1}>{entry.summary}</Text>
               </View>
             ))}

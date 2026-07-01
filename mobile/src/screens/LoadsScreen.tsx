@@ -16,6 +16,7 @@ import { aggregateLoads } from '../workers/LoadFinderWorker';
 import { scoreLoad, LoadScore } from '../workers/LoadScoringWorker';
 import { calculateDeadhead } from '../workers/RouteAnalysisWorker';
 import { Load } from '../workers/workers-15x';
+import useWorkerStore from '../store/workerStore';
 
 type LoadsNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Loads'>,
@@ -35,7 +36,7 @@ const SORT_OPTIONS: { label: string; value: SortOption }[] = [
 
 export default function LoadsScreen() {
   const navigation = useNavigation<LoadsNavigationProp>();
-  const { activeLoads, bookingState, filter, sortBy, setLoads, setBookingState, setFilter, setSortBy } = useLoadsStore();
+  const { activeLoads, bookingState, filter, sortBy, setLoads, setBookingState, addBookingRecord, setFilter, setSortBy } = useLoadsStore();
   const [refreshing, setRefreshing] = React.useState(false);
   const alertedLoadIds = useRef<Set<string>>(new Set());
 
@@ -72,6 +73,11 @@ export default function LoadsScreen() {
         if (distance <= NEARBY_ALERT_RADIUS_MILES) {
           alertedLoadIds.current.add(load.id);
           void sendNearbyLoadAlert(load.id, load.origin.city, distance, load.rate);
+          useWorkerStore.getState().recordTaskCompletion(
+            'track-trace',
+            0,
+            `Alerted you to ${load.id} — ${distance.toFixed(1)} mi away`,
+          );
         }
       } catch {
         // Skip this load's proximity check on error
@@ -99,6 +105,12 @@ export default function LoadsScreen() {
     const confirmation = await executeBooking(load, 82);
     setBookingState(load.id, confirmation.booked ? 'booked' : 'rejected');
     Alert.alert('Booking Update', confirmation.message);
+    if (confirmation.booked) {
+      const { recordTaskCompletion } = useWorkerStore.getState();
+      recordTaskCompletion('freight-negotiator', load.rate, `Booked ${load.id} at $${load.rate.toFixed(0)}`);
+      recordTaskCompletion('dispatch-coordinator', 0, `Confirmed pickup for ${load.id}`);
+      addBookingRecord({ id: load.id, rate: load.rate, miles: load.totalMiles, rpm: load.rpm, bookedAt: new Date().toISOString() });
+    }
   };
 
   return (

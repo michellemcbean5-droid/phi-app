@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { PHI_COLORS } from '../assets/brandColors';
 import useDocumentsStore, { GloveboxDoc } from '../store/documentsStore';
+import useWorkerStore from '../store/workerStore';
 
 const STATUS_COLORS: Record<GloveboxDoc['status'], string> = {
   'Current': PHI_COLORS.moneyGreen,
@@ -48,6 +49,13 @@ const captureDocument = async (label: string, type: GloveboxDoc['type']): Promis
   const store = useDocumentsStore.getState();
   const name = `${label} — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
   await store.addDocument(type, name, result.assets[0].uri);
+
+  const { recordTaskCompletion } = useWorkerStore.getState();
+  recordTaskCompletion('driver-liaison', 0, `Filed ${name} in your Virtual Glovebox`);
+  if (type === 'POD') {
+    recordTaskCompletion('invoice-specialist', 0, 'Signed POD ready for invoicing');
+  }
+
   return result.assets[0].uri;
 };
 

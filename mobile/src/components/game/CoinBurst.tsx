@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ParticleKind } from './FloatingParticles';
 
 interface CoinBurstProps {
-  /** Increment this to fire a new burst — e.g. agentStore's `coinBurstSeq`. */
+  /** Increment this to fire a new burst — e.g. workerStore's `coinBurstSeq`. */
   trigger: number;
   count?: number;
   kind?: ParticleKind;

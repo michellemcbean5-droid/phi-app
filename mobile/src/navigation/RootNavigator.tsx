@@ -4,10 +4,13 @@ import { PHI_COLORS } from '../assets/brandColors';
 import AICommandCenterScreen from '../screens/AICommandCenterScreen';
 import APIKeysScreen from '../screens/APIKeysScreen';
 import ComplianceScreen from '../screens/ComplianceScreen';
+import DispatcherRadioScreen from '../screens/DispatcherRadioScreen';
 import DocumentsScreen from '../screens/DocumentsScreen';
 import DriverPrefsScreen from '../screens/DriverPrefsScreen';
+import InboxScreen from '../screens/InboxScreen';
 import LoadDetailsScreen from '../screens/LoadDetailsScreen';
 import LoadingScreen from '../screens/LoadingScreen';
+import MessageThreadScreen from '../screens/MessageThreadScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import PromoCodeScreen from '../screens/PromoCodeScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -31,6 +34,9 @@ export type RootStackParamList = {
   PromoCode: undefined;
   APIKeys: undefined;
   DriverPrefs: undefined;
+  DispatcherRadio: undefined;
+  Inbox: undefined;
+  MessageThread: { threadId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -60,6 +66,9 @@ export default function RootNavigator() {
       <Stack.Screen name="PromoCode" component={PromoCodeScreen} options={{ title: 'Promo Codes' }} />
       <Stack.Screen name="APIKeys" component={APIKeysScreen} options={{ title: 'API Keys' }} />
       <Stack.Screen name="DriverPrefs" component={DriverPrefsScreen} options={{ title: 'AI Dispatcher Settings' }} />
+      <Stack.Screen name="DispatcherRadio" component={DispatcherRadioScreen} options={{ title: 'Dispatcher Radio' }} />
+      <Stack.Screen name="Inbox" component={InboxScreen} options={{ title: 'Messages' }} />
+      <Stack.Screen name="MessageThread" component={MessageThreadScreen} options={{ title: 'Conversation' }} />
     </Stack.Navigator>
   );
 }

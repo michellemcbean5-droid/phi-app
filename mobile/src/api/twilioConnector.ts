@@ -3,6 +3,7 @@
 // expo-notifications handles both local and remote push on Android/iOS.
 
 import * as Notifications from 'expo-notifications';
+import useRadioStore from '../store/radioStore';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -33,6 +34,7 @@ export const sendLoadBookedSMS = async (
   loadDetails: LoadBookedSMSDetails,
 ): Promise<{ success: boolean; sid: string; message: string }> => {
   const message = `PHI booked ${loadDetails.loadId}: ${loadDetails.origin} → ${loadDetails.destination} for $${loadDetails.rate.toFixed(0)}.`;
+  useRadioStore.getState().addMessage('Dispatcher', `Load booked — ${message}`);
 
   try {
     const granted = await requestNotificationPermission();
@@ -56,6 +58,7 @@ export const sendLoadBookedSMS = async (
 };
 
 export const sendComplianceAlert = async (alertMessage: string): Promise<void> => {
+  useRadioStore.getState().addMessage('Dispatcher', `Compliance check: ${alertMessage}`);
   try {
     const granted = await requestNotificationPermission();
     if (!granted) return;
@@ -97,6 +100,10 @@ export const sendNearbyLoadAlert = async (
   distanceMiles: number,
   rate: number,
 ): Promise<void> => {
+  useRadioStore.getState().addMessage(
+    'Dispatcher',
+    `Got one for you, driver — ${loadId} picking up in ${originCity}, ${distanceMiles.toFixed(0)} miles out, paying $${rate.toFixed(0)}. Copy?`,
+  );
   try {
     const granted = await requestNotificationPermission();
     if (!granted) return;

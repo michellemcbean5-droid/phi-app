@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ImageBackground, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -9,17 +9,23 @@ import useAuthStore from '../store/authStore';
 import { createDemoToken } from '../utils/demoAuth';
 
 type WelcomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
+type PendingAction = 'login' | 'getStarted' | null;
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<WelcomeNavigationProp>();
   const login = useAuthStore((state) => state.login);
+  const [pending, setPending] = useState<PendingAction>(null);
 
   const handleLogIn = (): void => {
+    if (pending) return;
+    setPending('login');
     login(createDemoToken());
     navigation.replace('Main');
   };
 
   const handleGetStarted = (): void => {
+    if (pending) return;
+    setPending('getStarted');
     login(createDemoToken());
     navigation.replace('DriverPrefs');
   };
@@ -32,8 +38,20 @@ export default function WelcomeScreen() {
     >
       <SafeAreaView style={styles.safe} edges={['bottom']}>
         <View style={styles.buttonRow}>
-          <GameButton label="Log In" variant="blue" onPress={handleLogIn} style={styles.buttonHalf} />
-          <GameButton label="Get Started" variant="green" onPress={handleGetStarted} style={styles.buttonHalf} />
+          <GameButton
+            label={pending === 'login' ? 'Logging in...' : 'Log In'}
+            variant="blue"
+            onPress={handleLogIn}
+            disabled={pending !== null}
+            style={styles.buttonHalf}
+          />
+          <GameButton
+            label={pending === 'getStarted' ? 'Starting...' : 'Get Started'}
+            variant="green"
+            onPress={handleGetStarted}
+            disabled={pending !== null}
+            style={styles.buttonHalf}
+          />
         </View>
       </SafeAreaView>
     </ImageBackground>

@@ -192,6 +192,16 @@ export default function DashboardScreen() {
             <Text style={styles.quickLabel}>Earnings</Text>
             <Text style={styles.quickSub}>P&L · CPM · Trends</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('DispatcherRadio')}>
+            <Ionicons name="radio-outline" size={26} color="#FF5252" />
+            <Text style={styles.quickLabel}>Dispatcher Radio</Text>
+            <Text style={styles.quickSub}>Push to talk</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('Inbox')}>
+            <Ionicons name="chatbubbles-outline" size={26} color="#9BE8FF" />
+            <Text style={styles.quickLabel}>Messages</Text>
+            <Text style={styles.quickSub}>Dispatch & brokers</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Worker Status Strip */}

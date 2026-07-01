@@ -88,13 +88,6 @@
           "cameraPermission": "PHI uses your camera to scan bills of lading and freight documents.",
           "photosPermission": "PHI accesses your photos to attach freight documents and proof-of-delivery images."
         }
-      ],
-      [
-        "expo-speech-recognition",
-        {
-          "microphonePermission": "PHI uses your microphone so you can talk to your AI dispatcher over the radio.",
-          "speechRecognitionPermission": "PHI converts your voice to text to talk to your AI dispatcher."
-        }
       ]
     ]
   }

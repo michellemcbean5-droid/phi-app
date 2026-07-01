@@ -81,6 +81,13 @@
           "locationWhenInUsePermission": "PHI uses your location to calculate deadhead miles and find nearby loads.",
           "locationAlwaysAndWhenInUsePermission": "PHI uses your location in the background to track route progress and HOS drive time."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "PHI uses your camera to scan bills of lading and freight documents.",
+          "photosPermission": "PHI accesses your photos to attach freight documents and proof-of-delivery images."
+        }
       ]
     ]
   }

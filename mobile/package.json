@@ -33,7 +33,6 @@
     "react-native-screens": "~4.4.0",
     "react-native-web": "~0.19.13",
     "zustand": "4.5.2",
-    "expo-camera": "~17.0.7",
     "expo-image-picker": "~17.0.7",
     "expo-file-system": "~19.0.11",
     "expo-speech": "~13.0.1",

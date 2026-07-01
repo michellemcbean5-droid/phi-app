@@ -13,3 +13,13 @@ package-lock.json
 
 # macOS
 .DS_Store
+
+# Secrets — never commit
+.env
+google-play-key.json
+*.keystore
+
+# EAS build artifacts
+build/
+android/
+ios/

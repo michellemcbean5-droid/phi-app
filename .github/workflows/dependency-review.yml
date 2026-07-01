@@ -26,6 +26,11 @@ permissions:
 jobs:
   dependency-review:
     runs-on: ubuntu-latest
+    # This action requires the repository's Dependency Graph feature to be
+    # enabled (Settings → Advanced Security → Dependency graph). Until that is
+    # on, the action errors out — keep the job non-blocking so it never gates a
+    # release. Once Dependency graph is enabled you can remove continue-on-error.
+    continue-on-error: true
     steps:
       - name: 'Checkout repository'
         uses: actions/checkout@v4

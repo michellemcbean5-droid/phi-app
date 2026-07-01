@@ -1,0 +1,93 @@
+name: Google Play Release
+
+# Builds the production Android App Bundle on EAS and submits it to the
+# Google Play *internal testing* track so it can be installed on a test device.
+#
+# Trigger this manually from the GitHub "Actions" tab (Run workflow).
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   EXPO_TOKEN                        - Expo access token (expo.dev → Account → Access tokens)
+#   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON  - full JSON of a Play Console service account
+#                                       with the "Release to testing tracks" permission
+on:
+  workflow_dispatch:
+    inputs:
+      submit:
+        description: 'Submit the build to Google Play internal track after building'
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Build & submit to Google Play
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Verify build inputs (typecheck + tests)
+        run: |
+          npx tsc --noEmit
+          npx vitest run
+
+      - name: Link EAS project
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_NO_GIT_STATUS: '1'
+        run: eas init --non-interactive --force
+
+      - name: Build production Android App Bundle
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_NO_GIT_STATUS: '1'
+        run: |
+          eas build \
+            --platform android \
+            --profile production \
+            --non-interactive \
+            --wait
+
+      - name: Write Google Play service account key
+        if: ${{ inputs.submit }}
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            echo "::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret is not set — cannot submit to Google Play."
+            exit 1
+          fi
+          printf '%s' "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" > google-play-key.json
+
+      - name: Submit latest build to Google Play (internal track)
+        if: ${{ inputs.submit }}
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_NO_GIT_STATUS: '1'
+        run: |
+          eas submit \
+            --platform android \
+            --profile production \
+            --latest \
+            --non-interactive
+
+      - name: Clean up service account key
+        if: ${{ always() }}
+        run: rm -f google-play-key.json

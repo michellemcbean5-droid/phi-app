@@ -60,10 +60,10 @@
     },
     "extra": {
       "eas": {
-        "projectId": "phi-app-production"
+        "projectId": "471882ad-082f-475b-9061-73bb7135c0ff"
       }
     },
-    "owner": "princehaulintelligence",
+    "owner": "mmcbean5",
     "privacy": "public",
     "platforms": ["android", "ios"],
     "plugins": [

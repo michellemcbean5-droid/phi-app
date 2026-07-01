@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build Android Debug APK
+    name: Build Android Release APK
     runs-on: ubuntu-latest
 
     steps:
@@ -52,12 +52,12 @@ jobs:
           }
           EOF
 
-      - name: Build debug APK
+      - name: Build release APK (bundles JS, no Metro/computer needed)
         working-directory: mobile/android
         run: |
           for attempt in 1 2 3; do
             echo "Build attempt $attempt of 3"
-            if ./gradlew assembleDebug --no-daemon; then
+            if ./gradlew assembleRelease --no-daemon; then
               exit 0
             fi
             echo "Attempt $attempt failed, retrying in 15s..."
@@ -70,6 +70,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: phi-app-debug
-          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          name: phi-app-release
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 14

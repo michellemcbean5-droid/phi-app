@@ -21,6 +21,23 @@ jobs:
         working-directory: mobile
         run: npm ci --legacy-peer-deps
 
+      - name: Make expo-modules-core publishing safe against missing release component
+        working-directory: mobile
+        run: |
+          python3 /dev/stdin << 'SCRIPT_EOF'
+          path = 'node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle'
+          with open(path) as f:
+              content = f.read()
+          old = "  project.afterEvaluate {\n    publishing {\n      publications {\n        release(MavenPublication) {\n          from components.release\n        }\n      }\n      repositories {\n        maven {\n          url = mavenLocal().url\n        }\n      }\n    }\n  }\n}"
+          new = "  project.afterEvaluate {\n    if (project.components.findByName('release') != null) {\n      publishing {\n        publications {\n          release(MavenPublication) {\n            from components.release\n          }\n        }\n        repositories {\n          maven {\n            url = mavenLocal().url\n          }\n        }\n      }\n    }\n  }\n}"
+          if old not in content:
+              raise SystemExit("PATTERN NOT FOUND - aborting so this does not silently no-op")
+          content = content.replace(old, new)
+          with open(path, 'w') as f:
+              f.write(content)
+          print("Patched useExpoPublishing to tolerate a missing release SoftwareComponent")
+          SCRIPT_EOF
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

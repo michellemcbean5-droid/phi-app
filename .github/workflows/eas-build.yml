@@ -32,10 +32,6 @@ jobs:
         env:
           EXPO_NO_DOTENV: 1
 
-      - name: Override Kotlin version for KSP compatibility
-        working-directory: mobile/android
-        run: echo "android.kotlinVersion=2.1.21" >> gradle.properties
-
       - name: Build debug APK
         working-directory: mobile/android
         run: ./gradlew assembleDebug --no-daemon

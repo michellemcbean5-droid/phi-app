@@ -34,9 +34,18 @@ jobs:
 
       - name: Build debug APK
         working-directory: mobile/android
-        run: ./gradlew assembleDebug --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            echo "Build attempt $attempt of 3"
+            if ./gradlew assembleDebug --no-daemon; then
+              exit 0
+            fi
+            echo "Attempt $attempt failed, retrying in 15s..."
+            sleep 15
+          done
+          exit 1
         env:
-          GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g
+          GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.internal.http.connectionTimeout=60000 -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.repository.max.retries=5
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

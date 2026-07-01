@@ -32,6 +32,10 @@ jobs:
         env:
           EXPO_NO_DOTENV: 1
 
+      - name: Patch Kotlin version for KSP compatibility
+        working-directory: mobile/android
+        run: sed -i 's/kotlinVersion = "1.9.25"/kotlinVersion = "2.1.21"/' build.gradle
+
       - name: Build debug APK
         working-directory: mobile/android
         run: ./gradlew assembleDebug --no-daemon

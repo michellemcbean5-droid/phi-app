@@ -52,12 +52,18 @@ jobs:
           }
           EOF
 
+      - name: Disable Gradle parallel project execution (works around AGP SoftwareComponent race)
+        working-directory: mobile/android
+        run: |
+          sed -i 's/org.gradle.parallel=true/org.gradle.parallel=false/' gradle.properties
+          grep parallel gradle.properties
+
       - name: Build release APK (bundles JS, no Metro/computer needed)
         working-directory: mobile/android
         run: |
           for attempt in 1 2 3; do
             echo "Build attempt $attempt of 3"
-            if ./gradlew assembleRelease --no-daemon; then
+            if ./gradlew assembleRelease --no-daemon --stacktrace; then
               exit 0
             fi
             echo "Attempt $attempt failed, retrying in 15s..."

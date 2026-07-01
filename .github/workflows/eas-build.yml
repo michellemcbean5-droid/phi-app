@@ -58,6 +58,12 @@ jobs:
           sed -i 's/org.gradle.parallel=true/org.gradle.parallel=false/' gradle.properties
           grep parallel gradle.properties
 
+      - name: Pin Android Gradle Plugin to a known-working version
+        working-directory: mobile/android
+        run: |
+          sed -i "s/classpath('com.android.tools.build:gradle')/classpath('com.android.tools.build:gradle:8.6.0')/" build.gradle
+          grep "com.android.tools.build:gradle" build.gradle
+
       - name: Build release APK (bundles JS, no Metro/computer needed)
         working-directory: mobile/android
         run: |

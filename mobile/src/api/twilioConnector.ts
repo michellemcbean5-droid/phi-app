@@ -90,3 +90,26 @@ export const sendWorkerStatusAlert = async (workerName: string, status: string):
     // Non-critical
   }
 };
+
+export const sendNearbyLoadAlert = async (
+  loadId: string,
+  originCity: string,
+  distanceMiles: number,
+  rate: number,
+): Promise<void> => {
+  try {
+    const granted = await requestNotificationPermission();
+    if (!granted) return;
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '📍 Load Nearby',
+        body: `${loadId} picking up in ${originCity}, ${distanceMiles.toFixed(0)} mi away — $${rate.toFixed(0)}.`,
+        data: { type: 'nearby-load', loadId },
+        color: '#00C853',
+      },
+      trigger: null,
+    });
+  } catch {
+    // Non-critical
+  }
+};

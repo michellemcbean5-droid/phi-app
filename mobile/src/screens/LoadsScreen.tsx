@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
@@ -8,6 +8,9 @@ import { PHI_COLORS } from '../assets/brandColors';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { TabParamList } from '../navigation/TabNavigator';
 import useLoadsStore, { SortOption } from '../store/loadsStore';
+import { getCurrentDriverLocation } from '../api/samsaraConnector';
+import { sendNearbyLoadAlert } from '../api/twilioConnector';
+import { calculateGPSDeadhead, Coordinates } from '../api/googleMapsConnector';
 import { executeBooking } from '../workers/AutoBookingEngine';
 import { aggregateLoads } from '../workers/LoadFinderWorker';
 import { scoreLoad, LoadScore } from '../workers/LoadScoringWorker';
@@ -19,7 +22,9 @@ type LoadsNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-const currentLocation = { latitude: 32.7555, longitude: -97.3308 };
+const FALLBACK_LOCATION: Coordinates = { latitude: 32.7555, longitude: -97.3308 };
+const NEARBY_ALERT_RADIUS_MILES = 25;
+const PROXIMITY_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
 const SCORE_FILTERS = ['All', 'Diamond', 'Gold', 'Standard'] as const;
 const SORT_OPTIONS: { label: string; value: SortOption }[] = [
@@ -32,6 +37,7 @@ export default function LoadsScreen() {
   const navigation = useNavigation<LoadsNavigationProp>();
   const { activeLoads, bookingState, filter, sortBy, setLoads, setBookingState, setFilter, setSortBy } = useLoadsStore();
   const [refreshing, setRefreshing] = React.useState(false);
+  const alertedLoadIds = useRef<Set<string>>(new Set());
 
   const loadBoard = useMemo(() => {
     const scored = activeLoads.filter((load) => {
@@ -55,8 +61,33 @@ export default function LoadsScreen() {
     void refreshLoads();
   }, [refreshLoads]);
 
+  const checkNearbyLoads = useCallback(async (): Promise<void> => {
+    const location = await getCurrentDriverLocation();
+    if (!location || activeLoads.length === 0) return;
+
+    for (const load of activeLoads) {
+      if (alertedLoadIds.current.has(load.id)) continue;
+      try {
+        const distance = await calculateGPSDeadhead(location, load.origin);
+        if (distance <= NEARBY_ALERT_RADIUS_MILES) {
+          alertedLoadIds.current.add(load.id);
+          void sendNearbyLoadAlert(load.id, load.origin.city, distance, load.rate);
+        }
+      } catch {
+        // Skip this load's proximity check on error
+      }
+    }
+  }, [activeLoads]);
+
+  useEffect(() => {
+    void checkNearbyLoads();
+    const interval = setInterval(() => void checkNearbyLoads(), PROXIMITY_CHECK_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [checkNearbyLoads]);
+
   const handleAnalyzeRoute = async (load: Load): Promise<void> => {
-    const analysis = await calculateDeadhead(currentLocation, load.origin, load.totalMiles);
+    const location = (await getCurrentDriverLocation()) ?? FALLBACK_LOCATION;
+    const analysis = await calculateDeadhead(location, load.origin, load.totalMiles);
     Alert.alert(
       'Route Analysis',
       `${load.id}: ${analysis.deadheadMiles.toFixed(1)} deadhead miles (${analysis.deadheadPercentage}%). ${analysis.rejected ? analysis.rejectionReason : 'Route approved.'}`,

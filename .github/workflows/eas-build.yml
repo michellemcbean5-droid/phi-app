@@ -21,6 +21,16 @@ jobs:
         working-directory: mobile
         run: npm ci --legacy-peer-deps
 
+      - name: Patch metro exports (expo-cli needs deep import metro's exports map blocks)
+        working-directory: mobile
+        run: |
+          node -e "
+          const fs = require('fs');
+          const p = JSON.parse(fs.readFileSync('node_modules/metro/package.json'));
+          p.exports['./src/*'] = './src/*.js';
+          fs.writeFileSync('node_modules/metro/package.json', JSON.stringify(p, null, 2));
+          "
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

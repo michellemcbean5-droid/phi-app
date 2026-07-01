@@ -88,6 +88,12 @@
           "cameraPermission": "PHI uses your camera to scan bills of lading and freight documents.",
           "photosPermission": "PHI accesses your photos to attach freight documents and proof-of-delivery images."
         }
+      ],
+      [
+        "react-native-iap",
+        {
+          "paymentProvider": "Play Store"
+        }
       ]
     ]
   }

@@ -1,7 +1,11 @@
 import useAPIKeyStore from '../store/apiKeyStore';
+import usePromoStore from '../store/promoStore';
+import { hasManagedAI } from '../utils/subscriptionGating';
 
 const ANTHROPIC_BASE = 'https://api.anthropic.com/v1';
 const PHI_MODEL = 'claude-haiku-4-5-20251001';
+const MANAGED_AI_PROXY_URL = process.env.EXPO_PUBLIC_MANAGED_AI_PROXY_URL ?? '';
+const MANAGED_AI_SHARED_SECRET = process.env.EXPO_PUBLIC_MANAGED_AI_SHARED_SECRET ?? '';
 
 const getApiKey = (): string => {
   try {
@@ -15,10 +19,38 @@ const getApiKey = (): string => {
   }
 };
 
+/** True once the app owner has deployed backend/managed-ai-proxy and set the env vars. */
+const managedAIAvailable = (): boolean => {
+  if (!MANAGED_AI_PROXY_URL || !MANAGED_AI_SHARED_SECRET) return false;
+  try {
+    return hasManagedAI(usePromoStore.getState().getEffectiveTier());
+  } catch {
+    return false;
+  }
+};
+
 export interface ClaudeMessage {
   role: 'user' | 'assistant';
   content: string;
 }
+
+const askViaManagedProxy = async (userPrompt: string, systemPrompt?: string, maxTokens = 512): Promise<string> => {
+  const response = await fetch(MANAGED_AI_PROXY_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-phi-shared-secret': MANAGED_AI_SHARED_SECRET },
+    body: JSON.stringify({ prompt: userPrompt, systemPrompt, maxTokens }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Managed AI ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json() as { content: Array<{ type: string; text: string }> };
+  const block = data.content.find((b) => b.type === 'text');
+  if (!block) throw new Error('No text content in Managed AI response.');
+  return block.text.trim();
+};
 
 export const askClaude = async (
   userPrompt: string,
@@ -26,7 +58,11 @@ export const askClaude = async (
   maxTokens = 512,
 ): Promise<string> => {
   const apiKey = getApiKey();
+
   if (!apiKey) {
+    if (managedAIAvailable()) {
+      return askViaManagedProxy(userPrompt, systemPrompt, maxTokens);
+    }
     throw new Error('No Claude API key set. Add your free API key in Settings to unlock AI features.');
   }
 
@@ -70,4 +106,4 @@ export const askClaudeJSON = async <T>(
   return JSON.parse(jsonStr) as T;
 };
 
-export const isClaudeConfigured = (): boolean => Boolean(getApiKey());
+export const isClaudeConfigured = (): boolean => Boolean(getApiKey()) || managedAIAvailable();

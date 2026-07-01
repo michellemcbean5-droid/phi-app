@@ -17,6 +17,8 @@ import { scoreLoad, LoadScore } from '../workers/LoadScoringWorker';
 import { calculateDeadhead } from '../workers/RouteAnalysisWorker';
 import { Load } from '../workers/workers-15x';
 import useWorkerStore from '../store/workerStore';
+import usePromoStore from '../store/promoStore';
+import { getProximityRefreshMinutes } from '../utils/subscriptionGating';
 
 type LoadsNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Loads'>,
@@ -25,7 +27,6 @@ type LoadsNavigationProp = CompositeNavigationProp<
 
 const FALLBACK_LOCATION: Coordinates = { latitude: 32.7555, longitude: -97.3308 };
 const NEARBY_ALERT_RADIUS_MILES = 25;
-const PROXIMITY_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
 const SCORE_FILTERS = ['All', 'Diamond', 'Gold', 'Standard'] as const;
 const SORT_OPTIONS: { label: string; value: SortOption }[] = [
@@ -37,8 +38,10 @@ const SORT_OPTIONS: { label: string; value: SortOption }[] = [
 export default function LoadsScreen() {
   const navigation = useNavigation<LoadsNavigationProp>();
   const { activeLoads, bookingState, filter, sortBy, setLoads, setBookingState, addBookingRecord, setFilter, setSortBy } = useLoadsStore();
+  const { getEffectiveTier } = usePromoStore();
   const [refreshing, setRefreshing] = React.useState(false);
   const alertedLoadIds = useRef<Set<string>>(new Set());
+  const proximityCheckIntervalMs = getProximityRefreshMinutes(getEffectiveTier()) * 60 * 1000;
 
   const loadBoard = useMemo(() => {
     const scored = activeLoads.filter((load) => {
@@ -87,9 +90,9 @@ export default function LoadsScreen() {
 
   useEffect(() => {
     void checkNearbyLoads();
-    const interval = setInterval(() => void checkNearbyLoads(), PROXIMITY_CHECK_INTERVAL_MS);
+    const interval = setInterval(() => void checkNearbyLoads(), proximityCheckIntervalMs);
     return () => clearInterval(interval);
-  }, [checkNearbyLoads]);
+  }, [checkNearbyLoads, proximityCheckIntervalMs]);
 
   const handleAnalyzeRoute = async (load: Load): Promise<void> => {
     const location = (await getCurrentDriverLocation()) ?? FALLBACK_LOCATION;

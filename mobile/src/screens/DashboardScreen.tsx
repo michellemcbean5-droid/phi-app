@@ -10,12 +10,16 @@ import { RootStackParamList } from '../navigation/RootNavigator';
 import { TabParamList } from '../navigation/TabNavigator';
 import useWorkerStore from '../store/workerStore';
 import usePromoStore from '../store/promoStore';
+import useLoadsStore from '../store/loadsStore';
 import { fetchLiveDieselPrice } from '../utils/fuelOptimizer';
+import { aggregateLoads } from '../workers/LoadFinderWorker';
+import { getTipOfTheDay, getRandomTip } from '../utils/driverTips';
 import RibbonBanner from '../components/game/RibbonBanner';
 import GlossyCard from '../components/game/GlossyCard';
 import EfficiencyDial from '../components/game/EfficiencyDial';
 import ProfitBarChart from '../components/game/ProfitBarChart';
 import CoinBurst from '../components/game/CoinBurst';
+import AnimatedPressable from '../components/game/AnimatedPressable';
 
 const PROFIT_TREND_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'];
 const AVG_TRUCK_MPG = 6.5;
@@ -36,10 +40,13 @@ const GREETING = (() => {
 export default function DashboardScreen() {
   const navigation = useNavigation<DashboardNavigationProp>();
   const { workers, dailyRevenue, activityLog, coinBurstSeq } = useWorkerStore();
-  const { activeTier, isTrialActive, daysRemaining } = usePromoStore();
+  const { isTrialActive, daysRemaining, getEffectiveTier } = usePromoStore();
+  const { setLoads } = useLoadsStore();
   const [findingFreight, setFindingFreight] = useState(false);
   const [tripActive, setTripActive] = useState(false);
   const [cpm, setCpm] = useState(FALLBACK_CPM);
+  const [tip, setTip] = useState(getTipOfTheDay());
+  const activeTier = getEffectiveTier();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -69,10 +76,13 @@ export default function DashboardScreen() {
 
   const handleFindFreight = (): void => {
     setFindingFreight(true);
-    setTimeout(() => {
-      setFindingFreight(false);
-      navigation.navigate('Loads');
-    }, 1800);
+    aggregateLoads()
+      .then((loads) => setLoads(loads))
+      .catch(() => {})
+      .finally(() => {
+        setFindingFreight(false);
+        navigation.navigate('Loads');
+      });
   };
 
   const handleStartTrip = (): void => {
@@ -125,6 +135,13 @@ export default function DashboardScreen() {
           </View>
         </View>
 
+        {/* Driver Tip of the Day */}
+        <TouchableOpacity style={styles.tipCard} onPress={() => setTip(getRandomTip(tip))}>
+          <Ionicons name="bulb-outline" size={20} color={PHI_COLORS.sunshineYellow} />
+          <Text style={styles.tipText}>{tip}</Text>
+          <Ionicons name="refresh-outline" size={16} color="#7F9FCC" />
+        </TouchableOpacity>
+
         {/* Command Dashboard */}
         <RibbonBanner title="Teamwork" style={styles.teamworkRibbon} />
         <GlossyCard style={styles.teamworkCard}>
@@ -168,36 +185,41 @@ export default function DashboardScreen() {
 
         {/* Quick Actions */}
         <View style={styles.quickGrid}>
-          <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('Documents')}>
+          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('Documents')}>
             <Ionicons name="folder-outline" size={26} color={PHI_COLORS.sunshineYellow} />
             <Text style={styles.quickLabel}>Virtual Glovebox</Text>
             <Text style={styles.quickSub}>BOL · POD · Permits</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('Compliance')}>
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('Compliance')}>
             <Ionicons name="shield-checkmark-outline" size={26} color={PHI_COLORS.moneyGreen} />
             <Text style={styles.quickLabel}>Compliance</Text>
             <Text style={styles.quickSub}>ELD · HOS · IFTA</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('AICommandCenter')}>
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('AICommandCenter')}>
             <Ionicons name="hardware-chip-outline" size={26} color="#7EA5FF" />
             <Text style={styles.quickLabel}>AI Workers</Text>
             <Text style={styles.quickSub}>{activeWorkers} active now</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('Earnings')}>
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('Earnings')}>
             <Ionicons name="trending-up-outline" size={26} color={PHI_COLORS.sunshineYellow} />
             <Text style={styles.quickLabel}>Earnings</Text>
             <Text style={styles.quickSub}>P&L · CPM · Trends</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('DispatcherRadio')}>
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('DispatcherRadio')}>
             <Ionicons name="radio-outline" size={26} color="#FF5252" />
             <Text style={styles.quickLabel}>Dispatcher Radio</Text>
             <Text style={styles.quickSub}>Push to talk</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('Inbox')}>
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('Inbox')}>
             <Ionicons name="chatbubbles-outline" size={26} color="#9BE8FF" />
             <Text style={styles.quickLabel}>Messages</Text>
             <Text style={styles.quickSub}>Dispatch & brokers</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('SupportChat')}>
+            <Ionicons name="chatbubble-ellipses-outline" size={26} color="#FFB6E1" />
+            <Text style={styles.quickLabel}>Ask Michelle</Text>
+            <Text style={styles.quickSub}>Support & how-to</Text>
+          </AnimatedPressable>
         </View>
 
         {/* Worker Status Strip */}
@@ -244,6 +266,8 @@ const styles = StyleSheet.create({
   tierPillText: { color: PHI_COLORS.charcoalBlack, fontWeight: '800', fontSize: 12 },
   trialBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 12, padding: 10 },
   trialBannerText: { color: PHI_COLORS.charcoalBlack, fontWeight: '800', fontSize: 13 },
+  tipCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: PHI_COLORS.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#29508C' },
+  tipText: { flex: 1, color: '#D7E3FF', fontSize: 12, lineHeight: 18 },
   commandPanel: { backgroundColor: '#0A1F3D', borderRadius: 22, padding: 22, gap: 4, borderWidth: 1, borderColor: '#1E3A62' },
   commandLabel: { color: '#7F9FCC', fontSize: 11, fontWeight: '700', letterSpacing: 1.5 },
   revenueValue: { color: PHI_COLORS.white, fontSize: 44, fontWeight: '900', marginTop: 4 },

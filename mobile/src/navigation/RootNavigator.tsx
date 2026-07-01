@@ -7,6 +7,7 @@ import ComplianceScreen from '../screens/ComplianceScreen';
 import DispatcherRadioScreen from '../screens/DispatcherRadioScreen';
 import DocumentsScreen from '../screens/DocumentsScreen';
 import DriverPrefsScreen from '../screens/DriverPrefsScreen';
+import EquipmentMarketplaceScreen from '../screens/EquipmentMarketplaceScreen';
 import InboxScreen from '../screens/InboxScreen';
 import LoadDetailsScreen from '../screens/LoadDetailsScreen';
 import LoadingScreen from '../screens/LoadingScreen';
@@ -15,6 +16,7 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import PromoCodeScreen from '../screens/PromoCodeScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
+import SupportChatScreen from '../screens/SupportChatScreen';
 import VehicleScreen from '../screens/VehicleScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import TabNavigator from './TabNavigator';
@@ -37,6 +39,8 @@ export type RootStackParamList = {
   DispatcherRadio: undefined;
   Inbox: undefined;
   MessageThread: { threadId: string };
+  EquipmentMarketplace: undefined;
+  SupportChat: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -69,6 +73,8 @@ export default function RootNavigator() {
       <Stack.Screen name="DispatcherRadio" component={DispatcherRadioScreen} options={{ title: 'Dispatcher Radio' }} />
       <Stack.Screen name="Inbox" component={InboxScreen} options={{ title: 'Messages' }} />
       <Stack.Screen name="MessageThread" component={MessageThreadScreen} options={{ title: 'Conversation' }} />
+      <Stack.Screen name="EquipmentMarketplace" component={EquipmentMarketplaceScreen} options={{ title: 'Truck & Van Marketplace' }} />
+      <Stack.Screen name="SupportChat" component={SupportChatScreen} options={{ title: 'Ask Michelle' }} />
     </Stack.Navigator>
   );
 }

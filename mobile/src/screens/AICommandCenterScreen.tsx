@@ -1,9 +1,15 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
 import { isClaudeConfigured } from '../api/claudeClient';
 import useWorkerStore from '../store/workerStore';
+import { RootStackParamList } from '../navigation/RootNavigator';
+
+type AICommandCenterNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const formatHeartbeat = (timestamp: string): string => {
   const diff = Date.now() - new Date(timestamp).getTime();
@@ -21,11 +27,13 @@ const STATUS_COLORS = {
 } as const;
 
 export default function AICommandCenterScreen() {
+  const navigation = useNavigation<AICommandCenterNavigationProp>();
   const { workers, dailyRevenue, startAllWorkers, stopAllWorkers, startWorker, stopWorker, updateHeartbeat } =
     useWorkerStore();
   const activeWorkers = workers.filter((w) => w.status === 'active').length;
   const aiPowered = isClaudeConfigured();
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [explainerVisible, setExplainerVisible] = useState(false);
 
   useEffect(() => {
     Animated.loop(
@@ -53,10 +61,21 @@ export default function AICommandCenterScreen() {
             <Text style={styles.title}>PHI AI Command Center</Text>
             <Text style={styles.subtitle}>{activeWorkers}/{workers.length} workers active</Text>
           </View>
-          <Animated.View style={[styles.aiChip, { transform: [{ scale: pulseAnim }] }]}>
-            <Text style={styles.aiChipText}>{aiPowered ? '🤖 Claude AI' : '📋 Standard'}</Text>
-          </Animated.View>
+          <TouchableOpacity onPress={() => setExplainerVisible(true)}>
+            <Animated.View style={[styles.aiChip, { transform: [{ scale: pulseAnim }] }]}>
+              <Text style={styles.aiChipText}>{aiPowered ? '🤖 Claude AI' : '📋 How this works'}</Text>
+            </Animated.View>
+          </TouchableOpacity>
         </View>
+
+        {!aiPowered && (
+          <TouchableOpacity style={styles.noKeyBanner} onPress={() => navigation.navigate('APIKeys')}>
+            <Ionicons name="key-outline" size={18} color={PHI_COLORS.charcoalBlack} />
+            <Text style={styles.noKeyBannerText}>
+              Workers are running on standard logic. Add a free API key to unlock full AI reasoning →
+            </Text>
+          </TouchableOpacity>
+        )}
 
         <View style={styles.metricsRow}>
           <View style={styles.metricCard}>
@@ -126,6 +145,40 @@ export default function AICommandCenterScreen() {
           </View>
         ))}
       </ScrollView>
+
+      <Modal visible={explainerVisible} animationType="slide" transparent onRequestClose={() => setExplainerVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>How the AI Workers Work</Text>
+              <TouchableOpacity onPress={() => setExplainerVisible(false)}>
+                <Ionicons name="close" size={24} color={PHI_COLORS.white} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              <Text style={styles.modalParagraph}>
+                These 10 workers aren't separate apps — they're built into PHI and quietly do real work as you drive:
+                booking loads, filing scanned documents, replying on the radio, and watching for nearby freight. Every
+                task and dollar shown here comes from something you actually did in the app, not a demo.
+              </Text>
+              <Text style={styles.modalParagraph}>
+                They need a free Anthropic API key to reason like a real dispatcher (Settings {'>'} My API Keys, about
+                2 minutes to set up). Without one, they still work using simpler built-in logic — just less smart.
+              </Text>
+              <Text style={styles.modalParagraph}>
+                Tap "Pause Worker" on any card to turn that automation off, or "Start All" to bring the whole team
+                back online.
+              </Text>
+              {workers.map((worker) => (
+                <View key={worker.id} style={styles.modalWorkerRow}>
+                  <Text style={styles.modalWorkerRole}>{worker.role}</Text>
+                  <Text style={styles.modalWorkerDesc}>{worker.description}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -164,4 +217,14 @@ const styles = StyleSheet.create({
   startButton: { backgroundColor: PHI_COLORS.moneyGreen, padding: 12, borderRadius: 12 },
   stopButton: { backgroundColor: '#1A2B45', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#3D5A8A' },
   actionText: { color: PHI_COLORS.white, fontWeight: '700', textAlign: 'center' },
+  noKeyBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 12, padding: 12 },
+  noKeyBannerText: { flex: 1, color: PHI_COLORS.charcoalBlack, fontWeight: '700', fontSize: 12 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalCard: { backgroundColor: PHI_COLORS.royalBlue, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '85%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  modalTitle: { color: PHI_COLORS.white, fontSize: 20, fontWeight: '900' },
+  modalParagraph: { color: '#D7E3FF', fontSize: 14, lineHeight: 21, marginBottom: 12 },
+  modalWorkerRow: { paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#1E3A62' },
+  modalWorkerRole: { color: PHI_COLORS.sunshineYellow, fontWeight: '800', fontSize: 13 },
+  modalWorkerDesc: { color: '#C7D7FF', fontSize: 12, marginTop: 2, lineHeight: 17 },
 });

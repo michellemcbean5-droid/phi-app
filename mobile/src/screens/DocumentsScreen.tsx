@@ -4,11 +4,18 @@ import {
   TouchableOpacity, View, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { PHI_COLORS } from '../assets/brandColors';
 import useDocumentsStore, { GloveboxDoc } from '../store/documentsStore';
 import useWorkerStore from '../store/workerStore';
+import usePromoStore from '../store/promoStore';
+import { getDocumentLimit } from '../utils/subscriptionGating';
+import { RootStackParamList } from '../navigation/RootNavigator';
+
+type DocumentsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Documents'>;
 
 const STATUS_COLORS: Record<GloveboxDoc['status'], string> = {
   'Current': PHI_COLORS.moneyGreen,
@@ -60,15 +67,32 @@ const captureDocument = async (label: string, type: GloveboxDoc['type']): Promis
 };
 
 export default function DocumentsScreen() {
+  const navigation = useNavigation<DocumentsNavigationProp>();
   const { documents, loaded, loadDocuments } = useDocumentsStore();
+  const { getEffectiveTier } = usePromoStore();
   const [processingPOD, setProcessingPOD] = useState(false);
   const [invoiceSent, setInvoiceSent] = useState(false);
+  const documentLimit = getDocumentLimit(getEffectiveTier());
 
   useEffect(() => {
     void loadDocuments();
   }, [loadDocuments]);
 
+  const checkDocumentLimit = (): boolean => {
+    if (documents.length < documentLimit) return true;
+    Alert.alert(
+      'Storage Limit Reached',
+      `The Free plan stores up to ${documentLimit} documents. Upgrade for unlimited storage.`,
+      [
+        { text: 'Not Now', style: 'cancel' },
+        { text: 'Upgrade Plan', onPress: () => navigation.navigate('Subscription') },
+      ],
+    );
+    return false;
+  };
+
   const handleOneTapPayday = (): void => {
+    if (!checkDocumentLimit()) return;
     Alert.alert(
       'One-Tap Payday',
       'Snap a photo of the signed Bill of Lading. It will be saved to your Virtual Glovebox and, once AI features are enabled, submitted for invoicing.',
@@ -94,6 +118,7 @@ export default function DocumentsScreen() {
   };
 
   const handleUpload = (label: string): void => {
+    if (!checkDocumentLimit()) return;
     const type = UPLOAD_TYPE_MAP[label] ?? 'BOL';
     void captureDocument(label, type);
   };

@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WORKER_DEFINITIONS, WorkerDefinition, WorkerStatus } from '../workers/workers-15x';
 
 export interface WorkerActivityEntry {
@@ -37,7 +39,9 @@ const updateWorkerStatus = (
       : worker,
   );
 
-const useWorkerStore = create<WorkerState>((set) => ({
+const useWorkerStore = create<WorkerState>()(
+  persist(
+    (set) => ({
   workers: WORKER_DEFINITIONS,
   dailyRevenue: WORKER_DEFINITIONS.reduce((sum, worker) => sum + worker.revenueImpact, 0),
   activityLog: [],
@@ -87,6 +91,9 @@ const useWorkerStore = create<WorkerState>((set) => ({
         coinBurstSeq: revenueImpact > 0 ? state.coinBurstSeq + 1 : state.coinBurstSeq,
       };
     }),
-}));
+    }),
+    { name: 'phi_worker_store', storage: createJSONStorage(() => AsyncStorage) },
+  ),
+);
 
 export default useWorkerStore;

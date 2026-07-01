@@ -1,0 +1,6 @@
+name = "phi-managed-ai-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Set these with: npx wrangler secret put ANTHROPIC_API_KEY
+#                 npx wrangler secret put PHI_SHARED_SECRET

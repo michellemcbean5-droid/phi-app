@@ -1,4 +1,4 @@
-import { Directory, File, Paths } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system';
 import { create } from 'zustand';
 
 export interface GloveboxDoc {
@@ -10,17 +10,18 @@ export interface GloveboxDoc {
   uri: string;
 }
 
-const docsDir = new Directory(Paths.document, 'phi_documents');
-const indexFile = new File(docsDir, 'index.json');
+const DOCS_DIR = `${FileSystem.documentDirectory}phi_documents/`;
+const INDEX_FILE = `${DOCS_DIR}index.json`;
 
-const ensureDir = (): void => {
-  if (!docsDir.exists) {
-    docsDir.create({ intermediates: true });
+const ensureDir = async (): Promise<void> => {
+  const info = await FileSystem.getInfoAsync(DOCS_DIR);
+  if (!info.exists) {
+    await FileSystem.makeDirectoryAsync(DOCS_DIR, { intermediates: true });
   }
 };
 
-const writeIndex = (documents: GloveboxDoc[]): void => {
-  indexFile.write(JSON.stringify(documents));
+const writeIndex = async (documents: GloveboxDoc[]): Promise<void> => {
+  await FileSystem.writeAsStringAsync(INDEX_FILE, JSON.stringify(documents));
 };
 
 interface DocumentsState {
@@ -37,9 +38,10 @@ const useDocumentsStore = create<DocumentsState>((set, get) => ({
 
   loadDocuments: async () => {
     try {
-      ensureDir();
-      if (indexFile.exists) {
-        const raw = await indexFile.text();
+      await ensureDir();
+      const info = await FileSystem.getInfoAsync(INDEX_FILE);
+      if (info.exists) {
+        const raw = await FileSystem.readAsStringAsync(INDEX_FILE);
         set({ documents: JSON.parse(raw) as GloveboxDoc[], loaded: true });
       } else {
         set({ loaded: true });
@@ -50,11 +52,11 @@ const useDocumentsStore = create<DocumentsState>((set, get) => ({
   },
 
   addDocument: async (type, name, sourceUri) => {
-    ensureDir();
+    await ensureDir();
     const id = `${Date.now()}`;
     const extension = sourceUri.split('.').pop() ?? 'jpg';
-    const destFile = new File(docsDir, `${id}.${extension}`);
-    new File(sourceUri).copy(destFile);
+    const destUri = `${DOCS_DIR}${id}.${extension}`;
+    await FileSystem.copyAsync({ from: sourceUri, to: destUri });
 
     const newDoc: GloveboxDoc = {
       id,
@@ -62,22 +64,22 @@ const useDocumentsStore = create<DocumentsState>((set, get) => ({
       type,
       status: 'Current',
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      uri: destFile.uri,
+      uri: destUri,
     };
 
     const updated = [newDoc, ...get().documents];
     set({ documents: updated });
-    writeIndex(updated);
+    await writeIndex(updated);
   },
 
   removeDocument: async (id) => {
     const target = get().documents.find((d) => d.id === id);
     const updated = get().documents.filter((d) => d.id !== id);
     set({ documents: updated });
-    writeIndex(updated);
+    await writeIndex(updated);
     if (target) {
       try {
-        new File(target.uri).delete();
+        await FileSystem.deleteAsync(target.uri, { idempotent: true });
       } catch {
         // Ignore
       }

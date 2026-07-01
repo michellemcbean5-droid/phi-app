@@ -1,10 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, ImageBackground, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import GradientBackground from '../components/game/GradientBackground';
-import FloatingParticles from '../components/game/FloatingParticles';
-import CrownTruckLogo from '../components/game/CrownTruckLogo';
 import { TYCOON_COLORS } from '../assets/brandColors';
 import { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -25,23 +22,23 @@ export default function LoadingScreen() {
   const barWidth = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
 
   return (
-    <GradientBackground variant="night">
-      <FloatingParticles count={6} kinds={['dollar']} />
-      <View style={styles.center}>
-        <CrownTruckLogo size={70} />
-      </View>
+    <ImageBackground
+      source={require('../../assets/branding/login-hero-alt.jpg')}
+      style={styles.background}
+      resizeMode="cover"
+    >
       <View style={styles.loadingArea}>
         <View style={styles.track}>
           <Animated.View style={[styles.fill, { width: barWidth }]} />
         </View>
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
-    </GradientBackground>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  background: { flex: 1, width: '100%', height: '100%', justifyContent: 'flex-end' },
   loadingArea: { paddingHorizontal: 48, paddingBottom: 64, alignItems: 'center', gap: 10 },
   track: {
     width: '100%',

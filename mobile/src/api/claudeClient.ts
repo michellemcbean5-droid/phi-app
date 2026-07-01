@@ -27,7 +27,7 @@ export const askClaude = async (
 ): Promise<string> => {
   const apiKey = getApiKey();
   if (!apiKey) {
-    throw new Error('EXPO_PUBLIC_ANTHROPIC_API_KEY is not configured.');
+    throw new Error('No Claude API key set. Add your free API key in Settings to unlock AI features.');
   }
 
   const response = await fetch(`${ANTHROPIC_BASE}/messages`, {

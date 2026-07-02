@@ -17,6 +17,7 @@ import PromoCodeScreen from '../screens/PromoCodeScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import SupportChatScreen from '../screens/SupportChatScreen';
+import TruckStopFinderScreen from '../screens/TruckStopFinderScreen';
 import VehicleScreen from '../screens/VehicleScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import TabNavigator from './TabNavigator';
@@ -41,6 +42,7 @@ export type RootStackParamList = {
   MessageThread: { threadId: string };
   EquipmentMarketplace: undefined;
   SupportChat: undefined;
+  TruckStopFinder: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -54,6 +56,7 @@ export default function RootNavigator() {
         headerTintColor: PHI_COLORS.white,
         headerTitleStyle: { fontWeight: 'bold' },
         contentStyle: { backgroundColor: PHI_COLORS.surface },
+        animation: 'slide_from_right',
       }}
     >
       <Stack.Screen name="Loading" component={LoadingScreen} options={{ headerShown: false }} />
@@ -74,7 +77,12 @@ export default function RootNavigator() {
       <Stack.Screen name="Inbox" component={InboxScreen} options={{ title: 'Messages' }} />
       <Stack.Screen name="MessageThread" component={MessageThreadScreen} options={{ title: 'Conversation' }} />
       <Stack.Screen name="EquipmentMarketplace" component={EquipmentMarketplaceScreen} options={{ title: 'Truck & Van Marketplace' }} />
-      <Stack.Screen name="SupportChat" component={SupportChatScreen} options={{ title: 'Ask Michelle' }} />
+      <Stack.Screen
+        name="SupportChat"
+        component={SupportChatScreen}
+        options={{ title: 'Ask Michelle', presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen name="TruckStopFinder" component={TruckStopFinderScreen} options={{ title: 'Truck Stops & Parking' }} />
     </Stack.Navigator>
   );
 }

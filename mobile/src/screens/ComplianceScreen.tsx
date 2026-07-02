@@ -4,18 +4,30 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { DriverAvailability, fetchHOSData } from '../api/samsaraConnector';
 import { PHI_COLORS } from '../assets/brandColors';
 import { auditDailyTransactions, DailyTransaction, runAIComplianceAudit } from '../workers/ComplianceAuditWorker';
+import useLoadsStore from '../store/loadsStore';
+import useWorkerStore from '../store/workerStore';
 
 const DRIVER_ID = 'driver-001';
-
-const transactions: DailyTransaction[] = [
-  { transactionId: 'txn-1', loadId: 'DAT-101', miles: 805, revenue: 2925, dutyHoursRequired: 9.8 },
-  { transactionId: 'txn-2', loadId: 'TS-301', miles: 545, revenue: 1765, dutyHoursRequired: 7.2 },
-];
+const AVG_ROAD_SPEED_MPH = 50;
+const LOAD_UNLOAD_HOURS = 1;
 
 export default function ComplianceScreen() {
+  const { bookingHistory } = useLoadsStore();
   const [hosSnapshot, setHosSnapshot] = useState<DriverAvailability | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
   const [aiRecommendations, setAiRecommendations] = useState<string[]>([]);
+
+  const transactions: DailyTransaction[] = useMemo(
+    () =>
+      bookingHistory.map((record) => ({
+        transactionId: record.id,
+        loadId: record.id,
+        miles: record.miles,
+        revenue: record.rate,
+        dutyHoursRequired: Number((record.miles / AVG_ROAD_SPEED_MPH + LOAD_UNLOAD_HOURS).toFixed(1)),
+      })),
+    [bookingHistory],
+  );
 
   useEffect(() => {
     void fetchHOSData(DRIVER_ID).then(setHosSnapshot).catch(() => {
@@ -33,7 +45,7 @@ export default function ComplianceScreen() {
   const report = useMemo(() => {
     if (!hosSnapshot) return null;
     return auditDailyTransactions(transactions, hosSnapshot);
-  }, [hosSnapshot]);
+  }, [hosSnapshot, transactions]);
 
   const handleGenerateAuditReport = async (): Promise<void> => {
     if (!hosSnapshot) return;
@@ -41,6 +53,7 @@ export default function ComplianceScreen() {
     try {
       const aiReport = await runAIComplianceAudit(transactions, hosSnapshot);
       setAiRecommendations(aiReport.recommendations);
+      useWorkerStore.getState().recordTaskCompletion('compliance-safety', 0, `Ran a DOT audit — safety score ${aiReport.summary.safetyScore}%`);
       Alert.alert(
         'DOT Audit Report',
         `Safety Score: ${aiReport.summary.safetyScore}%\nCompliant: ${aiReport.compliant ? 'Yes' : 'No'}\nFlagged Loads: ${aiReport.flaggedTransactions.length}\n\n${aiReport.aiRiskSummary}`,
@@ -125,6 +138,9 @@ export default function ComplianceScreen() {
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Load History Ledger</Text>
+          {transactions.length === 0 && (
+            <Text style={styles.sectionText}>No loads booked yet — book a load from the Loads tab to start tracking duty hours here.</Text>
+          )}
           {transactions.map((transaction) => (
             <View key={transaction.transactionId} style={styles.ledgerRow}>
               <View>

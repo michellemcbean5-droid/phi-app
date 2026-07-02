@@ -15,6 +15,7 @@ import {
 import { UserTier } from '../utils/subscriptionGating';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import usePromoStore from '../store/promoStore';
+import AnimatedPressable from '../components/game/AnimatedPressable';
 
 type SubscriptionNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Subscription'>;
 
@@ -243,7 +244,7 @@ export default function SubscriptionScreen() {
                   ✓  {feature}
                 </Text>
               ))}
-              <TouchableOpacity
+              <AnimatedPressable
                 style={[styles.ctaButton, highlighted && styles.highlightedButton, isSelected && styles.selectedButton]}
                 onPress={() => void handleChooseTier(plan.tier)}
                 disabled={isSelected || isPurchasing}
@@ -251,7 +252,7 @@ export default function SubscriptionScreen() {
                 <Text style={[styles.ctaText, isSelected && styles.selectedCtaText]}>
                   {isSelected ? 'Current Plan' : isPurchasing ? 'Opening Play Store…' : isPaid ? 'Subscribe' : 'Switch to Free'}
                 </Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
             </View>
           );
         })}

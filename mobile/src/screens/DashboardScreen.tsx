@@ -220,6 +220,11 @@ export default function DashboardScreen() {
             <Text style={styles.quickLabel}>Ask Michelle</Text>
             <Text style={styles.quickSub}>Support & how-to</Text>
           </AnimatedPressable>
+          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('TruckStopFinder')}>
+            <Ionicons name="speedometer-outline" size={26} color="#7EE787" />
+            <Text style={styles.quickLabel}>Truck Stops</Text>
+            <Text style={styles.quickSub}>Fuel · Parking · Weigh Stations</Text>
+          </AnimatedPressable>
         </View>
 
         {/* Worker Status Strip */}

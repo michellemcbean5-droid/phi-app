@@ -8,6 +8,7 @@ import { PHI_COLORS } from '../assets/brandColors';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import usePromoStore from '../store/promoStore';
 import useAPIKeyStore from '../store/apiKeyStore';
+import AnimatedPressable from '../components/game/AnimatedPressable';
 
 type SettingsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Settings'>;
 
@@ -21,7 +22,7 @@ interface NavRowProps {
 
 function NavRow({ icon, label, sublabel, badge, onPress }: NavRowProps) {
   return (
-    <TouchableOpacity style={styles.navRow} onPress={onPress}>
+    <AnimatedPressable style={styles.navRow} onPress={onPress} scaleTo={0.98}>
       <View style={styles.navIconWrap}>
         <Ionicons name={icon} size={20} color={PHI_COLORS.sunshineYellow} />
       </View>
@@ -35,7 +36,7 @@ function NavRow({ icon, label, sublabel, badge, onPress }: NavRowProps) {
         </View>
       ) : null}
       <Ionicons name="chevron-forward" size={16} color="#7F8FB3" />
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }
 

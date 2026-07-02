@@ -19,6 +19,7 @@ import { Load } from '../workers/workers-15x';
 import useWorkerStore from '../store/workerStore';
 import usePromoStore from '../store/promoStore';
 import { getProximityRefreshMinutes } from '../utils/subscriptionGating';
+import AnimatedPressable from '../components/game/AnimatedPressable';
 
 type LoadsNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Loads'>,
@@ -169,12 +170,12 @@ export default function LoadsScreen() {
               <Text style={styles.metaText}>Equipment: {item.equipmentType} • Miles: {item.totalMiles}</Text>
               <Text style={styles.bookingState}>Booking: {bookingState[item.id] ?? 'unbooked'}</Text>
               <View style={styles.buttonRow}>
-                <TouchableOpacity style={styles.primaryButton} onPress={() => void handleBookLoad(item)}>
+                <AnimatedPressable style={styles.primaryButton} onPress={() => void handleBookLoad(item)}>
                   <Text style={styles.primaryButtonText}>Book Load</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.secondaryButton} onPress={() => void handleAnalyzeRoute(item)}>
+                </AnimatedPressable>
+                <AnimatedPressable style={styles.secondaryButton} onPress={() => void handleAnalyzeRoute(item)}>
                   <Text style={styles.secondaryButtonText}>Analyze Route</Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
               </View>
             </TouchableOpacity>
           );

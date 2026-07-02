@@ -57,8 +57,8 @@ export default function AICommandCenterScreen() {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.title}>PHI AI Command Center</Text>
+          <View style={styles.headerTextWrap}>
+            <Text style={styles.title}>AI Command Center</Text>
             <Text style={styles.subtitle}>{activeWorkers}/{workers.length} workers active</Text>
           </View>
           <TouchableOpacity onPress={() => setExplainerVisible(true)}>
@@ -186,8 +186,9 @@ export default function AICommandCenterScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: PHI_COLORS.royalBlue },
   content: { padding: 16, gap: 14 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  title: { color: PHI_COLORS.white, fontSize: 24, fontWeight: '800' },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 },
+  headerTextWrap: { flexShrink: 1 },
+  title: { color: PHI_COLORS.white, fontSize: 22, fontWeight: '800' },
   subtitle: { color: PHI_COLORS.sunshineYellow, fontSize: 13, marginTop: 4 },
   aiChip: { backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   aiChipText: { color: PHI_COLORS.charcoalBlack, fontWeight: '800', fontSize: 12 },

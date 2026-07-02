@@ -6,6 +6,11 @@ import { PHI_COLORS } from '../assets/brandColors';
 import { getCurrentDriverLocation } from '../api/samsaraConnector';
 import { findNearbyTruckStops, TruckStopKind, TruckStopPOI } from '../api/truckStopFinder';
 
+const LOCATION_TIMEOUT_MS = 15000;
+
+const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T | null> =>
+  Promise.race([promise, new Promise<null>((resolve) => setTimeout(() => resolve(null), ms))]);
+
 const KIND_ICONS: Record<TruckStopKind, keyof typeof Ionicons.glyphMap> = {
   'Fuel / Truck Stop': 'speedometer-outline',
   'Truck Parking': 'car-outline',
@@ -29,13 +34,13 @@ export default function TruckStopFinderScreen() {
   const load = useCallback(async (): Promise<void> => {
     setLoading(true);
     setErrored(false);
-    const location = await getCurrentDriverLocation();
+    const location = await withTimeout(getCurrentDriverLocation(), LOCATION_TIMEOUT_MS);
     if (!location) {
       setErrored(true);
       setLoading(false);
       return;
     }
-    const results = await findNearbyTruckStops(location, 30);
+    const results = await withTimeout(findNearbyTruckStops(location, 30), LOCATION_TIMEOUT_MS) ?? [];
     setStops(results);
     setLoading(false);
   }, []);
@@ -73,7 +78,7 @@ export default function TruckStopFinderScreen() {
         </View>
       ) : errored ? (
         <View style={styles.center}>
-          <Text style={styles.centerText}>Enable location access to find nearby truck stops and parking.</Text>
+          <Text style={styles.centerText}>Couldn't get your location — enable location access, check your GPS signal, or try again.</Text>
           <TouchableOpacity style={styles.retryButton} onPress={() => void load()}>
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>

@@ -7,15 +7,21 @@ import {
   TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
 import useDriverPrefsStore, { EquipmentPref } from '../store/driverPrefsStore';
+import { RootStackParamList } from '../navigation/RootNavigator';
+
+type DriverPrefsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const EQUIPMENT_OPTIONS: EquipmentPref[] = ['Dry Van', 'Reefer', 'Flatbed', 'Any'];
 
 const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 
 export default function DriverPrefsScreen() {
+  const navigation = useNavigation<DriverPrefsNavigationProp>();
   const { prefs, updatePref, resetPrefs } = useDriverPrefsStore();
 
   const toggleState = (state: string, list: 'preferredStates' | 'avoidStates') => {
@@ -222,6 +228,10 @@ export default function DriverPrefsScreen() {
           </View>
         </View>
 
+        <TouchableOpacity style={styles.continueButton} onPress={() => navigation.navigate('Main')}>
+          <Text style={styles.continueText}>Continue to Dashboard →</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.resetButton} onPress={resetPrefs}>
           <Text style={styles.resetText}>Reset to PHI Defaults</Text>
         </TouchableOpacity>
@@ -255,6 +265,8 @@ const styles = StyleSheet.create({
   stateChipAvoided: { backgroundColor: '#FF525233', borderColor: '#FF5252' },
   stateText: { color: '#D7E3FF', fontWeight: '700', fontSize: 11 },
   stateTextActive: { color: PHI_COLORS.white },
+  continueButton: { backgroundColor: PHI_COLORS.moneyGreen, borderRadius: 14, padding: 16 },
+  continueText: { color: PHI_COLORS.charcoalBlack, textAlign: 'center', fontWeight: '900', fontSize: 16 },
   resetButton: { borderWidth: 1, borderColor: '#29508C', borderRadius: 14, padding: 14 },
   resetText: { color: '#A8B7D8', textAlign: 'center', fontWeight: '700' },
 });

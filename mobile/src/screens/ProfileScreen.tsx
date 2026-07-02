@@ -9,6 +9,9 @@ import { PHI_COLORS } from '../assets/brandColors';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { TabParamList } from '../navigation/TabNavigator';
 import useAuthStore from '../store/authStore';
+import useProfileStore from '../store/profileStore';
+import useLoadsStore from '../store/loadsStore';
+import useDocumentsStore from '../store/documentsStore';
 
 type ProfileNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Profile'>,
@@ -43,6 +46,12 @@ const menuItems: Array<{
 export default function ProfileScreen() {
   const navigation = useNavigation<ProfileNavigationProp>();
   const logout = useAuthStore((state) => state.logout);
+  const { mcNumber, dotNumber, equipmentType, setField } = useProfileStore();
+  const { bookingHistory } = useLoadsStore();
+  const { documents } = useDocumentsStore();
+
+  const totalMiles = bookingHistory.reduce((sum, record) => sum + record.miles, 0);
+  const milesDisplay = totalMiles >= 1000 ? `${(totalMiles / 1000).toFixed(1)}K` : String(totalMiles);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -56,25 +65,37 @@ export default function ProfileScreen() {
         <View style={styles.formCard}>
           {(
             [
-              ['MC Number', 'MC-123456'],
-              ['DOT Number', 'DOT-987654'],
-              ['Equipment Type', "53' Dry Van"],
+              ['mcNumber', 'MC Number', mcNumber, 'e.g. MC-123456'],
+              ['dotNumber', 'DOT Number', dotNumber, 'e.g. DOT-987654'],
+              ['equipmentType', 'Equipment Type', equipmentType, "e.g. 53' Dry Van"],
             ] as const
-          ).map(([label, value]) => (
-            <View key={label} style={styles.fieldGroup}>
+          ).map(([field, label, value, placeholder]) => (
+            <View key={field} style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>{label}</Text>
-              <TextInput value={value} editable={false} style={styles.input} placeholderTextColor="#7F8FB3" />
+              <TextInput
+                value={value}
+                onChangeText={(text) => setField(field, text)}
+                style={styles.input}
+                placeholder={placeholder}
+                placeholderTextColor="#7F8FB3"
+              />
             </View>
           ))}
         </View>
 
         <View style={styles.statsRow}>
-          {[['2.1M', 'Miles Driven'], ['98%', 'On-Time'], ['4.9\u2605', 'Rating']].map(([value, label]) => (
-            <View key={label} style={styles.statBox}>
-              <Text style={styles.statVal}>{value}</Text>
-              <Text style={styles.statLbl}>{label}</Text>
-            </View>
-          ))}
+          <View style={styles.statBox}>
+            <Text style={styles.statVal}>{milesDisplay}</Text>
+            <Text style={styles.statLbl}>Miles Driven</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statVal}>{bookingHistory.length}</Text>
+            <Text style={styles.statLbl}>Loads Booked</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statVal}>{documents.length}</Text>
+            <Text style={styles.statLbl}>Documents</Text>
+          </View>
         </View>
 
         {menuItems.map((item) => (

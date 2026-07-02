@@ -24,6 +24,7 @@ For hierarchical delegation, set process=Process.hierarchical and manager_agent=
 """
 
 from crewai import Crew, Task, Process
+from app.agent_events import make_task_callback, make_post_delivery_callback
 from agents import (
     dispatcher,
     route_optimizer,
@@ -229,6 +230,7 @@ def build_load_acquisition_crew(driver_prefs: dict) -> Crew:
         ],
         process=Process.sequential,
         verbose=True,
+        task_callback=make_task_callback(driver_prefs.get("driver_id")),
     )
 
 
@@ -442,6 +444,7 @@ def build_dispatch_transit_crew(load: dict, driver: dict) -> Crew:
         ],
         process=Process.sequential,
         verbose=True,
+        task_callback=make_task_callback(driver.get("id"), load.get("id"), load_info=load),
     )
 
 
@@ -622,4 +625,7 @@ def build_post_delivery_crew(delivery: dict) -> Crew:
         ],
         process=Process.sequential,
         verbose=True,
+        task_callback=make_post_delivery_callback(
+            delivery.get("driver_id"), delivery.get("load_id"), delivery
+        ),
     )

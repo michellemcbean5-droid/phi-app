@@ -7,11 +7,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
 import usePromoStore from '../store/promoStore';
-import { getWorkerLimit } from '../utils/subscriptionGating';
 
 const HINT_CODES = [
-  { code: 'PHIFREE30', benefit: '30-day Enterprise — all 15 workers' },
-  { code: 'OWNER1TRUCK', benefit: '14-day Solo — 5 workers' },
+  { code: 'PHIFREE30', benefit: '30-day Enterprise — Managed AI + fleet tools' },
+  { code: 'OWNER1TRUCK', benefit: '14-day Solo — unlimited documents' },
   { code: 'PHIVIP', benefit: '60-day VIP Enterprise' },
 ];
 
@@ -38,7 +37,6 @@ export default function PromoCodeScreen() {
     }
   };
 
-  const workerLimit = getWorkerLimit(activeTier);
   const trialActive = isTrialActive();
   const days = daysRemaining();
 
@@ -51,7 +49,7 @@ export default function PromoCodeScreen() {
           <View style={styles.statusCard}>
             <Ionicons name="ribbon-outline" size={32} color={PHI_COLORS.sunshineYellow} />
             <Text style={styles.statusTier}>{activeTier} Plan</Text>
-            <Text style={styles.statusWorkers}>{workerLimit} AI Workers Unlocked</Text>
+            <Text style={styles.statusWorkers}>All 10 AI workers included</Text>
             {trialActive && (
               <View style={styles.trialChip}>
                 <Text style={styles.trialChipText}>🎁 Free Trial — {days} days remaining</Text>

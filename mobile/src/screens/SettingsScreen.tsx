@@ -8,6 +8,7 @@ import { PHI_COLORS } from '../assets/brandColors';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import usePromoStore from '../store/promoStore';
 import useAPIKeyStore from '../store/apiKeyStore';
+import AnimatedPressable from '../components/game/AnimatedPressable';
 
 type SettingsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Settings'>;
 
@@ -21,7 +22,7 @@ interface NavRowProps {
 
 function NavRow({ icon, label, sublabel, badge, onPress }: NavRowProps) {
   return (
-    <TouchableOpacity style={styles.navRow} onPress={onPress}>
+    <AnimatedPressable style={styles.navRow} onPress={onPress} scaleTo={0.98}>
       <View style={styles.navIconWrap}>
         <Ionicons name={icon} size={20} color={PHI_COLORS.sunshineYellow} />
       </View>
@@ -35,19 +36,20 @@ function NavRow({ icon, label, sublabel, badge, onPress }: NavRowProps) {
         </View>
       ) : null}
       <Ionicons name="chevron-forward" size={16} color="#7F8FB3" />
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }
 
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsNavigationProp>();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const { activeTier, isTrialActive, daysRemaining } = usePromoStore();
+  const { isTrialActive, daysRemaining, getEffectiveTier } = usePromoStore();
   const { keys } = useAPIKeyStore();
 
   const keysConfigured = Object.values(keys).filter(Boolean).length;
   const trialActive = isTrialActive();
   const days = daysRemaining();
+  const activeTier = getEffectiveTier();
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -135,6 +137,23 @@ export default function SettingsScreen() {
             label="Vehicle Profile"
             sublabel="Truck specs and ELD setup"
             onPress={() => navigation.navigate('Vehicle')}
+          />
+          <NavRow
+            icon="car-sport-outline"
+            label="Truck & Van Marketplace"
+            sublabel="Buy or lease your own equipment"
+            onPress={() => navigation.navigate('EquipmentMarketplace')}
+          />
+        </View>
+
+        {/* Support */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Support</Text>
+          <NavRow
+            icon="chatbubble-ellipses-outline"
+            label="Ask Michelle"
+            sublabel="PHI's support assistant — policies, billing, how-to"
+            onPress={() => navigation.navigate('SupportChat')}
           />
         </View>
 

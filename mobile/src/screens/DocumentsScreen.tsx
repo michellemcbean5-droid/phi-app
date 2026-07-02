@@ -1,27 +1,21 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert, ScrollView, StyleSheet, Text,
   TouchableOpacity, View, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { PHI_COLORS } from '../assets/brandColors';
+import useDocumentsStore, { GloveboxDoc } from '../store/documentsStore';
+import useWorkerStore from '../store/workerStore';
+import usePromoStore from '../store/promoStore';
+import { getDocumentLimit } from '../utils/subscriptionGating';
+import { RootStackParamList } from '../navigation/RootNavigator';
 
-interface GloveboxDoc {
-  id: string;
-  name: string;
-  type: 'BOL' | 'POD' | 'Insurance' | 'Registration' | 'IFTA' | 'Permit' | 'Rate Con';
-  status: 'Current' | 'Pending Review' | 'Archived' | 'Expiring Soon';
-  date: string;
-}
-
-const DOCS: GloveboxDoc[] = [
-  { id: '1', name: 'BOL — Load #DAT-8821', type: 'BOL', status: 'Current', date: 'Jun 29' },
-  { id: '2', name: 'Rate Confirmation — Coyote', type: 'Rate Con', status: 'Current', date: 'Jun 29' },
-  { id: '3', name: 'Insurance Certificate', type: 'Insurance', status: 'Expiring Soon', date: 'Jul 15' },
-  { id: '4', name: 'IFTA Fuel Report — Q2', type: 'IFTA', status: 'Archived', date: 'Jun 1' },
-  { id: '5', name: 'DOT Medical Certificate', type: 'Permit', status: 'Current', date: 'Jan 2027' },
-];
+type DocumentsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Documents'>;
 
 const STATUS_COLORS: Record<GloveboxDoc['status'], string> = {
   'Current': PHI_COLORS.moneyGreen,
@@ -40,41 +34,93 @@ const TYPE_ICONS: Record<GloveboxDoc['type'], keyof typeof Ionicons.glyphMap> = 
   'Rate Con': 'cash-outline',
 };
 
+const UPLOAD_TYPE_MAP: Record<string, GloveboxDoc['type']> = {
+  'Bill of Lading': 'BOL',
+  'Rate Confirmation': 'Rate Con',
+  'Insurance Doc': 'Insurance',
+  'IFTA Report': 'IFTA',
+};
+
+const captureDocument = async (label: string, type: GloveboxDoc['type']): Promise<string | null> => {
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  if (!permission.granted) {
+    Alert.alert('Camera Permission Needed', 'Allow camera access in your phone settings to scan documents.');
+    return null;
+  }
+
+  const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+  if (result.canceled || !result.assets?.[0]) {
+    return null;
+  }
+
+  const store = useDocumentsStore.getState();
+  const name = `${label} — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  await store.addDocument(type, name, result.assets[0].uri);
+
+  const { recordTaskCompletion } = useWorkerStore.getState();
+  recordTaskCompletion('driver-liaison', 0, `Filed ${name} in your Virtual Glovebox`);
+  if (type === 'POD') {
+    recordTaskCompletion('invoice-specialist', 0, 'Signed POD ready for invoicing');
+  }
+
+  return result.assets[0].uri;
+};
+
 export default function DocumentsScreen() {
+  const navigation = useNavigation<DocumentsNavigationProp>();
+  const { documents, loaded, loadDocuments } = useDocumentsStore();
+  const { getEffectiveTier } = usePromoStore();
   const [processingPOD, setProcessingPOD] = useState(false);
   const [invoiceSent, setInvoiceSent] = useState(false);
+  const documentLimit = getDocumentLimit(getEffectiveTier());
+
+  useEffect(() => {
+    void loadDocuments();
+  }, [loadDocuments]);
+
+  const checkDocumentLimit = (): boolean => {
+    if (documents.length < documentLimit) return true;
+    Alert.alert(
+      'Storage Limit Reached',
+      `The Free plan stores up to ${documentLimit} documents. Upgrade for unlimited storage.`,
+      [
+        { text: 'Not Now', style: 'cancel' },
+        { text: 'Upgrade Plan', onPress: () => navigation.navigate('Subscription') },
+      ],
+    );
+    return false;
+  };
 
   const handleOneTapPayday = (): void => {
+    if (!checkDocumentLimit()) return;
     Alert.alert(
       'One-Tap Payday',
-      'Snap a photo of the signed Bill of Lading. The Finance & Invoice Specialist will read it, generate your invoice, and submit to your factoring company for payment within 24 hours.',
+      'Snap a photo of the signed Bill of Lading. It will be saved to your Virtual Glovebox and, once AI features are enabled, submitted for invoicing.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Open Camera',
           onPress: () => {
             setProcessingPOD(true);
-            setTimeout(() => {
-              setProcessingPOD(false);
-              setInvoiceSent(true);
-              Alert.alert(
-                '💰 Invoice Submitted!',
-                'Your BOL was read, invoice generated for $2,840.00, and submitted to your factoring company. Expect payment within 24 hours.',
-                [{ text: 'View Invoice' }],
-              );
-            }, 2500);
+            captureDocument('Signed BOL', 'POD')
+              .then((uri) => {
+                setProcessingPOD(false);
+                if (uri) {
+                  setInvoiceSent(true);
+                  Alert.alert('Saved', 'Your signed BOL was saved to your Virtual Glovebox.', [{ text: 'OK' }]);
+                }
+              })
+              .catch(() => setProcessingPOD(false));
           },
         },
       ],
     );
   };
 
-  const handleUpload = (type: string): void => {
-    Alert.alert(
-      `Upload ${type}`,
-      'Opens your camera or file picker. The Driver Liaison logs it to your Virtual Glovebox and alerts you before anything expires.',
-      [{ text: 'OK' }],
-    );
+  const handleUpload = (label: string): void => {
+    if (!checkDocumentLimit()) return;
+    const type = UPLOAD_TYPE_MAP[label] ?? 'BOL';
+    void captureDocument(label, type);
   };
 
   return (
@@ -87,7 +133,7 @@ export default function DocumentsScreen() {
           <Text style={styles.heroTitle}>Virtual Glovebox</Text>
           <Text style={styles.heroText}>
             Every document your truck needs — instantly available during any weigh station inspection.
-            The Compliance Officer keeps everything current and flags expiring docs automatically.
+            Scan documents with your camera and they're saved right on your phone.
           </Text>
         </View>
 
@@ -100,21 +146,20 @@ export default function DocumentsScreen() {
           {processingPOD ? (
             <>
               <ActivityIndicator color={PHI_COLORS.charcoalBlack} size="large" />
-              <Text style={styles.paydayTitle}>Reading your BOL...</Text>
-              <Text style={styles.paydaySub}>Invoice Specialist is generating your invoice</Text>
+              <Text style={styles.paydayTitle}>Opening camera...</Text>
             </>
           ) : invoiceSent ? (
             <>
               <Ionicons name="checkmark-circle" size={36} color={PHI_COLORS.charcoalBlack} />
-              <Text style={styles.paydayTitle}>Invoice Sent — Payday in 24hrs</Text>
-              <Text style={styles.paydaySub}>Submitted to factoring company</Text>
+              <Text style={styles.paydayTitle}>BOL Saved to Glovebox</Text>
+              <Text style={styles.paydaySub}>Scan another anytime</Text>
             </>
           ) : (
             <>
               <Ionicons name="camera-outline" size={36} color={PHI_COLORS.charcoalBlack} />
               <Text style={styles.paydayTitle}>One-Tap Payday</Text>
               <Text style={styles.paydaySub}>
-                Snap the signed BOL → AI reads it → invoice generated → submitted to factoring in seconds
+                Snap the signed BOL → saved to your Virtual Glovebox instantly
               </Text>
             </>
           )}
@@ -133,31 +178,26 @@ export default function DocumentsScreen() {
         {/* Glovebox Documents */}
         <View style={styles.docsCard}>
           <Text style={styles.docsTitle}>Your Glovebox</Text>
-          {DOCS.map((doc) => (
-            <TouchableOpacity key={doc.id} style={styles.docRow}>
-              <View style={styles.docIconWrap}>
-                <Ionicons name={TYPE_ICONS[doc.type]} size={20} color={PHI_COLORS.sunshineYellow} />
+          {!loaded ? (
+            <Text style={styles.emptyText}>Loading your documents...</Text>
+          ) : documents.length === 0 ? (
+            <Text style={styles.emptyText}>No documents yet — tap a button above to scan your first one.</Text>
+          ) : (
+            documents.map((doc) => (
+              <View key={doc.id} style={styles.docRow}>
+                <View style={styles.docIconWrap}>
+                  <Ionicons name={TYPE_ICONS[doc.type]} size={20} color={PHI_COLORS.sunshineYellow} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.docName}>{doc.name}</Text>
+                  <Text style={styles.docDate}>{doc.type} · {doc.date}</Text>
+                </View>
+                <View style={[styles.statusPill, { backgroundColor: STATUS_COLORS[doc.status] + '33' }]}>
+                  <Text style={[styles.statusText, { color: STATUS_COLORS[doc.status] }]}>{doc.status}</Text>
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.docName}>{doc.name}</Text>
-                <Text style={styles.docDate}>{doc.type} · {doc.date}</Text>
-              </View>
-              <View style={[styles.statusPill, { backgroundColor: STATUS_COLORS[doc.status] + '33' }]}>
-                <Text style={[styles.statusText, { color: STATUS_COLORS[doc.status] }]}>{doc.status}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Weigh Station Alert Card */}
-        <View style={styles.alertCard}>
-          <Ionicons name="warning-outline" size={20} color={PHI_COLORS.sunshineYellow} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.alertTitle}>Weigh Station Ahead</Text>
-            <Text style={styles.alertText}>
-              I-20 Westbound · 14 miles · Your Glovebox is inspection-ready. All documents current.
-            </Text>
-          </View>
+            ))
+          )}
         </View>
 
       </ScrollView>
@@ -186,7 +226,5 @@ const styles = StyleSheet.create({
   docDate: { color: '#7F9FCC', fontSize: 12, marginTop: 2 },
   statusPill: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   statusText: { fontWeight: '800', fontSize: 11 },
-  alertCard: { backgroundColor: '#1A0A00', borderRadius: 16, padding: 16, flexDirection: 'row', gap: 12, borderWidth: 1, borderColor: PHI_COLORS.sunshineYellow + '44', alignItems: 'flex-start' },
-  alertTitle: { color: PHI_COLORS.sunshineYellow, fontWeight: '800', fontSize: 14 },
-  alertText: { color: '#D7C0A0', fontSize: 13, lineHeight: 18, marginTop: 3 },
+  emptyText: { color: '#7F9FCC', fontSize: 13, textAlign: 'center', paddingVertical: 16 },
 });

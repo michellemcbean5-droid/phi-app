@@ -1,0 +1,104 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [claude/app-review-deployment-bkpb38, main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Android Release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm ci --legacy-peer-deps
+
+      - name: Make expo-modules-core publishing safe against missing release component
+        working-directory: mobile
+        run: |
+          python3 /dev/stdin << 'SCRIPT_EOF'
+          path = 'node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle'
+          with open(path) as f:
+              content = f.read()
+          old = "  project.afterEvaluate {\n    publishing {\n      publications {\n        release(MavenPublication) {\n          from components.release\n        }\n      }\n      repositories {\n        maven {\n          url = mavenLocal().url\n        }\n      }\n    }\n  }\n}"
+          new = "  project.afterEvaluate {\n    if (project.components.findByName('release') != null) {\n      publishing {\n        publications {\n          release(MavenPublication) {\n            from components.release\n          }\n        }\n        repositories {\n          maven {\n            url = mavenLocal().url\n          }\n        }\n      }\n    }\n  }\n}"
+          if old not in content:
+              raise SystemExit("PATTERN NOT FOUND - aborting so this does not silently no-op")
+          content = content.replace(old, new)
+          with open(path, 'w') as f:
+              f.write(content)
+          print("Patched useExpoPublishing to tolerate a missing release SoftwareComponent")
+          SCRIPT_EOF
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Generate Android project
+        working-directory: mobile
+        run: npx expo prebuild --platform android --non-interactive
+        env:
+          EXPO_NO_DOTENV: 1
+
+      - name: Disable unused Fresco GIF/WebP decoders (app has no GIF/WebP assets)
+        working-directory: mobile/android
+        run: |
+          sed -i 's/expo.gif.enabled=true/expo.gif.enabled=false/' gradle.properties
+          sed -i 's/expo.webp.enabled=true/expo.webp.enabled=false/' gradle.properties
+
+      - name: Neutralize dead oss.sonatype.org snapshots repo
+        working-directory: mobile/android
+        run: |
+          mkdir -p ~/.gradle/init.d
+          cat > ~/.gradle/init.d/block-dead-sonatype.gradle << 'EOF'
+          allprojects {
+            repositories.all { repo ->
+              if (repo instanceof org.gradle.api.artifacts.repositories.MavenArtifactRepository && repo.url.toString().contains('oss.sonatype.org')) {
+                repo.content { it.excludeGroupByRegex(".*") }
+              }
+            }
+          }
+          EOF
+
+      - name: Disable Gradle parallel project execution (works around AGP SoftwareComponent race)
+        working-directory: mobile/android
+        run: |
+          sed -i 's/org.gradle.parallel=true/org.gradle.parallel=false/' gradle.properties
+          grep parallel gradle.properties
+
+      - name: Pin Android Gradle Plugin to a known-working version
+        working-directory: mobile/android
+        run: |
+          sed -i "s/classpath('com.android.tools.build:gradle')/classpath('com.android.tools.build:gradle:8.6.0')/" build.gradle
+          grep "com.android.tools.build:gradle" build.gradle
+
+      - name: Build release APK (bundles JS, no Metro/computer needed)
+        working-directory: mobile/android
+        run: |
+          for attempt in 1 2 3; do
+            echo "Build attempt $attempt of 3"
+            if ./gradlew assembleRelease --no-daemon --stacktrace; then
+              exit 0
+            fi
+            echo "Attempt $attempt failed, retrying in 15s..."
+            sleep 15
+          done
+          exit 1
+        env:
+          GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.internal.http.connectionTimeout=60000 -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.repository.max.retries=5
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: phi-app-release
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 14

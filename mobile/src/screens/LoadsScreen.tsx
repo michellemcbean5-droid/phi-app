@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
@@ -8,18 +8,26 @@ import { PHI_COLORS } from '../assets/brandColors';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { TabParamList } from '../navigation/TabNavigator';
 import useLoadsStore, { SortOption } from '../store/loadsStore';
+import { getCurrentDriverLocation } from '../api/samsaraConnector';
+import { sendNearbyLoadAlert } from '../api/twilioConnector';
+import { calculateGPSDeadhead, Coordinates } from '../api/googleMapsConnector';
 import { executeBooking } from '../workers/AutoBookingEngine';
 import { aggregateLoads } from '../workers/LoadFinderWorker';
 import { scoreLoad, LoadScore } from '../workers/LoadScoringWorker';
 import { calculateDeadhead } from '../workers/RouteAnalysisWorker';
 import { Load } from '../workers/workers-15x';
+import useWorkerStore from '../store/workerStore';
+import usePromoStore from '../store/promoStore';
+import { getProximityRefreshMinutes } from '../utils/subscriptionGating';
+import AnimatedPressable from '../components/game/AnimatedPressable';
 
 type LoadsNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Loads'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-const currentLocation = { latitude: 32.7555, longitude: -97.3308 };
+const FALLBACK_LOCATION: Coordinates = { latitude: 32.7555, longitude: -97.3308 };
+const NEARBY_ALERT_RADIUS_MILES = 25;
 
 const SCORE_FILTERS = ['All', 'Diamond', 'Gold', 'Standard'] as const;
 const SORT_OPTIONS: { label: string; value: SortOption }[] = [
@@ -30,8 +38,11 @@ const SORT_OPTIONS: { label: string; value: SortOption }[] = [
 
 export default function LoadsScreen() {
   const navigation = useNavigation<LoadsNavigationProp>();
-  const { activeLoads, bookingState, filter, sortBy, setLoads, setBookingState, setFilter, setSortBy } = useLoadsStore();
+  const { activeLoads, bookingState, filter, sortBy, setLoads, setBookingState, addBookingRecord, setFilter, setSortBy } = useLoadsStore();
+  const { getEffectiveTier } = usePromoStore();
   const [refreshing, setRefreshing] = React.useState(false);
+  const alertedLoadIds = useRef<Set<string>>(new Set());
+  const proximityCheckIntervalMs = getProximityRefreshMinutes(getEffectiveTier()) * 60 * 1000;
 
   const loadBoard = useMemo(() => {
     const scored = activeLoads.filter((load) => {
@@ -55,8 +66,38 @@ export default function LoadsScreen() {
     void refreshLoads();
   }, [refreshLoads]);
 
+  const checkNearbyLoads = useCallback(async (): Promise<void> => {
+    const location = await getCurrentDriverLocation();
+    if (!location || activeLoads.length === 0) return;
+
+    for (const load of activeLoads) {
+      if (alertedLoadIds.current.has(load.id)) continue;
+      try {
+        const distance = await calculateGPSDeadhead(location, load.origin);
+        if (distance <= NEARBY_ALERT_RADIUS_MILES) {
+          alertedLoadIds.current.add(load.id);
+          void sendNearbyLoadAlert(load.id, load.origin.city, distance, load.rate);
+          useWorkerStore.getState().recordTaskCompletion(
+            'track-trace',
+            0,
+            `Alerted you to ${load.id} — ${distance.toFixed(1)} mi away`,
+          );
+        }
+      } catch {
+        // Skip this load's proximity check on error
+      }
+    }
+  }, [activeLoads]);
+
+  useEffect(() => {
+    void checkNearbyLoads();
+    const interval = setInterval(() => void checkNearbyLoads(), proximityCheckIntervalMs);
+    return () => clearInterval(interval);
+  }, [checkNearbyLoads, proximityCheckIntervalMs]);
+
   const handleAnalyzeRoute = async (load: Load): Promise<void> => {
-    const analysis = await calculateDeadhead(currentLocation, load.origin, load.totalMiles);
+    const location = (await getCurrentDriverLocation()) ?? FALLBACK_LOCATION;
+    const analysis = await calculateDeadhead(location, load.origin, load.totalMiles);
     Alert.alert(
       'Route Analysis',
       `${load.id}: ${analysis.deadheadMiles.toFixed(1)} deadhead miles (${analysis.deadheadPercentage}%). ${analysis.rejected ? analysis.rejectionReason : 'Route approved.'}`,
@@ -68,6 +109,12 @@ export default function LoadsScreen() {
     const confirmation = await executeBooking(load, 82);
     setBookingState(load.id, confirmation.booked ? 'booked' : 'rejected');
     Alert.alert('Booking Update', confirmation.message);
+    if (confirmation.booked) {
+      const { recordTaskCompletion } = useWorkerStore.getState();
+      recordTaskCompletion('freight-negotiator', load.rate, `Booked ${load.id} at $${load.rate.toFixed(0)}`);
+      recordTaskCompletion('dispatch-coordinator', 0, `Confirmed pickup for ${load.id}`);
+      addBookingRecord({ id: load.id, rate: load.rate, miles: load.totalMiles, rpm: load.rpm, bookedAt: new Date().toISOString() });
+    }
   };
 
   return (
@@ -123,12 +170,12 @@ export default function LoadsScreen() {
               <Text style={styles.metaText}>Equipment: {item.equipmentType} • Miles: {item.totalMiles}</Text>
               <Text style={styles.bookingState}>Booking: {bookingState[item.id] ?? 'unbooked'}</Text>
               <View style={styles.buttonRow}>
-                <TouchableOpacity style={styles.primaryButton} onPress={() => void handleBookLoad(item)}>
+                <AnimatedPressable style={styles.primaryButton} onPress={() => void handleBookLoad(item)}>
                   <Text style={styles.primaryButtonText}>Book Load</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.secondaryButton} onPress={() => void handleAnalyzeRoute(item)}>
+                </AnimatedPressable>
+                <AnimatedPressable style={styles.secondaryButton} onPress={() => void handleAnalyzeRoute(item)}>
                   <Text style={styles.secondaryButtonText}>Analyze Route</Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
               </View>
             </TouchableOpacity>
           );

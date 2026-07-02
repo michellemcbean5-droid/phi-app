@@ -1,0 +1,81 @@
+version: "3.9"
+
+# ─── Prince Haul Intelligence — Local Production Stack ────────────────────────
+# Brings up the FastAPI backend + PostgreSQL together.
+#
+# Quick start:
+#   cp .env.example .env   # fill in your API keys
+#   docker compose up --build
+#
+# The Supabase-specific parts of schema.sql (RLS, Realtime publication, auth.uid())
+# are skipped here — SQLAlchemy's init_db() creates the tables on first boot.
+# For the hosted Supabase instance, run schema.sql in the Supabase SQL editor instead.
+
+services:
+
+  # ── PostgreSQL database ──────────────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: phi_db
+      POSTGRES_USER: phi
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-phi_dev_secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"  # expose for local psql / pgAdmin access; remove in production
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U phi -d phi_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # ── FastAPI + CrewAI backend ─────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # ─ Database ─
+      DATABASE_URL: postgresql://phi:${DB_PASSWORD:-phi_dev_secret}@db:5432/phi_db
+
+      # ─ AI / LLM ─
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
+
+      # ─ Server ─
+      ENV: production
+      PORT: "8000"
+      WEB_CONCURRENCY: "4"
+
+      # ─ Twilio SMS ─
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
+
+      # ─ SendGrid Email ─
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-}
+
+      # ─ Firebase Push ─
+      FIREBASE_SERVICE_ACCOUNT_B64: ${FIREBASE_SERVICE_ACCOUNT_B64:-}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
+
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  postgres_data:
+    driver: local

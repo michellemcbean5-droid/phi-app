@@ -13,6 +13,7 @@ import LoadDetailsScreen from '../screens/LoadDetailsScreen';
 import LoadingScreen from '../screens/LoadingScreen';
 import MessageThreadScreen from '../screens/MessageThreadScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import PayoutSettingsScreen from '../screens/PayoutSettingsScreen';
 import PromoCodeScreen from '../screens/PromoCodeScreen';
 import RouteMapScreen from '../screens/RouteMapScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -47,6 +48,7 @@ export type RootStackParamList = {
   SupportChat: undefined;
   SystemCheck: undefined;
   TruckStopFinder: undefined;
+  PayoutSettings: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -89,6 +91,7 @@ export default function RootNavigator() {
       <Stack.Screen name="TruckStopFinder" component={TruckStopFinderScreen} options={{ title: 'Truck Stops & Parking' }} />
       <Stack.Screen name="SystemCheck" component={SystemCheckScreen} options={{ title: 'System Check' }} />
       <Stack.Screen name="RouteMap" component={RouteMapScreen} options={{ title: 'Route Analysis' }} />
+      <Stack.Screen name="PayoutSettings" component={PayoutSettingsScreen} options={{ title: 'Payout Settings' }} />
     </Stack.Navigator>
   );
 }

@@ -1,10 +1,34 @@
 import React, { useState } from 'react';
 import { ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
-import useLoadsStore from '../store/loadsStore';
+import { RootStackParamList } from '../navigation/RootNavigator';
+import { TabParamList } from '../navigation/TabNavigator';
+import useLoadsStore, { PaymentStatus } from '../store/loadsStore';
 import useExpenseStore, { ExpenseCategory } from '../store/expenseStore';
+import useProfileStore from '../store/profileStore';
 import { calculateRPMTrend, categorizeExpense, PHI_ProfitFormula, projectYearlyRevenue } from '../utils/profitFormula';
+
+type EarningsNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<TabParamList, 'Earnings'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
+const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
+  unpaid: 'Unpaid',
+  invoice_sent: 'Invoice Sent',
+  paid: 'Paid',
+};
+
+const PAYMENT_STATUS_COLOR: Record<PaymentStatus, string> = {
+  unpaid: '#FF5252',
+  invoice_sent: PHI_COLORS.sunshineYellow,
+  paid: PHI_COLORS.moneyGreen,
+};
 
 // Industry-average cost ratios — used only until the driver has logged real expenses,
 // since PHI doesn't yet know actual fuel/maintenance/insurance spend per load.
@@ -23,10 +47,27 @@ const groupEarningsByDay = (history: { rate: number; bookedAt: string }[]): numb
 };
 
 export default function EarningsScreen() {
-  const { bookingHistory } = useLoadsStore();
+  const navigation = useNavigation<EarningsNavigationProp>();
+  const { bookingHistory, setPaymentStatus } = useLoadsStore();
   const { entries, addExpense, totalsByCategory, totalExpenses } = useExpenseStore();
+  const { fullName } = useProfileStore();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
+
+  const handleRequestPayment = async (record: typeof bookingHistory[number]): Promise<void> => {
+    const message = [
+      `Invoice Request — Load ${record.id}`,
+      `From: ${fullName.trim() || '(driver name not set)'}`,
+      `Broker: ${record.brokerName}`,
+      `Miles: ${record.miles}`,
+      `Rate: $${record.rate.toFixed(2)}`,
+      `Booked: ${new Date(record.bookedAt).toLocaleDateString()}`,
+      '',
+      'Please remit payment for the above load at your earliest convenience. Thank you for your business.',
+    ].join('\n');
+    await Share.share({ message, title: `Invoice — Load ${record.id}` });
+    setPaymentStatus(record.id, 'invoice_sent');
+  };
 
   const handleAddExpense = (): void => {
     const parsedAmount = Number(amount);
@@ -170,6 +211,42 @@ export default function EarningsScreen() {
             </View>
           ))}
         </View>
+
+        <View style={styles.sectionCard}>
+          <View style={styles.getPaidHeaderRow}>
+            <Text style={styles.sectionTitle}>Get Paid</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('PayoutSettings')}>
+              <Text style={styles.payoutSetupLink}>Payout Setup →</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.helperText}>
+            Send a professional invoice to the broker and track payment status here. Direct in-app broker payments
+            aren't live yet — this sends a real invoice via email/text and lets you mark it paid once you receive it.
+          </Text>
+          {bookingHistory.slice(0, 8).map((record) => (
+            <View key={record.id} style={styles.paymentRow}>
+              <View style={styles.paymentTextWrap}>
+                <Text style={styles.paymentLoadId}>{record.id} — {record.brokerName}</Text>
+                <Text style={styles.paymentSub}>${record.rate.toFixed(0)} • {new Date(record.bookedAt).toLocaleDateString()}</Text>
+              </View>
+              <View style={[styles.paymentBadge, { backgroundColor: PAYMENT_STATUS_COLOR[record.paymentStatus] + '33' }]}>
+                <Text style={[styles.paymentBadgeText, { color: PAYMENT_STATUS_COLOR[record.paymentStatus] }]}>
+                  {PAYMENT_STATUS_LABEL[record.paymentStatus]}
+                </Text>
+              </View>
+              {record.paymentStatus === 'unpaid' && (
+                <TouchableOpacity style={styles.paymentActionButton} onPress={() => void handleRequestPayment(record)}>
+                  <Ionicons name="send-outline" size={14} color={PHI_COLORS.charcoalBlack} />
+                </TouchableOpacity>
+              )}
+              {record.paymentStatus === 'invoice_sent' && (
+                <TouchableOpacity style={styles.paymentActionButton} onPress={() => setPaymentStatus(record.id, 'paid')}>
+                  <Ionicons name="checkmark" size={14} color={PHI_COLORS.charcoalBlack} />
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -202,4 +279,13 @@ const styles = StyleSheet.create({
   expenseListDesc: { flex: 2, color: PHI_COLORS.white, fontSize: 13 },
   expenseListCategory: { flex: 1, color: '#7F9FCC', fontSize: 11 },
   expenseListAmount: { color: PHI_COLORS.moneyGreen, fontWeight: '700', fontSize: 13 },
+  getPaidHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  payoutSetupLink: { color: PHI_COLORS.sunshineYellow, fontSize: 12, fontWeight: '700' },
+  paymentRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#21406F' },
+  paymentTextWrap: { flex: 1, flexShrink: 1 },
+  paymentLoadId: { color: PHI_COLORS.white, fontWeight: '700', fontSize: 13 },
+  paymentSub: { color: '#7F9FCC', fontSize: 11, marginTop: 2 },
+  paymentBadge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  paymentBadgeText: { fontWeight: '800', fontSize: 10 },
+  paymentActionButton: { backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 8, width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
 });

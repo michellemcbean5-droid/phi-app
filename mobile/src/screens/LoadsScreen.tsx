@@ -124,7 +124,15 @@ export default function LoadsScreen() {
       const { recordTaskCompletion } = useWorkerStore.getState();
       recordTaskCompletion('freight-negotiator', load.rate, `Booked ${load.id} at $${load.rate.toFixed(0)}`);
       recordTaskCompletion('dispatch-coordinator', 0, `Confirmed pickup for ${load.id}`);
-      addBookingRecord({ id: load.id, rate: load.rate, miles: load.totalMiles, rpm: load.rpm, bookedAt: new Date().toISOString() });
+      addBookingRecord({
+        id: load.id,
+        brokerName: load.brokerName,
+        rate: load.rate,
+        miles: load.totalMiles,
+        rpm: load.rpm,
+        bookedAt: new Date().toISOString(),
+        paymentStatus: 'unpaid',
+      });
     }
   };
 

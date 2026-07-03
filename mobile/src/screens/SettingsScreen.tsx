@@ -158,6 +158,12 @@ export default function SettingsScreen() {
             onPress={() => navigation.navigate('Subscription')}
           />
           <NavRow
+            icon="cash-outline"
+            label="Payout Settings"
+            sublabel="How you get paid — setup only, not live yet"
+            onPress={() => navigation.navigate('PayoutSettings')}
+          />
+          <NavRow
             icon="documents-outline"
             label="Documents"
             sublabel="Upload BOLs, insurance, registration"

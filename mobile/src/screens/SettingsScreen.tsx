@@ -8,6 +8,7 @@ import { PHI_COLORS } from '../assets/brandColors';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import usePromoStore from '../store/promoStore';
 import useAPIKeyStore from '../store/apiKeyStore';
+import useHandsFreeStore from '../store/handsFreeStore';
 import AnimatedPressable from '../components/game/AnimatedPressable';
 
 type SettingsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Settings'>;
@@ -45,6 +46,7 @@ export default function SettingsScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const { isTrialActive, daysRemaining, getEffectiveTier } = usePromoStore();
   const { keys } = useAPIKeyStore();
+  const { enabled: handsFreeEnabled, setEnabled: setHandsFreeEnabled } = useHandsFreeStore();
 
   const keysConfigured = Object.values(keys).filter(Boolean).length;
   const trialActive = isTrialActive();
@@ -88,7 +90,7 @@ export default function SettingsScreen() {
           <NavRow
             icon="key-outline"
             label="My API Keys"
-            sublabel="Anthropic, DAT, ORS, EIA, Stripe"
+            sublabel="Anthropic, OpenRouteService, EIA"
             badge={keysConfigured > 0 ? `${keysConfigured} saved` : undefined}
             onPress={() => navigation.navigate('APIKeys')}
           />
@@ -115,6 +117,35 @@ export default function SettingsScreen() {
               trackColor={{ false: '#5C6780', true: '#7EA5FF' }}
             />
           </View>
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.navLabel}>Hands-Free Mode</Text>
+              <Text style={styles.navSublabel}>Reads out loads found, worker updates, and alerts so you don't need to look at the screen</Text>
+            </View>
+            <Switch
+              value={handsFreeEnabled}
+              onValueChange={setHandsFreeEnabled}
+              thumbColor={handsFreeEnabled ? PHI_COLORS.sunshineYellow : '#B0B0B0'}
+              trackColor={{ false: '#5C6780', true: '#7EA5FF' }}
+            />
+          </View>
+        </View>
+
+        {/* Support & Diagnostics */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Support & Diagnostics</Text>
+          <NavRow
+            icon="chatbubble-ellipses-outline"
+            label="Ask Michelle"
+            sublabel="PHI's support assistant — policies, billing, how-to"
+            onPress={() => navigation.navigate('SupportChat')}
+          />
+          <NavRow
+            icon="build-outline"
+            label="System Check"
+            sublabel="Run a live checklist — permissions, profile, AI status"
+            onPress={() => navigation.navigate('SystemCheck')}
+          />
         </View>
 
         {/* Account */}
@@ -143,17 +174,6 @@ export default function SettingsScreen() {
             label="Truck & Van Marketplace"
             sublabel="Buy or lease your own equipment"
             onPress={() => navigation.navigate('EquipmentMarketplace')}
-          />
-        </View>
-
-        {/* Support */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Support</Text>
-          <NavRow
-            icon="chatbubble-ellipses-outline"
-            label="Ask Michelle"
-            sublabel="PHI's support assistant — policies, billing, how-to"
-            onPress={() => navigation.navigate('SupportChat')}
           />
         </View>
 

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WORKER_DEFINITIONS, WorkerDefinition, WorkerStatus } from '../workers/workers-15x';
+import useHandsFreeStore from './handsFreeStore';
 
 export interface WorkerActivityEntry {
   id: string;
@@ -75,6 +76,7 @@ const useWorkerStore = create<WorkerState>()(
         revenueImpact,
         timestamp: new Date().toISOString(),
       };
+      useHandsFreeStore.getState().narrate(entry.summary);
       return {
         workers: state.workers.map((w) =>
           w.id === workerId

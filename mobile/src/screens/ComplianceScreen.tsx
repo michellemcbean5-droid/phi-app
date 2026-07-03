@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DriverAvailability, fetchHOSData } from '../api/samsaraConnector';
 import { PHI_COLORS } from '../assets/brandColors';
 import { auditDailyTransactions, DailyTransaction, runAIComplianceAudit } from '../workers/ComplianceAuditWorker';
 import useLoadsStore from '../store/loadsStore';
 import useWorkerStore from '../store/workerStore';
+import useProfileStore from '../store/profileStore';
 
 const DRIVER_ID = 'driver-001';
 const AVG_ROAD_SPEED_MPH = 50;
@@ -13,6 +14,7 @@ const LOAD_UNLOAD_HOURS = 1;
 
 export default function ComplianceScreen() {
   const { bookingHistory } = useLoadsStore();
+  const { fullName, cdlNumber, cdlState } = useProfileStore();
   const [hosSnapshot, setHosSnapshot] = useState<DriverAvailability | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
   const [aiRecommendations, setAiRecommendations] = useState<string[]>([]);
@@ -72,6 +74,33 @@ export default function ComplianceScreen() {
     }
   };
 
+  const handleShareReport = async (): Promise<void> => {
+    if (!hosSnapshot || !report) return;
+    const lines = [
+      'PHI DOT COMPLIANCE AUDIT REPORT',
+      `Generated: ${new Date().toLocaleString()}`,
+      fullName.trim() ? `Driver: ${fullName}${cdlNumber ? ` (CDL ${cdlState || '??'} ${cdlNumber})` : ''}` : '',
+      '',
+      `Compliant: ${report.compliant ? 'Yes' : 'No'}`,
+      `Safety Score: ${report.summary.safetyScore}%`,
+      `Flagged Loads: ${report.flaggedTransactions.length}`,
+      report.aiRiskSummary ? `\nRisk Summary:\n${report.aiRiskSummary}` : '',
+      aiRecommendations.length > 0 ? `\nRecommendations:\n${aiRecommendations.map((r) => `- ${r}`).join('\n')}` : '',
+      '',
+      'HOURS OF SERVICE',
+      `Drive hours remaining: ${hosSnapshot.availableDriveHours.toFixed(1)}`,
+      `On-duty hours remaining: ${hosSnapshot.availableOnDutyHours.toFixed(1)}`,
+      `70-hr cycle remaining: ${hosSnapshot.cycleHoursRemaining.toFixed(1)}`,
+      '',
+      'LOAD HISTORY LEDGER',
+      ...(transactions.length === 0
+        ? ['No loads booked yet.']
+        : transactions.map((t) => `${t.loadId}: ${t.miles} mi, ${t.dutyHoursRequired.toFixed(1)} duty hrs, $${t.revenue.toFixed(0)}`)),
+    ].filter(Boolean);
+
+    await Share.share({ message: lines.join('\n'), title: 'PHI DOT Compliance Audit Report' });
+  };
+
   if (!hosSnapshot || !report) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -115,6 +144,10 @@ export default function ComplianceScreen() {
           ) : (
             <Text style={styles.auditButtonText}>Generate AI DOT Audit Report</Text>
           )}
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.shareButton} onPress={() => void handleShareReport()}>
+          <Text style={styles.shareButtonText}>📤 Share / Save Report</Text>
         </TouchableOpacity>
 
         <View style={styles.sectionCard}>
@@ -169,6 +202,8 @@ const styles = StyleSheet.create({
   statusChip: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5, marginTop: 4 },
   statusChipText: { color: PHI_COLORS.charcoalBlack, fontWeight: '800', fontSize: 11 },
   auditButton: { backgroundColor: PHI_COLORS.sunshineYellow, padding: 14, borderRadius: 14, alignItems: 'center' },
+  shareButton: { borderWidth: 1, borderColor: PHI_COLORS.sunshineYellow, padding: 12, borderRadius: 14, alignItems: 'center' },
+  shareButtonText: { color: PHI_COLORS.sunshineYellow, fontWeight: '700' },
   auditButtonText: { color: PHI_COLORS.charcoalBlack, textAlign: 'center', fontWeight: '800' },
   sectionCard: { backgroundColor: PHI_COLORS.card, borderRadius: 16, padding: 16, gap: 10 },
   sectionTitle: { color: PHI_COLORS.white, fontSize: 18, fontWeight: '700' },

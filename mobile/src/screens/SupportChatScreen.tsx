@@ -4,11 +4,16 @@ import {
   StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
+import { RootStackParamList } from '../navigation/RootNavigator';
 import { isClaudeConfigured } from '../api/claudeClient';
 import useSupportChatStore, { SupportMessage } from '../store/supportChatStore';
 import { getMichelleReply } from '../workers/SupportChatWorker';
+
+type SupportChatNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const TRAIN_PLACEHOLDER = 'e.g. "Keep answers to one sentence" or "Always mention the Fleet plan when relevant"';
 
@@ -18,6 +23,7 @@ const SUPPORT_EMAIL = 'support@princehaulintelligence.com';
 const SUGGESTIONS = ['Is PHI really free?', 'How do I add my API key?', 'How do I cancel my subscription?', 'How do AI workers work?'];
 
 export default function SupportChatScreen() {
+  const navigation = useNavigation<SupportChatNavigationProp>();
   const { messages, thinking, customInstructions, addMessage, setThinking, setCustomInstructions } = useSupportChatStore();
   const [input, setInput] = useState('');
   const [trainOpen, setTrainOpen] = useState(false);
@@ -60,11 +66,18 @@ export default function SupportChatScreen() {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Ask Michelle</Text>
-        <TouchableOpacity style={styles.trainButton} onPress={() => { setTrainDraft(customInstructions); setTrainOpen((v) => !v); }}>
-          <Ionicons name="options-outline" size={16} color={PHI_COLORS.sunshineYellow} />
-          <Text style={styles.trainButtonText}>Train Michelle</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActionsRow}>
+          <TouchableOpacity style={styles.troubleshootButton} onPress={() => navigation.navigate('SystemCheck')}>
+            <Ionicons name="build-outline" size={16} color={PHI_COLORS.charcoalBlack} />
+            <Text style={styles.troubleshootButtonText}>Troubleshoot</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.trainButton} onPress={() => { setTrainDraft(customInstructions); setTrainOpen((v) => !v); }}>
+            <Ionicons name="options-outline" size={16} color={PHI_COLORS.sunshineYellow} />
+            <Text style={styles.trainButtonText} numberOfLines={1}>Train Michelle</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
 
       {trainOpen && (
         <View style={styles.trainPanel}>
@@ -110,6 +123,9 @@ export default function SupportChatScreen() {
           ListFooterComponent={
             messages.length <= 1 ? (
               <View style={styles.suggestionWrap}>
+                <TouchableOpacity style={styles.suggestionChip} onPress={() => navigation.navigate('SystemCheck')}>
+                  <Text style={styles.suggestionText}>🩺 Something not working? Run a System Check</Text>
+                </TouchableOpacity>
                 {SUGGESTIONS.map((s) => (
                   <TouchableOpacity key={s} style={styles.suggestionChip} onPress={() => handleSend(s)}>
                     <Text style={styles.suggestionText}>{s}</Text>
@@ -146,8 +162,11 @@ export default function SupportChatScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: PHI_COLORS.surface },
   flex: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
+  header: { gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
   headerTitle: { color: PHI_COLORS.white, fontSize: 18, fontWeight: '900' },
+  headerActionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  troubleshootButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+  troubleshootButtonText: { color: PHI_COLORS.charcoalBlack, fontSize: 12, fontWeight: '700' },
   trainButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: PHI_COLORS.card, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: '#29508C' },
   trainButtonText: { color: PHI_COLORS.sunshineYellow, fontSize: 12, fontWeight: '700' },
   trainPanel: { backgroundColor: PHI_COLORS.card, marginHorizontal: 16, marginBottom: 8, borderRadius: 14, padding: 14, gap: 10, borderWidth: 1, borderColor: '#29508C' },

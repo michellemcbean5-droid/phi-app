@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PHI_COLORS } from '../assets/brandColors';
 import useLoadsStore from '../store/loadsStore';
@@ -74,6 +74,28 @@ export default function EarningsScreen() {
     ? Math.min(100, Math.max(0, (projection.projectedRevenue / projection.targetRevenue) * 100))
     : 0;
 
+  const handleShareReport = async (): Promise<void> => {
+    const lines = [
+      'PHI EARNINGS REPORT',
+      `Generated: ${new Date().toLocaleString()}`,
+      '',
+      `Loads Booked: ${bookingHistory.length}`,
+      `Total Revenue: $${totalRevenue.toLocaleString()}`,
+      `Operating Cost: $${profit.operatingCost.toLocaleString()}${hasRealExpenses ? ` (${entries.length} logged expenses)` : ' (estimated)'}`,
+      `Net Profit: $${profit.netProfit.toLocaleString()}`,
+      `Profit Margin: ${Math.round(profit.profitMargin)}%`,
+      `7-Day Avg RPM: $${rpmTrend.averageRpm.toFixed(2)} (${rpmTrend.flag})`,
+      projection ? `Yearly Projection: $${projection.projectedRevenue.toLocaleString()} vs $${projection.targetRevenue.toLocaleString()} target` : '',
+      '',
+      'EXPENSE BREAKDOWN',
+      ...(entries.length === 0
+        ? ['No expenses logged yet.']
+        : entries.map((e) => `${e.description} (${e.category}): $${e.amount.toFixed(2)}`)),
+    ].filter(Boolean);
+
+    await Share.share({ message: lines.join('\n'), title: 'PHI Earnings Report' });
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -87,6 +109,10 @@ export default function EarningsScreen() {
             {hasRealExpenses ? ` (${entries.length} logged expenses)` : ''}
           </Text>
         </View>
+
+        <TouchableOpacity style={styles.shareButton} onPress={() => void handleShareReport()}>
+          <Text style={styles.shareButtonText}>📤 Share / Save Earnings Report</Text>
+        </TouchableOpacity>
 
         {projection && (
           <View style={styles.sectionCard}>
@@ -159,6 +185,8 @@ const styles = StyleSheet.create({
   heroLabel: { color: PHI_COLORS.sunshineYellow, fontWeight: '800' },
   heroValue: { color: PHI_COLORS.white, fontSize: 36, fontWeight: '900', marginTop: 8 },
   heroSubtext: { color: '#E7EEFF', marginTop: 8 },
+  shareButton: { borderWidth: 1, borderColor: PHI_COLORS.sunshineYellow, padding: 12, borderRadius: 14, alignItems: 'center' },
+  shareButtonText: { color: PHI_COLORS.sunshineYellow, fontWeight: '700' },
   sectionCard: { backgroundColor: PHI_COLORS.card, borderRadius: 18, padding: 18, gap: 10 },
   sectionTitle: { color: PHI_COLORS.white, fontSize: 18, fontWeight: '800' },
   metricText: { color: PHI_COLORS.white, fontSize: 16, fontWeight: '700' },

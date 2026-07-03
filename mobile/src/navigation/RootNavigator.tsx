@@ -17,6 +17,7 @@ import PromoCodeScreen from '../screens/PromoCodeScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import SupportChatScreen from '../screens/SupportChatScreen';
+import SystemCheckScreen from '../screens/SystemCheckScreen';
 import TruckStopFinderScreen from '../screens/TruckStopFinderScreen';
 import VehicleScreen from '../screens/VehicleScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
@@ -42,6 +43,7 @@ export type RootStackParamList = {
   MessageThread: { threadId: string };
   EquipmentMarketplace: undefined;
   SupportChat: undefined;
+  SystemCheck: undefined;
   TruckStopFinder: undefined;
 };
 
@@ -83,6 +85,7 @@ export default function RootNavigator() {
         options={{ title: 'Ask Michelle', presentation: 'modal', animation: 'slide_from_bottom' }}
       />
       <Stack.Screen name="TruckStopFinder" component={TruckStopFinderScreen} options={{ title: 'Truck Stops & Parking' }} />
+      <Stack.Screen name="SystemCheck" component={SystemCheckScreen} options={{ title: 'System Check' }} />
     </Stack.Navigator>
   );
 }

@@ -20,6 +20,7 @@ import EfficiencyDial from '../components/game/EfficiencyDial';
 import ProfitBarChart from '../components/game/ProfitBarChart';
 import CoinBurst from '../components/game/CoinBurst';
 import AnimatedPressable from '../components/game/AnimatedPressable';
+import useHandsFreeStore from '../store/handsFreeStore';
 
 const PROFIT_TREND_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'];
 const AVG_TRUCK_MPG = 6.5;
@@ -42,6 +43,7 @@ export default function DashboardScreen() {
   const { workers, dailyRevenue, activityLog, coinBurstSeq } = useWorkerStore();
   const { isTrialActive, daysRemaining, getEffectiveTier } = usePromoStore();
   const { setLoads } = useLoadsStore();
+  const { narrate } = useHandsFreeStore();
   const [findingFreight, setFindingFreight] = useState(false);
   const [tripActive, setTripActive] = useState(false);
   const [cpm, setCpm] = useState(FALLBACK_CPM);
@@ -77,7 +79,10 @@ export default function DashboardScreen() {
   const handleFindFreight = (): void => {
     setFindingFreight(true);
     aggregateLoads()
-      .then((loads) => setLoads(loads))
+      .then((loads) => {
+        setLoads(loads);
+        narrate(loads.length > 0 ? `Found ${loads.length} loads. Opening the loads tab now.` : 'No loads found nearby yet.');
+      })
       .catch(() => {})
       .finally(() => {
         setFindingFreight(false);

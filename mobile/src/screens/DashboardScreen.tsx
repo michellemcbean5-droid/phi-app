@@ -96,7 +96,7 @@ export default function DashboardScreen() {
 
         {/* Header */}
         <Animated.View style={[styles.header, { opacity: slideAnim, transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
-          <View>
+          <View style={styles.headerTextWrap}>
             <Text style={styles.greeting}>{GREETING}, Driver</Text>
             <Text style={styles.subGreeting}>PHI is running your business right now</Text>
           </View>
@@ -265,6 +265,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: PHI_COLORS.royalBlue },
   content: { padding: 16, gap: 14 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  headerTextWrap: { flex: 1, flexShrink: 1 },
   greeting: { color: PHI_COLORS.white, fontSize: 22, fontWeight: '900' },
   subGreeting: { color: '#A8C0FF', fontSize: 13, marginTop: 2 },
   tierPill: { backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6 },

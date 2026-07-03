@@ -143,7 +143,7 @@ export default function ComplianceScreen() {
           )}
           {transactions.map((transaction) => (
             <View key={transaction.transactionId} style={styles.ledgerRow}>
-              <View>
+              <View style={styles.ledgerTextWrap}>
                 <Text style={styles.ledgerTitle}>{transaction.loadId}</Text>
                 <Text style={styles.sectionText}>{transaction.miles} mi • {transaction.dutyHoursRequired.toFixed(1)} duty hrs</Text>
               </View>
@@ -176,6 +176,7 @@ const styles = StyleSheet.create({
   riskSummaryText: { color: '#B0C8FF', fontSize: 13, lineHeight: 20, fontStyle: 'italic' },
   recommendationText: { color: PHI_COLORS.moneyGreen, fontSize: 13, lineHeight: 20 },
   ledgerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#21406F' },
+  ledgerTextWrap: { flex: 1, flexShrink: 1 },
   ledgerTitle: { color: PHI_COLORS.white, fontWeight: '700', marginBottom: 4 },
   amount: { color: PHI_COLORS.moneyGreen, fontWeight: '800' },
 });

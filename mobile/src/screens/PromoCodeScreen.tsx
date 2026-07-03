@@ -93,7 +93,7 @@ export default function PromoCodeScreen() {
                 style={styles.hintRow}
                 onPress={() => setInput(item.code)}
               >
-                <View>
+                <View style={styles.hintTextWrap}>
                   <Text style={styles.hintCode}>{item.code}</Text>
                   <Text style={styles.hintBenefit}>{item.benefit}</Text>
                 </View>
@@ -153,6 +153,7 @@ const styles = StyleSheet.create({
   redeemButtonDisabled: { opacity: 0.6 },
   redeemButtonText: { color: PHI_COLORS.charcoalBlack, textAlign: 'center', fontWeight: '900', fontSize: 16 },
   hintRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#21406F' },
+  hintTextWrap: { flex: 1, flexShrink: 1 },
   hintCode: { color: PHI_COLORS.sunshineYellow, fontWeight: '800', fontSize: 15 },
   hintBenefit: { color: '#D7E3FF', fontSize: 12, marginTop: 2 },
   featureRow: { color: '#D7E3FF', lineHeight: 22 },

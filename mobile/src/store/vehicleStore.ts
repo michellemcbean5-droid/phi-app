@@ -9,6 +9,8 @@ export interface VehicleRecord {
   model: string;
   plate: string;
   vin: string;
+  mileage: string;
+  photoUri: string;
   gpsEnabled: boolean;
 }
 
@@ -19,13 +21,16 @@ const createBlankVehicle = (): VehicleRecord => ({
   model: '',
   plate: '',
   vin: '',
+  mileage: '',
+  photoUri: '',
   gpsEnabled: true,
 });
 
 interface VehicleState {
   vehicles: VehicleRecord[];
   addVehicle: () => void;
-  updateVehicle: (id: string, field: keyof Omit<VehicleRecord, 'id' | 'gpsEnabled'>, value: string) => void;
+  updateVehicle: (id: string, field: keyof Omit<VehicleRecord, 'id' | 'gpsEnabled' | 'photoUri'>, value: string) => void;
+  setPhoto: (id: string, uri: string) => void;
   toggleGps: (id: string) => void;
   removeVehicle: (id: string) => void;
 }
@@ -38,6 +43,10 @@ const useVehicleStore = create<VehicleState>()(
       updateVehicle: (id, field, value) =>
         set((state) => ({
           vehicles: state.vehicles.map((v) => (v.id === id ? { ...v, [field]: value } : v)),
+        })),
+      setPhoto: (id, uri) =>
+        set((state) => ({
+          vehicles: state.vehicles.map((v) => (v.id === id ? { ...v, photoUri: uri } : v)),
         })),
       toggleGps: (id) =>
         set((state) => ({

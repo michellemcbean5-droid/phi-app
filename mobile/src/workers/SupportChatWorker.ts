@@ -73,10 +73,13 @@ const findFaqAnswer = (message: string): string | null => {
 const GENERIC_FALLBACK =
   "I'm running in offline mode right now since no AI key is set up yet — add one free in Settings > My API Keys and I can answer anything about the app. In the meantime, try asking about: your API key, pricing, cancelling a subscription, privacy, booking a load, or how the AI workers work.";
 
-export const getMichelleReply = async (message: string): Promise<string> => {
+export const getMichelleReply = async (message: string, customInstructions?: string): Promise<string> => {
   if (isClaudeConfigured()) {
     try {
-      return await askClaude(message, MICHELLE_SYSTEM_PROMPT, 400);
+      const systemPrompt = customInstructions?.trim()
+        ? `${MICHELLE_SYSTEM_PROMPT}\n\nThe driver has customized how you should behave — follow this as long as it doesn't conflict with the facts above: "${customInstructions.trim()}"`
+        : MICHELLE_SYSTEM_PROMPT;
+      return await askClaude(message, systemPrompt, 400);
     } catch {
       // Fall through to the FAQ so support still works if the API call fails.
     }

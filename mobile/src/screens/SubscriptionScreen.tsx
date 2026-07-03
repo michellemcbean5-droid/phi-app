@@ -44,7 +44,7 @@ const plans: Plan[] = [
     tier: 'Solo',
     fallbackPrice: '$49/mo',
     tagline: 'For owner-operators who don’t want to mess with API keys.',
-    features: ['Managed AI — we run it for you, no API key needed', 'Unlimited document storage', '1-minute priority load alerts', 'Priority support from Michelle'],
+    features: ['Managed AI — we run it for you, no API key needed', 'Floating Ask Michelle button on every screen', 'Unlimited document storage', '1-minute priority load alerts'],
   },
   {
     tier: 'Fleet',

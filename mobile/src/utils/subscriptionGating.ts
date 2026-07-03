@@ -14,6 +14,7 @@ const FEATURE_ACCESS: Record<string, UserTier[]> = {
   documentAutomation: ['Free', 'Solo', 'Fleet', 'Enterprise'],
   multiTruckFleet: ['Fleet', 'Enterprise'],
   managedAI: ['Solo', 'Fleet', 'Enterprise'],
+  floatingAssistant: ['Solo', 'Fleet', 'Enterprise'],
   enterpriseAnalytics: ['Enterprise'],
 };
 
@@ -54,3 +55,6 @@ export const getProximityRefreshMinutes = (tier: UserTier): number => {
 };
 
 export const hasManagedAI = (tier: UserTier): boolean => checkFeatureAccess(tier, 'managedAI');
+
+/** The floating "Ask Michelle" bubble — a paid-plan perk, Solo and up. */
+export const hasFloatingAssistant = (tier: UserTier): boolean => checkFeatureAccess(tier, 'floatingAssistant');

@@ -3,7 +3,7 @@
 
 import React from 'react';
 import {
-  ScrollView, StyleSheet, Switch, Text,
+  Alert, ScrollView, StyleSheet, Switch, Text,
   TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
 import useDriverPrefsStore, { EquipmentPref } from '../store/driverPrefsStore';
+import useProfileStore from '../store/profileStore';
 import { RootStackParamList } from '../navigation/RootNavigator';
 
 type DriverPrefsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -23,6 +24,7 @@ const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','
 export default function DriverPrefsScreen() {
   const navigation = useNavigation<DriverPrefsNavigationProp>();
   const { prefs, updatePref, resetPrefs } = useDriverPrefsStore();
+  const { fullName, cdlNumber, cdlState, cdlClass, setField, isComplete } = useProfileStore();
 
   const toggleState = (state: string, list: 'preferredStates' | 'avoidStates') => {
     const current = prefs[list];
@@ -44,6 +46,57 @@ export default function DriverPrefsScreen() {
             Set your preferences once. PHI's 10 AI workers find loads, negotiate rates,
             and book freight automatically — you just drive.
           </Text>
+        </View>
+
+        {/* Driver Identity */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>🪪 Driver Identity</Text>
+          <Text style={styles.helpText}>
+            This is what shows up on rate confirmations and broker communication — worth getting right before you start booking.
+          </Text>
+          <Text style={styles.fieldLabel}>Full Legal Name</Text>
+          <TextInput
+            style={styles.input}
+            value={fullName}
+            onChangeText={(v) => setField('fullName', v)}
+            placeholder="e.g. John A. Smith"
+            placeholderTextColor="#7F8FB3"
+            autoCapitalize="words"
+          />
+          <Text style={styles.fieldLabel}>CDL Number</Text>
+          <TextInput
+            style={styles.input}
+            value={cdlNumber}
+            onChangeText={(v) => setField('cdlNumber', v)}
+            placeholder="e.g. 12345678"
+            placeholderTextColor="#7F8FB3"
+          />
+          <View style={styles.rpmRow}>
+            <View style={{ flex: 1, gap: 8 }}>
+              <Text style={styles.fieldLabel}>CDL State</Text>
+              <TextInput
+                style={styles.input}
+                value={cdlState}
+                onChangeText={(v) => setField('cdlState', v.toUpperCase().slice(0, 2))}
+                placeholder="TX"
+                placeholderTextColor="#7F8FB3"
+                maxLength={2}
+                autoCapitalize="characters"
+              />
+            </View>
+            <View style={{ flex: 1, gap: 8 }}>
+              <Text style={styles.fieldLabel}>CDL Class</Text>
+              <TextInput
+                style={styles.input}
+                value={cdlClass}
+                onChangeText={(v) => setField('cdlClass', v.toUpperCase().slice(0, 1))}
+                placeholder="A"
+                placeholderTextColor="#7F8FB3"
+                maxLength={1}
+                autoCapitalize="characters"
+              />
+            </View>
+          </View>
         </View>
 
         {/* Home Base */}
@@ -230,7 +283,17 @@ export default function DriverPrefsScreen() {
 
         <TouchableOpacity
           style={styles.continueButton}
-          onPress={() => (navigation.canGoBack() ? navigation.navigate('Main') : navigation.replace('Main'))}
+          onPress={() => {
+            if (!isComplete()) {
+              Alert.alert(
+                'Finish Your Driver Identity',
+                'Add your full name, CDL number, and CDL state above — brokers and rate confirmations need this to look professional.',
+              );
+              return;
+            }
+            if (navigation.canGoBack()) navigation.navigate('Main');
+            else navigation.replace('Main');
+          }}
         >
           <Text style={styles.continueText}>Continue to Dashboard →</Text>
         </TouchableOpacity>

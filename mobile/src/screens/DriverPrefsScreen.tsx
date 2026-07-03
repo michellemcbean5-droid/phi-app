@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
 import useDriverPrefsStore, { EquipmentPref } from '../store/driverPrefsStore';
 import useProfileStore from '../store/profileStore';
+import useOnboardingStore from '../store/onboardingStore';
 import { RootStackParamList } from '../navigation/RootNavigator';
 
 type DriverPrefsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -24,6 +25,7 @@ const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','
 export default function DriverPrefsScreen() {
   const navigation = useNavigation<DriverPrefsNavigationProp>();
   const { prefs, updatePref, resetPrefs } = useDriverPrefsStore();
+  const { hasSeenWalkthrough } = useOnboardingStore();
   const { fullName, cdlNumber, cdlState, cdlClass, setField, isComplete } = useProfileStore();
 
   const toggleState = (state: string, list: 'preferredStates' | 'avoidStates') => {
@@ -291,8 +293,15 @@ export default function DriverPrefsScreen() {
               );
               return;
             }
-            if (navigation.canGoBack()) navigation.navigate('Main');
-            else navigation.replace('Main');
+            if (navigation.canGoBack()) {
+              navigation.navigate('Main');
+              return;
+            }
+            if (!hasSeenWalkthrough) {
+              navigation.replace('Walkthrough');
+              return;
+            }
+            navigation.replace('Main');
           }}
         >
           <Text style={styles.continueText}>Continue to Dashboard →</Text>

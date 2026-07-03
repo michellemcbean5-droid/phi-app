@@ -146,6 +146,12 @@ export default function SettingsScreen() {
             sublabel="Run a live checklist — permissions, profile, AI status"
             onPress={() => navigation.navigate('SystemCheck')}
           />
+          <NavRow
+            icon="play-circle-outline"
+            label="App Walkthrough"
+            sublabel="A quick tour of how PHI works"
+            onPress={() => navigation.navigate('Walkthrough')}
+          />
         </View>
 
         {/* Account */}

@@ -22,6 +22,7 @@ import SupportChatScreen from '../screens/SupportChatScreen';
 import SystemCheckScreen from '../screens/SystemCheckScreen';
 import TruckStopFinderScreen from '../screens/TruckStopFinderScreen';
 import VehicleScreen from '../screens/VehicleScreen';
+import WalkthroughScreen from '../screens/WalkthroughScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import TabNavigator from './TabNavigator';
 
@@ -49,6 +50,7 @@ export type RootStackParamList = {
   SystemCheck: undefined;
   TruckStopFinder: undefined;
   PayoutSettings: undefined;
+  Walkthrough: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -92,6 +94,7 @@ export default function RootNavigator() {
       <Stack.Screen name="SystemCheck" component={SystemCheckScreen} options={{ title: 'System Check' }} />
       <Stack.Screen name="RouteMap" component={RouteMapScreen} options={{ title: 'Route Analysis' }} />
       <Stack.Screen name="PayoutSettings" component={PayoutSettingsScreen} options={{ title: 'Payout Settings' }} />
+      <Stack.Screen name="Walkthrough" component={WalkthroughScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

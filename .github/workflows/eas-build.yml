@@ -81,6 +81,40 @@ jobs:
           sed -i "s/classpath('com.android.tools.build:gradle')/classpath('com.android.tools.build:gradle:8.6.0')/" build.gradle
           grep "com.android.tools.build:gradle" build.gradle
 
+      - name: Configure release signing (falls back to debug keystore if secrets aren't set)
+        working-directory: mobile/android
+        run: |
+          python3 /dev/stdin << 'SCRIPT_EOF'
+          path = 'app/build.gradle'
+          with open(path) as f:
+              content = f.read()
+
+          old_signing = "    signingConfigs {\n        debug {\n            storeFile file('debug.keystore')\n            storePassword 'android'\n            keyAlias 'androiddebugkey'\n            keyPassword 'android'\n        }\n    }"
+          new_signing = "    signingConfigs {\n        debug {\n            storeFile file('debug.keystore')\n            storePassword 'android'\n            keyAlias 'androiddebugkey'\n            keyPassword 'android'\n        }\n        release {\n            def releaseKeystorePath = System.getenv(\"PHI_RELEASE_KEYSTORE_PATH\")\n            if (releaseKeystorePath) {\n                storeFile file(releaseKeystorePath)\n                storePassword System.getenv(\"PHI_RELEASE_KEYSTORE_PASSWORD\")\n                keyAlias System.getenv(\"PHI_RELEASE_KEY_ALIAS\")\n                keyPassword System.getenv(\"PHI_RELEASE_KEYSTORE_PASSWORD\")\n            } else {\n                storeFile file('debug.keystore')\n                storePassword 'android'\n                keyAlias 'androiddebugkey'\n                keyPassword 'android'\n            }\n        }\n    }"
+          if old_signing not in content:
+              raise SystemExit("SIGNING PATTERN NOT FOUND - aborting so this does not silently no-op")
+          content = content.replace(old_signing, new_signing)
+
+          old_release_type = "        release {\n            // Caution! In production, you need to generate your own keystore file.\n            // see https://reactnative.dev/docs/signed-apk-android.\n            signingConfig signingConfigs.debug"
+          new_release_type = "        release {\n            // Signed with PHI_RELEASE_KEYSTORE_* env vars when present (set from GitHub Secrets\n            // in CI); falls back to the debug keystore otherwise so test builds keep working.\n            signingConfig signingConfigs.release"
+          if old_release_type not in content:
+              raise SystemExit("RELEASE BUILD TYPE PATTERN NOT FOUND - aborting so this does not silently no-op")
+          content = content.replace(old_release_type, new_release_type)
+
+          with open(path, 'w') as f:
+              f.write(content)
+          print("Patched app/build.gradle to sign release builds with PHI_RELEASE_KEYSTORE_* when available")
+          SCRIPT_EOF
+
+      - name: Decode release keystore from secret
+        if: ${{ secrets.PHI_RELEASE_KEYSTORE_BASE64 != '' }}
+        working-directory: mobile/android
+        run: |
+          echo "${{ secrets.PHI_RELEASE_KEYSTORE_BASE64 }}" | base64 -d > app/phi-release.keystore
+          echo "PHI_RELEASE_KEYSTORE_PATH=phi-release.keystore" >> "$GITHUB_ENV"
+          echo "PHI_RELEASE_KEYSTORE_PASSWORD=${{ secrets.PHI_RELEASE_KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
+          echo "PHI_RELEASE_KEY_ALIAS=${{ secrets.PHI_RELEASE_KEY_ALIAS }}" >> "$GITHUB_ENV"
+
       - name: Build release APK (bundles JS, no Metro/computer needed)
         working-directory: mobile/android
         run: |
@@ -101,4 +135,28 @@ jobs:
         with:
           name: phi-app-release
           path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 14
+
+      - name: Build signed release AAB for Google Play (only runs once signing secrets are set)
+        if: ${{ secrets.PHI_RELEASE_KEYSTORE_BASE64 != '' }}
+        working-directory: mobile/android
+        run: |
+          for attempt in 1 2 3; do
+            echo "Bundle attempt $attempt of 3"
+            if ./gradlew bundleRelease --no-daemon --stacktrace; then
+              exit 0
+            fi
+            echo "Attempt $attempt failed, retrying in 15s..."
+            sleep 15
+          done
+          exit 1
+        env:
+          GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.internal.http.connectionTimeout=60000 -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.repository.max.retries=5
+
+      - name: Upload AAB (Google Play Store upload file)
+        if: ${{ secrets.PHI_RELEASE_KEYSTORE_BASE64 != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: phi-app-release-aab
+          path: mobile/android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 14

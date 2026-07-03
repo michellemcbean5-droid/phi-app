@@ -4,7 +4,7 @@
 
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, KeyboardAvoidingView,
+  ActivityIndicator, Alert, KeyboardAvoidingView, Linking,
   Platform, ScrollView, StyleSheet, Text, TextInput,
   TouchableOpacity, View,
 } from 'react-native';
@@ -155,7 +155,9 @@ export default function APIKeysScreen() {
                 </View>
 
                 <Text style={styles.helpText}>{skippable ? 'Optional — only fill in if you prefer your own quota over PHI-managed AI.' : kf.helpText}</Text>
-                <Text style={styles.signupText}>📎 Free signup: {kf.signupUrl}</Text>
+                <TouchableOpacity onPress={() => void Linking.openURL(`https://${kf.signupUrl}`)}>
+                  <Text style={styles.signupText}>📎 Free signup: {kf.signupUrl}</Text>
+                </TouchableOpacity>
 
                 <View style={styles.inputRow}>
                   <TextInput
@@ -226,7 +228,7 @@ const styles = StyleSheet.create({
   coveredBadge: { backgroundColor: PHI_COLORS.moneyGreen, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
   coveredText: { color: PHI_COLORS.charcoalBlack, fontWeight: '800', fontSize: 9 },
   helpText: { color: '#A8B7D8', fontSize: 12 },
-  signupText: { color: PHI_COLORS.sunshineYellow, fontSize: 12 },
+  signupText: { color: PHI_COLORS.sunshineYellow, fontSize: 12, textDecorationLine: 'underline' },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   input: { flex: 1, backgroundColor: '#132B52', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: PHI_COLORS.white, borderWidth: 1, borderColor: '#29508C', fontSize: 13 },
   eyeButton: { padding: 12 },

@@ -98,10 +98,21 @@ export default function LoadsScreen() {
   const handleAnalyzeRoute = async (load: Load): Promise<void> => {
     const location = (await getCurrentDriverLocation()) ?? FALLBACK_LOCATION;
     const analysis = await calculateDeadhead(location, load.origin, load.totalMiles);
-    Alert.alert(
-      'Route Analysis',
-      `${load.id}: ${analysis.deadheadMiles.toFixed(1)} deadhead miles (${analysis.deadheadPercentage}%). ${analysis.rejected ? analysis.rejectionReason : 'Route approved.'}`,
-    );
+    if (analysis.rejected) {
+      Alert.alert(
+        'Route Analysis',
+        `${load.id}: ${analysis.deadheadMiles.toFixed(1)} deadhead miles (${analysis.deadheadPercentage}%). ${analysis.rejectionReason}`,
+      );
+      return;
+    }
+    navigation.navigate('RouteMap', {
+      originLat: load.origin.latitude,
+      originLon: load.origin.longitude,
+      originLabel: `${load.origin.city}, ${load.origin.state}`,
+      destLat: load.destination.latitude,
+      destLon: load.destination.longitude,
+      destLabel: `${load.destination.city}, ${load.destination.state}`,
+    });
   };
 
   const handleBookLoad = async (load: Load): Promise<void> => {

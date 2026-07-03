@@ -14,6 +14,7 @@ import LoadingScreen from '../screens/LoadingScreen';
 import MessageThreadScreen from '../screens/MessageThreadScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import PromoCodeScreen from '../screens/PromoCodeScreen';
+import RouteMapScreen from '../screens/RouteMapScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import SupportChatScreen from '../screens/SupportChatScreen';
@@ -28,6 +29,7 @@ export type RootStackParamList = {
   Welcome: undefined;
   Main: undefined;
   LoadDetails: { loadId: string };
+  RouteMap: { originLat: number; originLon: number; originLabel: string; destLat: number; destLon: number; destLabel: string };
   AICommandCenter: undefined;
   Compliance: undefined;
   Documents: undefined;
@@ -86,6 +88,7 @@ export default function RootNavigator() {
       />
       <Stack.Screen name="TruckStopFinder" component={TruckStopFinderScreen} options={{ title: 'Truck Stops & Parking' }} />
       <Stack.Screen name="SystemCheck" component={SystemCheckScreen} options={{ title: 'System Check' }} />
+      <Stack.Screen name="RouteMap" component={RouteMapScreen} options={{ title: 'Route Analysis' }} />
     </Stack.Navigator>
   );
 }

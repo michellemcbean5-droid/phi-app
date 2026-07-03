@@ -189,8 +189,14 @@ export default function LoadsScreen() {
               <Text style={styles.metaText}>Equipment: {item.equipmentType} • Miles: {item.totalMiles}</Text>
               <Text style={styles.bookingState}>Booking: {bookingState[item.id] ?? 'unbooked'}</Text>
               <View style={styles.buttonRow}>
-                <AnimatedPressable style={styles.primaryButton} onPress={() => void handleBookLoad(item)}>
-                  <Text style={styles.primaryButtonText}>Book Load</Text>
+                <AnimatedPressable
+                  style={[styles.primaryButton, bookingState[item.id] === 'booked' && styles.primaryButtonDisabled]}
+                  onPress={() => void handleBookLoad(item)}
+                  disabled={bookingState[item.id] === 'booked' || bookingState[item.id] === 'pending'}
+                >
+                  <Text style={styles.primaryButtonText}>
+                    {bookingState[item.id] === 'booked' ? 'Booked ✓' : bookingState[item.id] === 'pending' ? 'Booking...' : 'Book Load'}
+                  </Text>
                 </AnimatedPressable>
                 <AnimatedPressable style={styles.secondaryButton} onPress={() => void handleAnalyzeRoute(item)}>
                   <Text style={styles.secondaryButtonText}>Analyze Route</Text>
@@ -229,6 +235,7 @@ const styles = StyleSheet.create({
   bookingState: { color: PHI_COLORS.moneyGreen, fontWeight: '700' },
   buttonRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
   primaryButton: { flex: 1, backgroundColor: PHI_COLORS.sunshineYellow, padding: 12, borderRadius: 12 },
+  primaryButtonDisabled: { backgroundColor: PHI_COLORS.moneyGreen, opacity: 0.85 },
   secondaryButton: { flex: 1, backgroundColor: PHI_COLORS.royalBlue, padding: 12, borderRadius: 12 },
   primaryButtonText: { color: PHI_COLORS.charcoalBlack, textAlign: 'center', fontWeight: '800' },
   secondaryButtonText: { color: PHI_COLORS.white, textAlign: 'center', fontWeight: '800' },

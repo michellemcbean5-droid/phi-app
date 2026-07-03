@@ -142,7 +142,7 @@ export default function EarningsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.heroCard}>
           <Text style={styles.heroLabel}>
-            Net Profit ({bookingHistory.length} loads booked) — {hasRealExpenses ? 'Actual expenses' : 'Estimated costs'}
+            Net Profit ({bookingHistory.length} load{bookingHistory.length === 1 ? '' : 's'} booked) — {hasRealExpenses ? 'Actual expenses' : 'Estimated costs'}
           </Text>
           <Text style={styles.heroValue}>${profit.netProfit.toLocaleString()}</Text>
           <Text style={styles.heroSubtext}>

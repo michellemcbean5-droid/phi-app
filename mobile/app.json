@@ -65,7 +65,7 @@
     },
     "owner": "q-empire-ai-automation",
     "privacy": "public",
-    "platforms": ["android", "ios"],
+    "platforms": ["android", "ios", "web"],
     "plugins": [
       [
         "expo-notifications",

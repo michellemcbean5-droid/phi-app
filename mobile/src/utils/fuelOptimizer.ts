@@ -6,6 +6,7 @@
 
 import { askClaudeJSON, isClaudeConfigured } from '../api/claudeClient';
 import { Coordinates } from '../api/googleMapsConnector';
+import useAPIKeyStore from '../store/apiKeyStore';
 
 export interface RouteFuelPlan {
   corridor: string;
@@ -39,7 +40,7 @@ export const fetchLiveDieselPrice = async (): Promise<LiveDieselPrice> => {
     return dieselPriceCache;
   }
 
-  const eiaKey = process.env.EXPO_PUBLIC_EIA_API_KEY ?? '';
+  const eiaKey = useAPIKeyStore.getState().getEffectiveKey('eiaKey', process.env.EXPO_PUBLIC_EIA_API_KEY ?? '');
   if (!eiaKey) {
     return { nationalAverage: NATIONAL_DIESEL_FALLBACK, period: new Date().toISOString().split('T')[0], source: 'cached' };
   }

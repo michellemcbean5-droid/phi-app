@@ -1,5 +1,8 @@
 // Routing via OpenRouteService (free tier: 2,000 req/day — openrouteservice.org)
-// Falls back to haversine formula when EXPO_PUBLIC_ORS_API_KEY is not set.
+// Falls back to haversine formula when no key (customer's own, or PHI's shared
+// EXPO_PUBLIC_ORS_API_KEY) is available.
+
+import useAPIKeyStore from '../store/apiKeyStore';
 
 const ORS_BASE = 'https://api.openrouteservice.org/v2';
 
@@ -47,7 +50,7 @@ export const fetchDistanceMatrix = async (
   origin: Coordinates,
   destination: Coordinates,
 ): Promise<DistanceMatrixResult> => {
-  const key = process.env.EXPO_PUBLIC_ORS_API_KEY ?? '';
+  const key = useAPIKeyStore.getState().getEffectiveKey('orsKey', process.env.EXPO_PUBLIC_ORS_API_KEY ?? '');
   if (!key) return haversineMatrix(origin, destination);
 
   try {

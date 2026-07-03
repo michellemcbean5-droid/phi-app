@@ -1,5 +1,6 @@
 // Customer-owned API keys — stored securely via expo-secure-store.
-// Customers enter their own keys so PHI uses their accounts (and quotas).
+// Free-tier customers enter their own keys so PHI uses their accounts (and quotas).
+// Paid tiers don't need any of these — see hasManagedAI() in subscriptionGating.ts.
 // Keys override EXPO_PUBLIC_ env vars when present.
 
 import * as SecureStore from 'expo-secure-store';
@@ -9,10 +10,6 @@ export interface CustomerAPIKeys {
   anthropicKey: string;
   orsKey: string;
   eiaKey: string;
-  stripeKey: string;
-  datApiKey: string;
-  twilioAccountSid: string;
-  twilioAuthToken: string;
 }
 
 const STORE_KEY = 'phi_customer_api_keys';
@@ -21,10 +18,6 @@ const EMPTY_KEYS: CustomerAPIKeys = {
   anthropicKey: '',
   orsKey: '',
   eiaKey: '',
-  stripeKey: '',
-  datApiKey: '',
-  twilioAccountSid: '',
-  twilioAuthToken: '',
 };
 
 interface APIKeyState {

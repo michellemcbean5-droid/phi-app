@@ -162,8 +162,9 @@ export default function AICommandCenterScreen() {
                 task and dollar shown here comes from something you actually did in the app, not a demo.
               </Text>
               <Text style={styles.modalParagraph}>
-                They need a free Anthropic API key to reason like a real dispatcher (Settings {'>'} My API Keys, about
-                2 minutes to set up). Without one, they still work using simpler built-in logic — just less smart.
+                On the Free plan, they need a free Anthropic API key to reason like a real dispatcher (Settings {'>'} My
+                API Keys, about 2 minutes to set up). Without one, they still work using simpler built-in logic — just
+                less smart. Any paid plan skips this entirely — PHI runs the AI for you automatically.
               </Text>
               <Text style={styles.modalParagraph}>
                 Tap "Pause Worker" on any card to turn that automation off, or "Start All" to bring the whole team

@@ -1,7 +1,8 @@
-// PHI is free to use — AI features run on the driver's own API key (BYOK), so every
-// tier gets the full 10-worker AI stack at no extra cost. Paid tiers unlock non-AI
-// extras (fleet size, document storage, faster load-proximity refresh) plus, at the
-// top tier, PHI-managed AI access for drivers who don't want to set up their own key.
+// Free tier is BYOK — AI features run on the driver's own free Anthropic API key.
+// Any paid tier (Solo/Fleet/Enterprise) gets PHI-managed AI instead: no key setup,
+// requests are billed to PHI and routed through backend/managed-ai-proxy. Paid tiers
+// also unlock non-AI extras (fleet size, document storage, faster load-proximity
+// refresh), with Enterprise adding unlimited trucks and enterprise analytics on top.
 
 export type UserTier = 'Free' | 'Solo' | 'Fleet' | 'Enterprise';
 
@@ -12,7 +13,7 @@ const FEATURE_ACCESS: Record<string, UserTier[]> = {
   complianceAutomation: ['Free', 'Solo', 'Fleet', 'Enterprise'],
   documentAutomation: ['Free', 'Solo', 'Fleet', 'Enterprise'],
   multiTruckFleet: ['Fleet', 'Enterprise'],
-  managedAI: ['Enterprise'],
+  managedAI: ['Solo', 'Fleet', 'Enterprise'],
   enterpriseAnalytics: ['Enterprise'],
 };
 

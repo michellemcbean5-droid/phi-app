@@ -228,7 +228,10 @@ export default function DriverPrefsScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.continueButton} onPress={() => navigation.navigate('Main')}>
+        <TouchableOpacity
+          style={styles.continueButton}
+          onPress={() => (navigation.canGoBack() ? navigation.navigate('Main') : navigation.replace('Main'))}
+        >
           <Text style={styles.continueText}>Continue to Dashboard →</Text>
         </TouchableOpacity>
 

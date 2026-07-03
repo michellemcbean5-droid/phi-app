@@ -8,8 +8,13 @@ import { findNearbyTruckStops, TruckStopKind, TruckStopPOI } from '../api/truckS
 
 const LOCATION_TIMEOUT_MS = 15000;
 
-const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T | null> =>
-  Promise.race([promise, new Promise<null>((resolve) => setTimeout(() => resolve(null), ms))]);
+const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T | null> => {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer)) as Promise<T | null>;
+};
 
 const KIND_ICONS: Record<TruckStopKind, keyof typeof Ionicons.glyphMap> = {
   'Fuel / Truck Stop': 'speedometer-outline',
@@ -40,7 +45,12 @@ export default function TruckStopFinderScreen() {
       setLoading(false);
       return;
     }
-    const results = await withTimeout(findNearbyTruckStops(location, 30), LOCATION_TIMEOUT_MS) ?? [];
+    const results = await withTimeout(findNearbyTruckStops(location, 30), LOCATION_TIMEOUT_MS);
+    if (results === null) {
+      setErrored(true);
+      setLoading(false);
+      return;
+    }
     setStops(results);
     setLoading(false);
   }, []);
@@ -78,7 +88,7 @@ export default function TruckStopFinderScreen() {
         </View>
       ) : errored ? (
         <View style={styles.center}>
-          <Text style={styles.centerText}>Couldn't get your location — enable location access, check your GPS signal, or try again.</Text>
+          <Text style={styles.centerText}>Couldn't find nearby stops — check your location access, GPS signal, or internet connection, then try again.</Text>
           <TouchableOpacity style={styles.retryButton} onPress={() => void load()}>
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>

@@ -106,14 +106,24 @@ jobs:
           print("Patched app/build.gradle to sign release builds with PHI_RELEASE_KEYSTORE_* when available")
           SCRIPT_EOF
 
-      - name: Decode release keystore from secret
-        if: ${{ secrets.PHI_RELEASE_KEYSTORE_BASE64 != '' }}
+      - name: Decode release keystore from secret (no-op until secrets are set)
+        id: release_signing
         working-directory: mobile/android
+        env:
+          KEYSTORE_B64: ${{ secrets.PHI_RELEASE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.PHI_RELEASE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.PHI_RELEASE_KEY_ALIAS }}
         run: |
-          echo "${{ secrets.PHI_RELEASE_KEYSTORE_BASE64 }}" | base64 -d > app/phi-release.keystore
-          echo "PHI_RELEASE_KEYSTORE_PATH=phi-release.keystore" >> "$GITHUB_ENV"
-          echo "PHI_RELEASE_KEYSTORE_PASSWORD=${{ secrets.PHI_RELEASE_KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
-          echo "PHI_RELEASE_KEY_ALIAS=${{ secrets.PHI_RELEASE_KEY_ALIAS }}" >> "$GITHUB_ENV"
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > app/phi-release.keystore
+            echo "PHI_RELEASE_KEYSTORE_PATH=phi-release.keystore" >> "$GITHUB_ENV"
+            echo "PHI_RELEASE_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "PHI_RELEASE_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No release signing secrets set yet — release build stays debug-signed."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Build release APK (bundles JS, no Metro/computer needed)
         working-directory: mobile/android
@@ -138,7 +148,7 @@ jobs:
           retention-days: 14
 
       - name: Build signed release AAB for Google Play (only runs once signing secrets are set)
-        if: ${{ secrets.PHI_RELEASE_KEYSTORE_BASE64 != '' }}
+        if: steps.release_signing.outputs.configured == 'true'
         working-directory: mobile/android
         run: |
           for attempt in 1 2 3; do
@@ -154,7 +164,7 @@ jobs:
           GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.internal.http.connectionTimeout=60000 -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.repository.max.retries=5
 
       - name: Upload AAB (Google Play Store upload file)
-        if: ${{ secrets.PHI_RELEASE_KEYSTORE_BASE64 != '' }}
+        if: steps.release_signing.outputs.configured == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: phi-app-release-aab

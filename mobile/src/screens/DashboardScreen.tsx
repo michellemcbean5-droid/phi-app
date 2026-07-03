@@ -160,7 +160,7 @@ export default function DashboardScreen() {
             disabled={findingFreight}
           >
             <Ionicons name={findingFreight ? 'radio-outline' : 'search-outline'} size={26} color={PHI_COLORS.charcoalBlack} />
-            <View>
+            <View style={styles.findFreightTextWrap}>
               <Text style={styles.findFreightTitle}>
                 {findingFreight ? 'Freight Negotiator Working...' : 'Find Freight'}
               </Text>
@@ -177,7 +177,7 @@ export default function DashboardScreen() {
           onPress={handleStartTrip}
         >
           <Ionicons name={tripActive ? 'navigate' : 'navigate-outline'} size={22} color={PHI_COLORS.white} />
-          <View>
+          <View style={styles.startTripTextWrap}>
             <Text style={styles.startTripTitle}>{tripActive ? 'Trip Active — Tap for Status' : 'Start Trip Mode'}</Text>
             <Text style={styles.startTripSub}>Route Optimizer · Fuel Optimizer · Dispatcher take over</Text>
           </View>
@@ -287,10 +287,12 @@ const styles = StyleSheet.create({
   profitChartWrap: { flex: 1 },
   findFreightButton: { backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 20, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 14 },
   findFreightButtonActive: { backgroundColor: '#FFE878' },
+  findFreightTextWrap: { flex: 1, flexShrink: 1 },
   findFreightTitle: { color: PHI_COLORS.charcoalBlack, fontSize: 20, fontWeight: '900' },
   findFreightSub: { color: '#3A3A00', fontSize: 12, marginTop: 3 },
   startTripButton: { backgroundColor: PHI_COLORS.moneyGreen, borderRadius: 18, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14 },
   startTripActive: { backgroundColor: '#00A044' },
+  startTripTextWrap: { flex: 1, flexShrink: 1 },
   startTripTitle: { color: PHI_COLORS.white, fontSize: 17, fontWeight: '900' },
   startTripSub: { color: '#C0FFD8', fontSize: 12, marginTop: 2 },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },

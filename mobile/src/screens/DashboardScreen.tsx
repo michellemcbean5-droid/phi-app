@@ -230,6 +230,26 @@ export default function DashboardScreen() {
             <Text style={styles.quickLabel}>Truck Stops</Text>
             <Text style={styles.quickSub}>Fuel · Parking · Weigh Stations</Text>
           </AnimatedPressable>
+          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('Vehicle')}>
+            <Ionicons name="car-outline" size={26} color="#FFB74D" />
+            <Text style={styles.quickLabel}>My Vehicle</Text>
+            <Text style={styles.quickSub}>Mileage · Maintenance</Text>
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('SystemCheck')}>
+            <Ionicons name="build-outline" size={26} color="#C9A6FF" />
+            <Text style={styles.quickLabel}>System Check</Text>
+            <Text style={styles.quickSub}>Troubleshoot & fix issues</Text>
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('EquipmentMarketplace')}>
+            <Ionicons name="car-sport-outline" size={26} color="#9BE8FF" />
+            <Text style={styles.quickLabel}>Equipment</Text>
+            <Text style={styles.quickSub}>Buy or lease a truck/van</Text>
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('PayoutSettings')}>
+            <Ionicons name="cash-outline" size={26} color="#7EE787" />
+            <Text style={styles.quickLabel}>Get Paid</Text>
+            <Text style={styles.quickSub}>Payout setup & invoices</Text>
+          </AnimatedPressable>
         </View>
 
         {/* Worker Status Strip */}

@@ -11,7 +11,17 @@ import { TabParamList } from '../navigation/TabNavigator';
 import useLoadsStore, { PaymentStatus } from '../store/loadsStore';
 import useExpenseStore, { ExpenseCategory } from '../store/expenseStore';
 import useProfileStore from '../store/profileStore';
-import { calculateRPMTrend, categorizeExpense, PHI_ProfitFormula, projectYearlyRevenue } from '../utils/profitFormula';
+import {
+  calculateLiveCPM,
+  calculateMinimumRPM,
+  calculateRPMTrend,
+  categorizeExpense,
+  PHI_ProfitFormula,
+  projectYearlyRevenue,
+} from '../utils/profitFormula';
+import useDriverPrefsStore from '../store/driverPrefsStore';
+
+const TARGET_PROFIT_MARGIN_PERCENT = 60;
 
 type EarningsNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Earnings'>,
@@ -51,6 +61,7 @@ export default function EarningsScreen() {
   const { bookingHistory, setPaymentStatus } = useLoadsStore();
   const { entries, addExpense, totalsByCategory, totalExpenses } = useExpenseStore();
   const { fullName } = useProfileStore();
+  const { prefs } = useDriverPrefsStore();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
 
@@ -115,6 +126,10 @@ export default function EarningsScreen() {
     ? Math.min(100, Math.max(0, (projection.projectedRevenue / projection.targetRevenue) * 100))
     : 0;
 
+  const totalMilesDriven = bookingHistory.reduce((sum, record) => sum + record.miles, 0);
+  const liveCPM = hasRealExpenses ? calculateLiveCPM(totalExpenses(), totalMilesDriven) : 0;
+  const dynamicMinimumRPM = liveCPM > 0 ? calculateMinimumRPM(liveCPM, TARGET_PROFIT_MARGIN_PERCENT) : prefs.minRPM;
+
   const handleShareReport = async (): Promise<void> => {
     const lines = [
       'PHI EARNINGS REPORT',
@@ -175,6 +190,23 @@ export default function EarningsScreen() {
           <Text style={styles.metricText}>7-day average RPM: {rpmTrend.averageRpm.toFixed(2)}</Text>
           <Text style={[styles.helperText, rpmTrend.flag === 'Market Risk' && styles.riskText]}>
             {rpmTrend.flag} • {rpmTrend.trendPercentage}% vs previous period
+          </Text>
+        </View>
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Live Cost Per Mile</Text>
+          <Text style={styles.metricText}>
+            {hasRealExpenses ? `$${liveCPM.toFixed(2)}/mi` : 'Log a few expenses to unlock your real number'}
+          </Text>
+          <Text style={styles.helperText}>
+            {hasRealExpenses
+              ? `Based on ${entries.length} logged expense${entries.length === 1 ? '' : 's'} over ${totalMilesDriven.toLocaleString()} booked miles.`
+              : 'Until then, PHI uses your Loads tab minimum RPM as the floor.'}
+          </Text>
+          <Text style={[styles.metricText, { marginTop: 6 }]}>Minimum RPM to book: ${dynamicMinimumRPM.toFixed(2)}/mi</Text>
+          <Text style={styles.helperText}>
+            {hasRealExpenses ? `Your cost + a ${TARGET_PROFIT_MARGIN_PERCENT}% margin` : 'From your AI Dispatcher Settings'} — the PHI Brain
+            won't book anything below this.
           </Text>
         </View>
 

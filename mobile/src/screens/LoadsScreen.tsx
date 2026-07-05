@@ -11,14 +11,16 @@ import useLoadsStore, { SortOption } from '../store/loadsStore';
 import { getCurrentDriverLocation } from '../api/samsaraConnector';
 import { sendNearbyLoadAlert } from '../api/twilioConnector';
 import { calculateGPSDeadhead, Coordinates } from '../api/googleMapsConnector';
-import { executeBooking, BookingConfirmation } from '../workers/AutoBookingEngine';
+import { BookingConfirmation } from '../workers/AutoBookingEngine';
 import BookingConfirmationModal from '../components/game/BookingConfirmationModal';
 import { aggregateLoads } from '../workers/LoadFinderWorker';
 import { scoreLoad, LoadScore } from '../workers/LoadScoringWorker';
 import { calculateDeadhead } from '../workers/RouteAnalysisWorker';
+import { runOrchestratorPipeline } from '../workers/PHIOrchestrator';
 import { Load } from '../workers/workers-15x';
 import useWorkerStore from '../store/workerStore';
 import usePromoStore from '../store/promoStore';
+import useDriverPrefsStore from '../store/driverPrefsStore';
 import { getProximityRefreshMinutes } from '../utils/subscriptionGating';
 import AnimatedPressable from '../components/game/AnimatedPressable';
 
@@ -39,7 +41,7 @@ const SORT_OPTIONS: { label: string; value: SortOption }[] = [
 
 export default function LoadsScreen() {
   const navigation = useNavigation<LoadsNavigationProp>();
-  const { activeLoads, bookingState, filter, sortBy, setLoads, setBookingState, addBookingRecord, setFilter, setSortBy } = useLoadsStore();
+  const { activeLoads, bookingState, filter, sortBy, setLoads, setFilter, setSortBy } = useLoadsStore();
   const { getEffectiveTier } = usePromoStore();
   const [refreshing, setRefreshing] = React.useState(false);
   const [bookingConfirmation, setBookingConfirmation] = React.useState<{ load: Load; confirmation: BookingConfirmation } | null>(null);
@@ -118,29 +120,42 @@ export default function LoadsScreen() {
   };
 
   const handleBookLoad = async (load: Load): Promise<void> => {
-    setBookingState(load.id, 'pending');
-    const confirmation = await executeBooking(load, 82);
-    setBookingState(load.id, confirmation.booked ? 'booked' : 'rejected');
-    if (confirmation.booked) {
-      const { recordTaskCompletion } = useWorkerStore.getState();
-      recordTaskCompletion('freight-negotiator', load.rate, `Booked ${load.id} at $${load.rate.toFixed(0)}`);
-      recordTaskCompletion('dispatch-coordinator', 0, `Confirmed pickup for ${load.id}`);
-      recordTaskCompletion('invoice-specialist', 0, `Invoice queued — bills automatically once ${load.id} delivers`);
-      recordTaskCompletion('track-trace', 0, `Now tracking ETA for ${load.id}`);
-      addBookingRecord({
-        id: load.id,
-        brokerName: load.brokerName,
-        rate: load.rate,
-        miles: load.totalMiles,
-        rpm: load.rpm,
-        bookedAt: new Date().toISOString(),
-        paymentStatus: 'unpaid',
-      });
-      setBookingConfirmation({ load, confirmation });
+    const result = await runOrchestratorPipeline(load);
+    if (result.booked && result.confirmation) {
+      setBookingConfirmation({ load, confirmation: result.confirmation });
     } else {
-      Alert.alert('Booking Update', confirmation.message);
+      Alert.alert('Booking Update', result.reason ?? 'This load did not clear the PHI Brain pipeline.');
     }
   };
+
+  const prefs = useDriverPrefsStore((s) => s.prefs);
+  const autoPilotRanForLoadIds = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!prefs.autoBookEnabled) return;
+
+    const runAutoPilot = async (): Promise<void> => {
+      const candidates = loadBoard.filter((load) => {
+        if (autoPilotRanForLoadIds.current.has(load.id)) return false;
+        if (bookingState[load.id] === 'booked' || bookingState[load.id] === 'pending') return false;
+        try {
+          return scoreLoad(load) === 'Diamond' || scoreLoad(load) === 'Gold';
+        } catch {
+          return false;
+        }
+      });
+
+      // Sequential on purpose — the pipeline is a deterministic single-lane process,
+      // not a set of competing background jobs, so loads are booked one at a time.
+      for (const load of candidates) {
+        autoPilotRanForLoadIds.current.add(load.id);
+        await handleBookLoad(load);
+      }
+    };
+
+    void runAutoPilot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefs.autoBookEnabled, loadBoard]);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>

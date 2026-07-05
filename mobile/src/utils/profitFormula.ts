@@ -127,6 +127,25 @@ export const projectYearlyRevenue = (dailyEarnings: number[]): {
   };
 };
 
+export const calculateLiveCPM = (totalExpenses: number, totalMilesDriven: number): number => {
+  assertNonNegativeDecimal(totalExpenses, 'Total expenses');
+  assertNonNegativeDecimal(totalMilesDriven, 'Total miles driven');
+  if (totalMilesDriven === 0) {
+    return 0;
+  }
+
+  return Number((totalExpenses / totalMilesDriven).toFixed(2));
+};
+
+export const calculateMinimumRPM = (liveCPM: number, desiredMarginPercent: number): number => {
+  assertNonNegativeDecimal(liveCPM, 'Live CPM');
+  if (!Number.isFinite(desiredMarginPercent) || desiredMarginPercent < 0) {
+    throw new Error('Desired margin percent must be a non-negative number.');
+  }
+
+  return Number((liveCPM * (1 + desiredMarginPercent / 100)).toFixed(2));
+};
+
 export const categorizeExpense = (receiptData: ReceiptData): 'Fuel' | 'Maintenance' | 'Miscellaneous' => {
   assertNonNegativeDecimal(receiptData.amount, 'Receipt amount');
   const descriptor = `${receiptData.vendor} ${receiptData.description}`.toLowerCase();

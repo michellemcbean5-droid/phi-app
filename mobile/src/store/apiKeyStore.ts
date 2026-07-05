@@ -6,8 +6,11 @@
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 
+export type AIProvider = 'anthropic' | 'kimi';
+
 export interface CustomerAPIKeys {
   anthropicKey: string;
+  kimiKey: string;
   orsKey: string;
   eiaKey: string;
 }
@@ -16,31 +19,37 @@ const STORE_KEY = 'phi_customer_api_keys';
 
 const EMPTY_KEYS: CustomerAPIKeys = {
   anthropicKey: '',
+  kimiKey: '',
   orsKey: '',
   eiaKey: '',
 };
 
 interface APIKeyState {
   keys: CustomerAPIKeys;
+  preferredProvider: AIProvider;
   loaded: boolean;
   loadKeys: () => Promise<void>;
   saveKey: (field: keyof CustomerAPIKeys, value: string) => Promise<void>;
+  setPreferredProvider: (provider: AIProvider) => Promise<void>;
   clearAllKeys: () => Promise<void>;
   getEffectiveKey: (field: keyof CustomerAPIKeys, envFallback?: string) => string;
 }
 
 const useAPIKeyStore = create<APIKeyState>((set, get) => ({
   keys: EMPTY_KEYS,
+  preferredProvider: 'anthropic',
   loaded: false,
 
   loadKeys: async () => {
     try {
       const raw = await SecureStore.getItemAsync(STORE_KEY);
+      const rawProvider = await SecureStore.getItemAsync(`${STORE_KEY}_provider`);
+      const provider: AIProvider = rawProvider === 'kimi' ? 'kimi' : 'anthropic';
       if (raw) {
         const parsed = JSON.parse(raw) as CustomerAPIKeys;
-        set({ keys: { ...EMPTY_KEYS, ...parsed }, loaded: true });
+        set({ keys: { ...EMPTY_KEYS, ...parsed }, preferredProvider: provider, loaded: true });
       } else {
-        set({ loaded: true });
+        set({ preferredProvider: provider, loaded: true });
       }
     } catch {
       set({ loaded: true });
@@ -53,6 +62,15 @@ const useAPIKeyStore = create<APIKeyState>((set, get) => ({
     set({ keys: updated });
     try {
       await SecureStore.setItemAsync(STORE_KEY, JSON.stringify(updated));
+    } catch {
+      // SecureStore not available in test env — silently skip
+    }
+  },
+
+  setPreferredProvider: async (provider) => {
+    set({ preferredProvider: provider });
+    try {
+      await SecureStore.setItemAsync(`${STORE_KEY}_provider`, provider);
     } catch {
       // SecureStore not available in test env — silently skip
     }

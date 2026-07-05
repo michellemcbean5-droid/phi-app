@@ -1,6 +1,6 @@
 // Free-tier customers enter their own API keys here — PHI uses their accounts so usage
 // hits their free tiers, not PHI's. Keys are stored encrypted on-device via expo-secure-store.
-// Paid tiers (Solo/Fleet/Enterprise) get Claude AI managed automatically — see hasManagedAI().
+// Paid tiers (Solo/Fleet/Enterprise) get AI managed automatically — see hasManagedAI().
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -13,7 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
-import useAPIKeyStore, { CustomerAPIKeys } from '../store/apiKeyStore';
+import useAPIKeyStore, { AIProvider, CustomerAPIKeys } from '../store/apiKeyStore';
 import usePromoStore from '../store/promoStore';
 import { hasManagedAI } from '../utils/subscriptionGating';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -27,16 +27,27 @@ interface KeyField {
   helpText: string;
   signupUrl: string;
   required: boolean;
+  provider?: AIProvider;
 }
 
 const KEY_FIELDS: KeyField[] = [
   {
     field: 'anthropicKey',
-    label: 'Claude AI (Anthropic)',
+    label: 'Claude (Anthropic)',
     placeholder: 'sk-ant-api03-...',
     helpText: 'Powers all 10 AI workers. Free $5 credit on signup.',
     signupUrl: 'console.anthropic.com',
-    required: true,
+    required: false,
+    provider: 'anthropic',
+  },
+  {
+    field: 'kimiKey',
+    label: 'Kimi (Moonshot AI)',
+    placeholder: 'sk-...',
+    helpText: 'Alternate AI provider that also powers all 10 AI workers. Free credits on signup.',
+    signupUrl: 'platform.moonshot.ai',
+    required: false,
+    provider: 'kimi',
   },
   {
     field: 'orsKey',
@@ -58,7 +69,7 @@ const KEY_FIELDS: KeyField[] = [
 
 export default function APIKeysScreen() {
   const navigation = useNavigation<APIKeysNavigationProp>();
-  const { keys, loaded, loadKeys, saveKey, clearAllKeys } = useAPIKeyStore();
+  const { keys, preferredProvider, loaded, loadKeys, saveKey, setPreferredProvider, clearAllKeys } = useAPIKeyStore();
   const { getEffectiveTier } = usePromoStore();
   const [values, setValues] = useState<CustomerAPIKeys>(keys);
   const [saving, setSaving] = useState<Partial<Record<keyof CustomerAPIKeys, boolean>>>({});
@@ -113,8 +124,8 @@ export default function APIKeysScreen() {
               <Ionicons name="shield-checkmark-outline" size={28} color={PHI_COLORS.moneyGreen} />
               <Text style={styles.managedTitle}>AI Is Managed on Your {tier} Plan</Text>
               <Text style={styles.managedText}>
-                Your subscription includes Claude AI — PHI runs it for you at no extra setup. You don't need an
-                Anthropic key. Routing and fuel-price keys below are still optional if you want to use your own quota.
+                Your subscription includes AI — PHI runs it for you at no extra setup. You don't need a
+                key below. Routing and fuel-price keys are still optional if you want to use your own quota.
               </Text>
             </View>
           ) : (
@@ -122,8 +133,9 @@ export default function APIKeysScreen() {
               <Ionicons name="alert-circle-outline" size={28} color={PHI_COLORS.sunshineYellow} />
               <Text style={styles.infoTitle}>PHI Is Free — With One Catch</Text>
               <Text style={styles.infoText}>
-                On the Free plan, AI features run on your own free Anthropic API key (about 2 minutes to set up
-                below, no credit card). Keys are stored encrypted on your device — never sent to PHI servers.
+                On the Free plan, AI features run on your own free API key — pick Claude or Kimi below (about 2
+                minutes to set up, no credit card). Keys are stored encrypted on your device — never sent to PHI
+                servers.
               </Text>
               <TouchableOpacity style={styles.upgradeButton} onPress={() => navigation.navigate('Subscription')}>
                 <Text style={styles.upgradeButtonText}>Or upgrade and skip setup — we'll run AI for you →</Text>
@@ -131,11 +143,31 @@ export default function APIKeysScreen() {
             </View>
           )}
 
+          {!managed && (
+            <View style={styles.providerCard}>
+              <Text style={styles.providerTitle}>Preferred AI Provider</Text>
+              <Text style={styles.helpText}>Which key PHI uses first if you've set up more than one.</Text>
+              <View style={styles.providerRow}>
+                {(['anthropic', 'kimi'] as AIProvider[]).map((provider) => (
+                  <TouchableOpacity
+                    key={provider}
+                    style={[styles.providerButton, preferredProvider === provider && styles.providerButtonActive]}
+                    onPress={() => void setPreferredProvider(provider)}
+                  >
+                    <Text style={[styles.providerButtonText, preferredProvider === provider && styles.providerButtonTextActive]}>
+                      {provider === 'anthropic' ? 'Claude' : 'Kimi'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
           {KEY_FIELDS.map((kf) => {
             const isVisible = visible[kf.field];
             const isSaving = saving[kf.field];
             const hasValue = Boolean(values[kf.field]);
-            const skippable = managed && kf.field === 'anthropicKey';
+            const skippable = managed && Boolean(kf.provider);
 
             return (
               <View key={kf.field} style={[styles.keyCard, hasValue && styles.keyCardActive]}>
@@ -219,6 +251,13 @@ const styles = StyleSheet.create({
   managedCard: { backgroundColor: '#0F3D2E', borderRadius: 18, padding: 18, gap: 10, alignItems: 'center', borderWidth: 1, borderColor: PHI_COLORS.moneyGreen + '66' },
   managedTitle: { color: PHI_COLORS.white, fontSize: 18, fontWeight: '800', textAlign: 'center' },
   managedText: { color: '#CFEAD9', lineHeight: 20, textAlign: 'center' },
+  providerCard: { backgroundColor: PHI_COLORS.card, borderRadius: 16, padding: 16, gap: 8, borderWidth: 1, borderColor: '#21406F' },
+  providerTitle: { color: PHI_COLORS.white, fontWeight: '800', fontSize: 15 },
+  providerRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  providerButton: { flex: 1, backgroundColor: '#132B52', borderRadius: 12, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#29508C' },
+  providerButtonActive: { backgroundColor: PHI_COLORS.sunshineYellow, borderColor: PHI_COLORS.sunshineYellow },
+  providerButtonText: { color: PHI_COLORS.white, fontWeight: '700', fontSize: 13 },
+  providerButtonTextActive: { color: PHI_COLORS.charcoalBlack },
   keyCard: { backgroundColor: PHI_COLORS.card, borderRadius: 16, padding: 16, gap: 10, borderWidth: 1, borderColor: '#21406F' },
   keyCardActive: { borderColor: PHI_COLORS.moneyGreen + '66' },
   keyHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },

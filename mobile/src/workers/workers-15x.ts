@@ -48,7 +48,7 @@ export interface LocationPoint {
 
 export interface Load {
   id: string;
-  source: 'DAT' | 'Truckstop';
+  source: 'DAT' | 'Truckstop' | '123Loadboard' | 'Uber Freight';
   equipmentType: 'Dry Van' | 'Reefer' | 'Flatbed';
   brokerName: string;
   brokerRating: number;
@@ -72,7 +72,7 @@ export const WORKER_DEFINITIONS: WorkerDefinition[] = [
     name: 'DispatchCoordinatorWorker',
     role: '📡 Dispatch Coordinator',
     description: 'The command center. Acts as the main bridge between freight brokers and the truck on the road — assigning loads, confirming pickups, relaying delivery updates, and managing the full load lifecycle so the driver never has to chase a broker.',
-    aiPoweredBy: 'Claude AI + DAT API + Driver Prefs',
+    aiPoweredBy: 'PHI AI + DAT API + Driver Prefs',
     status: 'active', tasksToday: 0, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
   }),
   buildWorker({
@@ -80,7 +80,7 @@ export const WORKER_DEFINITIONS: WorkerDefinition[] = [
     name: 'FreightNegotiatorWorker',
     role: '💬 Freight Negotiator',
     description: 'Scans DAT and Truckstop-style load boards 24/7. Analyzes live market rates by lane, bids on high-paying freight, and negotiates with human or AI brokers to secure the best rate per mile — without the driver lifting a finger.',
-    aiPoweredBy: 'Claude AI + DAT Market Data + Rate Analysis',
+    aiPoweredBy: 'PHI AI + DAT Market Data + Rate Analysis',
     status: 'active', tasksToday: 0, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
   }),
   buildWorker({
@@ -88,7 +88,7 @@ export const WORKER_DEFINITIONS: WorkerDefinition[] = [
     name: 'RouteOptimizerWorker',
     role: '🗺️ Route Optimizer',
     description: 'Maps every trip using live traffic data, incoming weather storms, bridge height and weight restrictions, and HazMat zones. Delivers the fastest, safest, most fuel-efficient route possible — updated in real time as conditions change.',
-    aiPoweredBy: 'OpenRouteService HGV + Claude AI + Weather API',
+    aiPoweredBy: 'OpenRouteService HGV + PHI AI + Weather API',
     status: 'active', tasksToday: 0, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
   }),
   buildWorker({
@@ -96,7 +96,7 @@ export const WORKER_DEFINITIONS: WorkerDefinition[] = [
     name: 'ComplianceSafetyWorker',
     role: '🛡️ Compliance & Safety Officer',
     description: 'Strictly monitors ELD data and enforces Hours of Service rules before violations happen. Handles IFTA fuel tax reporting, flags inspection risks, and keeps the entire operation DOT compliant — acting as a full-time safety auditor on every run.',
-    aiPoweredBy: 'Claude AI + ELD/GPS Session Tracker + HOS Rules Engine',
+    aiPoweredBy: 'PHI AI + ELD/GPS Session Tracker + HOS Rules Engine',
     status: 'active', tasksToday: 0, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
   }),
   buildWorker({
@@ -104,7 +104,7 @@ export const WORKER_DEFINITIONS: WorkerDefinition[] = [
     name: 'InvoiceSpecialistWorker',
     role: '🧾 Finance & Invoice Specialist',
     description: 'The moneymaker. The moment a load is delivered and the proof of delivery is signed, this agent instantly generates a professional invoice, submits it to factoring companies for same-day payment, and logs the accounts receivable — so cash hits the bank fast.',
-    aiPoweredBy: 'Claude AI + Stripe + Factoring Integration',
+    aiPoweredBy: 'PHI AI + Factoring Integration',
     status: 'active', tasksToday: 0, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
   }),
   buildWorker({
@@ -112,7 +112,7 @@ export const WORKER_DEFINITIONS: WorkerDefinition[] = [
     name: 'FuelOptimizerWorker',
     role: '⛽ Fuel Optimizer',
     description: 'Fuel is the biggest expense in trucking. This agent scans real-time diesel prices at every truck stop along the route, calculates the optimal fill-up strategy, and tells the driver exactly which stops to use — maximizing profit on every single mile.',
-    aiPoweredBy: 'EIA Open Data (live diesel prices) + Claude AI',
+    aiPoweredBy: 'EIA Open Data (live diesel prices) + PHI AI',
     status: 'active', tasksToday: 0, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
   }),
   buildWorker({
@@ -120,7 +120,7 @@ export const WORKER_DEFINITIONS: WorkerDefinition[] = [
     name: 'LoadScoringWorker',
     role: '🔧 Fleet Maintenance Monitor',
     description: 'The Mechanic. Tracks the truck\'s mileage, engine diagnostics, and wear-and-tear in real time. Predicts when an oil change, tire rotation, or brake check is needed — and schedules preventative maintenance before a breakdown happens on the road.',
-    aiPoweredBy: 'Claude AI + Vehicle Telemetry + Maintenance Schedules',
+    aiPoweredBy: 'PHI AI + Vehicle Telemetry + Maintenance Schedules',
     status: 'active', tasksToday: 0, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
   }),
   buildWorker({
@@ -128,7 +128,7 @@ export const WORKER_DEFINITIONS: WorkerDefinition[] = [
     name: 'ProfitAnalystWorker',
     role: '📍 Track & Trace Agent',
     description: 'Customer Service on autopilot. Automatically sends shippers and receivers real-time email and SMS updates with live ETA tracking — so clients never have to call and ask "Where is my freight?" Keeps customers happy without the driver saying a word.',
-    aiPoweredBy: 'Claude AI + GPS (expo-location) + Expo Notifications',
+    aiPoweredBy: 'PHI AI + GPS (expo-location) + Expo Notifications',
     status: 'active', tasksToday: 0, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
   }),
   buildWorker({
@@ -136,7 +136,7 @@ export const WORKER_DEFINITIONS: WorkerDefinition[] = [
     name: 'DocumentManagerWorker',
     role: '🚛 Driver Liaison',
     description: 'The digital co-pilot inside the cab. Manages digital Bills of Lading, alerts the driver to upcoming weigh stations and port-of-entry checkpoints, and schedules mandatory rest stops to keep the driver legal, rested, and on time.',
-    aiPoweredBy: 'Claude AI + GPS + HOS Rules Engine',
+    aiPoweredBy: 'PHI AI + GPS + HOS Rules Engine',
     status: 'active', tasksToday: 0, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
   }),
   buildWorker({
@@ -144,7 +144,7 @@ export const WORKER_DEFINITIONS: WorkerDefinition[] = [
     name: 'NotificationWorker',
     role: '📊 Business Intelligence Executive',
     description: 'The CEO\'s right hand. Pulls live data from all 9 other agents to calculate real-time Cost Per Mile (CPM) and Profit & Loss (P&L). Delivers a daily executive summary of the company\'s financial health — so the owner always knows exactly how the business is performing.',
-    aiPoweredBy: 'Claude AI + All Agent Data Feeds',
+    aiPoweredBy: 'PHI AI + All Agent Data Feeds',
     status: 'active', tasksToday: 0, revenueImpact: 0, lastHeartbeat: new Date().toISOString(),
   }),
 ];

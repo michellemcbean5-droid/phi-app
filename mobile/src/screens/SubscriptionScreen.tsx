@@ -34,7 +34,7 @@ const plans: Plan[] = [
     fallbackPrice: '$0/mo',
     tagline: 'Free forever — bring your own free AI key and run the full stack.',
     features: [
-      'All 10 AI workers (bring your own free Anthropic API key)',
+      'All 10 AI workers (bring your own free AI API key)',
       '1 truck or van profile',
       'Up to 20 stored documents',
       '5-minute load proximity alerts',

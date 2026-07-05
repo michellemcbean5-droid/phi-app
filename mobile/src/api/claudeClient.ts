@@ -1,21 +1,44 @@
-import useAPIKeyStore from '../store/apiKeyStore';
+// Generic AI client — the exported names (askClaude/askClaudeJSON/isClaudeConfigured)
+// stay as-is since ~10 other files import them, but the model behind them is now
+// selectable: Anthropic Claude or Moonshot Kimi, whichever the driver has configured
+// (see apiKeyStore's preferredProvider). Provider identity is intentionally kept out
+// of user-facing copy elsewhere in the app — this file is where it's allowed to matter.
+
+import useAPIKeyStore, { AIProvider } from '../store/apiKeyStore';
 import usePromoStore from '../store/promoStore';
 import { hasManagedAI } from '../utils/subscriptionGating';
 
 const ANTHROPIC_BASE = 'https://api.anthropic.com/v1';
-const PHI_MODEL = 'claude-haiku-4-5-20251001';
+const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
+
+const KIMI_BASE = 'https://api.moonshot.ai/v1';
+const KIMI_MODEL = 'kimi-k2-0711-preview';
+
 const MANAGED_AI_PROXY_URL = process.env.EXPO_PUBLIC_MANAGED_AI_PROXY_URL ?? '';
 const MANAGED_AI_SHARED_SECRET = process.env.EXPO_PUBLIC_MANAGED_AI_SHARED_SECRET ?? '';
 
-const getApiKey = (): string => {
+interface ActiveKey {
+  provider: AIProvider;
+  key: string;
+}
+
+/** Picks the driver's preferred provider if its key is set, otherwise falls back to whichever one is. */
+const getActiveKey = (): ActiveKey | null => {
   try {
-    const customerKey = useAPIKeyStore.getState().getEffectiveKey(
-      'anthropicKey',
-      process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '',
-    );
-    return customerKey;
+    const store = useAPIKeyStore.getState();
+    const anthropicKey = store.getEffectiveKey('anthropicKey', process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '');
+    const kimiKey = store.getEffectiveKey('kimiKey', process.env.EXPO_PUBLIC_KIMI_API_KEY ?? '');
+    const byProvider: Record<AIProvider, string> = { anthropic: anthropicKey, kimi: kimiKey };
+
+    if (byProvider[store.preferredProvider]) {
+      return { provider: store.preferredProvider, key: byProvider[store.preferredProvider] };
+    }
+    if (anthropicKey) return { provider: 'anthropic', key: anthropicKey };
+    if (kimiKey) return { provider: 'kimi', key: kimiKey };
+    return null;
   } catch {
-    return process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '';
+    const fallback = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '';
+    return fallback ? { provider: 'anthropic', key: fallback } : null;
   }
 };
 
@@ -52,20 +75,7 @@ const askViaManagedProxy = async (userPrompt: string, systemPrompt?: string, max
   return block.text.trim();
 };
 
-export const askClaude = async (
-  userPrompt: string,
-  systemPrompt?: string,
-  maxTokens = 512,
-): Promise<string> => {
-  const apiKey = getApiKey();
-
-  if (!apiKey) {
-    if (managedAIAvailable()) {
-      return askViaManagedProxy(userPrompt, systemPrompt, maxTokens);
-    }
-    throw new Error('No Claude API key set. Add your free API key in Settings to unlock AI features.');
-  }
-
+const askAnthropic = async (apiKey: string, userPrompt: string, systemPrompt?: string, maxTokens = 512): Promise<string> => {
   const response = await fetch(`${ANTHROPIC_BASE}/messages`, {
     method: 'POST',
     headers: {
@@ -74,7 +84,7 @@ export const askClaude = async (
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: PHI_MODEL,
+      model: ANTHROPIC_MODEL,
       max_tokens: maxTokens,
       messages: [{ role: 'user', content: userPrompt }],
       ...(systemPrompt ? { system: systemPrompt } : {}),
@@ -83,16 +93,61 @@ export const askClaude = async (
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Claude API ${response.status}: ${errorText}`);
+    throw new Error(`AI provider error ${response.status}: ${errorText}`);
   }
 
-  const data = await response.json() as {
-    content: Array<{ type: string; text: string }>;
-  };
-
+  const data = await response.json() as { content: Array<{ type: string; text: string }> };
   const block = data.content.find((b) => b.type === 'text');
-  if (!block) throw new Error('No text content in Claude response.');
+  if (!block) throw new Error('No text content in AI response.');
   return block.text.trim();
+};
+
+/** Kimi K2 via Moonshot's OpenAI-compatible chat completions endpoint. */
+const askKimi = async (apiKey: string, userPrompt: string, systemPrompt?: string, maxTokens = 512): Promise<string> => {
+  const response = await fetch(`${KIMI_BASE}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: KIMI_MODEL,
+      max_tokens: maxTokens,
+      messages: [
+        ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+        { role: 'user', content: userPrompt },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`AI provider error ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json() as { choices: Array<{ message: { content: string } }> };
+  const content = data.choices[0]?.message?.content;
+  if (!content) throw new Error('No text content in AI response.');
+  return content.trim();
+};
+
+export const askClaude = async (
+  userPrompt: string,
+  systemPrompt?: string,
+  maxTokens = 512,
+): Promise<string> => {
+  const active = getActiveKey();
+
+  if (!active) {
+    if (managedAIAvailable()) {
+      return askViaManagedProxy(userPrompt, systemPrompt, maxTokens);
+    }
+    throw new Error('No AI key set. Add your free API key in Settings to unlock AI features.');
+  }
+
+  return active.provider === 'kimi'
+    ? askKimi(active.key, userPrompt, systemPrompt, maxTokens)
+    : askAnthropic(active.key, userPrompt, systemPrompt, maxTokens);
 };
 
 export const askClaudeJSON = async <T>(
@@ -106,4 +161,4 @@ export const askClaudeJSON = async <T>(
   return JSON.parse(jsonStr) as T;
 };
 
-export const isClaudeConfigured = (): boolean => Boolean(getApiKey()) || managedAIAvailable();
+export const isClaudeConfigured = (): boolean => Boolean(getActiveKey()) || managedAIAvailable();

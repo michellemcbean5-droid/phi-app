@@ -1,7 +1,7 @@
 // "Michelle" — PHI's built-in support assistant. Answers questions about how the app
-// works, billing/subscription policy, privacy, and general how-to. Uses Claude when the
-// driver has an API key configured; otherwise falls back to a rule-based FAQ so support
-// still works for the exact non-technical drivers who haven't set up a key yet.
+// works, billing/subscription policy, privacy, and general how-to. Uses the driver's
+// configured AI provider when an API key is set; otherwise falls back to a rule-based
+// FAQ so support still works for the exact non-technical drivers who haven't set one up yet.
 
 import { askClaude, isClaudeConfigured } from '../api/claudeClient';
 
@@ -10,14 +10,14 @@ a trucking app for owner-operators. Speak plainly — many drivers are not tech-
 
 Key facts about PHI:
 - The app itself is free. AI features (load discovery, dispatcher radio, negotiation emails, compliance checks) run on
-  the driver's own free Anthropic API key, entered in Settings > My API Keys. Getting a key takes about 2 minutes at
-  console.anthropic.com and has its own free usage tier.
+  the driver's own free AI API key, entered in Settings > My API Keys. Getting a key takes about 2 minutes and has
+  its own free usage tier.
 - Paid plans (Solo, Fleet, Enterprise) are optional upgrades for unlimited document storage, faster load alerts,
   multiple trucks/vans, and — on Enterprise — Managed AI, where PHI runs the AI for you with no key setup needed.
 - Subscriptions are billed and managed through Google Play (Settings > Subscription & Billing), and can be cancelled
   anytime from the driver's Google Play account — PHI does not directly charge cards.
 - Driver data (loads, documents, earnings) stays on the driver's own phone. AI features send only the specific
-  request (e.g. "find loads near Dallas") to Anthropic's API using the driver's own key — never sold or shared.
+  request (e.g. "find loads near Dallas") to the driver's chosen AI provider using their own key — never sold or shared.
 - The app has 10 AI workers (Dispatch Coordinator, Freight Negotiator, Route Optimizer, Compliance & Safety,
   Invoice Specialist, Fuel Optimizer, Fleet Maintenance, Track & Trace, Driver Liaison, Business Intelligence) that
   work automatically as the driver uses the app — booking loads, scanning documents, etc.
@@ -31,8 +31,8 @@ interface FaqEntry {
 
 const FAQ_ENTRIES: FaqEntry[] = [
   {
-    keywords: ['api key', 'apikey', 'set up ai', 'anthropic', 'claude key', 'add my key'],
-    answer: 'To turn on AI features, go to Settings > My API Keys and paste in your Anthropic API key. Get a free one in about 2 minutes at console.anthropic.com — no credit card needed for the free tier.',
+    keywords: ['api key', 'apikey', 'set up ai', 'anthropic', 'claude key', 'kimi key', 'add my key'],
+    answer: 'To turn on AI features, go to Settings > My API Keys and paste in a free AI API key (Claude or Kimi, your choice). Both have a free tier that takes about 2 minutes to sign up for — no credit card needed.',
   },
   {
     keywords: ['free', 'cost', 'price', 'pricing', 'how much'],
@@ -44,7 +44,7 @@ const FAQ_ENTRIES: FaqEntry[] = [
   },
   {
     keywords: ['privacy', 'my data', 'data policy', 'sell my data'],
-    answer: 'Your loads, documents, and earnings stay on your own phone — PHI has no backend server collecting them. When you use an AI feature, only that specific request goes to Anthropic using your own API key. Nothing is sold.',
+    answer: 'Your loads, documents, and earnings stay on your own phone — PHI has no backend server collecting them. When you use an AI feature, only that specific request goes to your chosen AI provider using your own API key. Nothing is sold.',
   },
   {
     keywords: ['book a load', 'find loads', 'find freight', 'how do i book'],

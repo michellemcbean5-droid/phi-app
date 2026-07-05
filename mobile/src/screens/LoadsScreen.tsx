@@ -11,7 +11,8 @@ import useLoadsStore, { SortOption } from '../store/loadsStore';
 import { getCurrentDriverLocation } from '../api/samsaraConnector';
 import { sendNearbyLoadAlert } from '../api/twilioConnector';
 import { calculateGPSDeadhead, Coordinates } from '../api/googleMapsConnector';
-import { executeBooking } from '../workers/AutoBookingEngine';
+import { executeBooking, BookingConfirmation } from '../workers/AutoBookingEngine';
+import BookingConfirmationModal from '../components/game/BookingConfirmationModal';
 import { aggregateLoads } from '../workers/LoadFinderWorker';
 import { scoreLoad, LoadScore } from '../workers/LoadScoringWorker';
 import { calculateDeadhead } from '../workers/RouteAnalysisWorker';
@@ -41,6 +42,7 @@ export default function LoadsScreen() {
   const { activeLoads, bookingState, filter, sortBy, setLoads, setBookingState, addBookingRecord, setFilter, setSortBy } = useLoadsStore();
   const { getEffectiveTier } = usePromoStore();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [bookingConfirmation, setBookingConfirmation] = React.useState<{ load: Load; confirmation: BookingConfirmation } | null>(null);
   const alertedLoadIds = useRef<Set<string>>(new Set());
   const proximityCheckIntervalMs = getProximityRefreshMinutes(getEffectiveTier()) * 60 * 1000;
 
@@ -119,11 +121,12 @@ export default function LoadsScreen() {
     setBookingState(load.id, 'pending');
     const confirmation = await executeBooking(load, 82);
     setBookingState(load.id, confirmation.booked ? 'booked' : 'rejected');
-    Alert.alert('Booking Update', confirmation.message);
     if (confirmation.booked) {
       const { recordTaskCompletion } = useWorkerStore.getState();
       recordTaskCompletion('freight-negotiator', load.rate, `Booked ${load.id} at $${load.rate.toFixed(0)}`);
       recordTaskCompletion('dispatch-coordinator', 0, `Confirmed pickup for ${load.id}`);
+      recordTaskCompletion('invoice-specialist', 0, `Invoice queued — bills automatically once ${load.id} delivers`);
+      recordTaskCompletion('track-trace', 0, `Now tracking ETA for ${load.id}`);
       addBookingRecord({
         id: load.id,
         brokerName: load.brokerName,
@@ -133,6 +136,9 @@ export default function LoadsScreen() {
         bookedAt: new Date().toISOString(),
         paymentStatus: 'unpaid',
       });
+      setBookingConfirmation({ load, confirmation });
+    } else {
+      Alert.alert('Booking Update', confirmation.message);
     }
   };
 
@@ -147,7 +153,7 @@ export default function LoadsScreen() {
           <>
             <View style={styles.headerCard}>
               <Text style={styles.headerTitle}>PHI Load Board</Text>
-              <Text style={styles.headerSubtitle}>Pull to refresh live dry van opportunities from DAT and Truckstop.</Text>
+              <Text style={styles.headerSubtitle}>Pull to refresh live dry van opportunities from DAT, Truckstop, 123Loadboard, and Uber Freight.</Text>
             </View>
             <View style={styles.controlRow}>
               {SCORE_FILTERS.map((f) => (
@@ -205,6 +211,12 @@ export default function LoadsScreen() {
             </TouchableOpacity>
           );
         }}
+      />
+      <BookingConfirmationModal
+        visible={bookingConfirmation !== null}
+        load={bookingConfirmation?.load ?? null}
+        confirmation={bookingConfirmation?.confirmation ?? null}
+        onClose={() => setBookingConfirmation(null)}
       />
     </SafeAreaView>
   );

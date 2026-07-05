@@ -90,7 +90,7 @@ export default function SettingsScreen() {
           <NavRow
             icon="key-outline"
             label="My API Keys"
-            sublabel="Anthropic, OpenRouteService, EIA"
+            sublabel="Claude, Kimi, OpenRouteService, EIA"
             badge={keysConfigured > 0 ? `${keysConfigured} saved` : undefined}
             onPress={() => navigation.navigate('APIKeys')}
           />

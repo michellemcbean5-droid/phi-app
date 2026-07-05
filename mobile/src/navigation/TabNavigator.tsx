@@ -9,6 +9,7 @@ import EarningsScreen from '../screens/EarningsScreen';
 import LoadsScreen from '../screens/LoadsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import FloatingAssistantButton from '../components/game/FloatingAssistantButton';
+import FloatingHandsFreeButton from '../components/game/FloatingHandsFreeButton';
 import GameTabBar from './GameTabBar';
 
 export type TabParamList = {
@@ -51,6 +52,7 @@ export default function TabNavigator() {
         <Tab.Screen name="Profile" component={ProfileScreen} />
       </Tab.Navigator>
       <FloatingAssistantButton />
+      <FloatingHandsFreeButton />
     </View>
   );
 }

@@ -63,7 +63,7 @@ export default function SystemCheckScreen() {
         detail: aiOk
           ? managed
             ? 'Managed AI is active on your plan.'
-            : 'Your own Anthropic API key is set and working.'
+            : 'Your own API key is set and working.'
           : managed
             ? 'Your plan includes managed AI, but the backend proxy isn\'t configured yet — add your own key as a workaround.'
             : 'No API key set — AI workers are running on simpler built-in logic.',

@@ -4,17 +4,22 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "android": { "buildType": "apk" }
+      "android": { "buildType": "apk" },
+      "ios": { "simulator": true }
     },
     "preview": {
       "distribution": "internal",
-      "android": { "buildType": "apk" }
+      "android": { "buildType": "apk" },
+      "ios": { "simulator": false }
     },
     "production": {
       "distribution": "store",
       "android": {
         "buildType": "app-bundle",
         "gradleCommand": ":app:bundleRelease"
+      },
+      "ios": {
+        "enterpriseProvisioning": "adhoc"
       },
       "channel": "production",
       "autoIncrement": true
@@ -26,6 +31,13 @@
         "serviceAccountKeyPath": "./google-play-key.json",
         "track": "internal",
         "releaseStatus": "draft"
+      },
+      "ios": {
+        "ascAppId": "",
+        "ascApiKeyPath": "./AuthKey.p8",
+        "ascApiKeyIssuerId": "",
+        "ascApiKeyId": "",
+        "ascTeamId": ""
       }
     }
   }

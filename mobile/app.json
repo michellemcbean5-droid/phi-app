@@ -61,7 +61,15 @@
     "extra": {
       "eas": {
         "projectId": "471882ad-082f-475b-9061-73bb7135c0ff"
-      }
+      },
+      "revenuecatApiKeyAndroid": "",
+      "revenuecatApiKeyIos": "",
+      "revenuecatOfferingId": "default",
+      "admobAppIdAndroid": "",
+      "admobAppIdIos": "",
+      "sentryDsn": "",
+      "firebaseApiKey": "",
+      "firebaseProjectId": ""
     },
     "owner": "q-empire-ai-automation",
     "privacy": "public",
@@ -93,6 +101,29 @@
         "react-native-iap",
         {
           "paymentProvider": "Play Store"
+        }
+      ],
+      [
+        "react-native-purchases",
+        {
+          "ios": {
+            "useStoreKit2IfAvailable": true
+          }
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "",
+          "iosAppId": ""
+        }
+      ],
+      [
+        "@sentry/react-native",
+        {
+          "organization": "",
+          "project": "",
+          "url": "https://sentry.io"
         }
       ]
     ]

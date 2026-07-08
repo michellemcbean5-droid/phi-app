@@ -1,0 +1,92 @@
+name: PHI Mobile — EAS Production Build & Submit
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Build platform'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - android
+          - ios
+      submit:
+        description: 'Submit to stores after build'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  build:
+    name: EAS Build (${{ github.event.inputs.platform || 'all' }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Setup Expo & EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Expo config
+        run: npx expo config --type public
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Build on EAS
+        run: |
+          PLATFORM="${{ github.event.inputs.platform || 'all' }}"
+          if [ "${{ github.event.inputs.submit }}" = "true" ]; then
+            eas build --platform "$PLATFORM" --profile production --non-interactive --auto-submit
+          else
+            eas build --platform "$PLATFORM" --profile production --non-interactive
+          fi
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+      - name: Upload build artifacts link
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eas-build-logs
+          path: mobile/build/
+          if-no-files-found: ignore
+
+  notify:
+    name: Notify on completion
+    needs: build
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Build status
+        run: |
+          if [ "${{ needs.build.result }}" = "success" ]; then
+            echo "✅ PHI Mobile production build succeeded!"
+          else
+            echo "❌ PHI Mobile production build failed. Check EAS logs."
+            exit 1
+          fi

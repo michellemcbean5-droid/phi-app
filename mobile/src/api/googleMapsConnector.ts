@@ -1,5 +1,8 @@
 // Routing via OpenRouteService (free tier: 2,000 req/day — openrouteservice.org)
-// Falls back to haversine formula when EXPO_PUBLIC_ORS_API_KEY is not set.
+// Falls back to haversine formula when no key (customer's own, or PHI's shared
+// EXPO_PUBLIC_ORS_API_KEY) is available.
+
+import useAPIKeyStore from '../store/apiKeyStore';
 
 const ORS_BASE = 'https://api.openrouteservice.org/v2';
 
@@ -47,7 +50,7 @@ export const fetchDistanceMatrix = async (
   origin: Coordinates,
   destination: Coordinates,
 ): Promise<DistanceMatrixResult> => {
-  const key = process.env.EXPO_PUBLIC_ORS_API_KEY ?? '';
+  const key = useAPIKeyStore.getState().getEffectiveKey('orsKey', process.env.EXPO_PUBLIC_ORS_API_KEY ?? '');
   if (!key) return haversineMatrix(origin, destination);
 
   try {
@@ -110,4 +113,54 @@ export const calculateGPSDeadhead = async (
 ): Promise<number> => {
   const { distanceMiles } = await fetchDistanceMatrix(currentLocation, pickupLocation);
   return distanceMiles;
+};
+
+export interface RouteOption {
+  coordinates: Coordinates[];
+  distanceMiles: number;
+  durationMinutes: number;
+}
+
+/** Real turn-by-turn geometry (not just distance/duration) via ORS Directions, with up to 2 alternates. */
+export const fetchRouteGeometry = async (
+  origin: Coordinates,
+  destination: Coordinates,
+): Promise<RouteOption[]> => {
+  const key = useAPIKeyStore.getState().getEffectiveKey('orsKey', process.env.EXPO_PUBLIC_ORS_API_KEY ?? '');
+  if (!key) return [];
+
+  try {
+    const response = await fetch(`${ORS_BASE}/directions/driving-hgv/geojson`, {
+      method: 'POST',
+      headers: {
+        Authorization: key,
+        'Content-Type': 'application/json',
+        Accept: 'application/geo+json',
+      },
+      body: JSON.stringify({
+        coordinates: [
+          [origin.longitude, origin.latitude],
+          [destination.longitude, destination.latitude],
+        ],
+        alternative_routes: { target_count: 2, share_factor: 0.6, weight_factor: 1.4 },
+      }),
+    });
+
+    if (!response.ok) throw new Error(`ORS Directions ${response.status}`);
+
+    const data = await response.json() as {
+      features: Array<{
+        geometry: { coordinates: [number, number][] };
+        properties: { summary: { distance: number; duration: number } };
+      }>;
+    };
+
+    return data.features.map((feature) => ({
+      coordinates: feature.geometry.coordinates.map(([lon, lat]) => ({ latitude: lat, longitude: lon })),
+      distanceMiles: Number((feature.properties.summary.distance / 1609.34).toFixed(1)),
+      durationMinutes: Math.round(feature.properties.summary.duration / 60),
+    }));
+  } catch {
+    return [];
+  }
 };

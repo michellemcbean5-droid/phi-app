@@ -1,9 +1,9 @@
 /**
  * PHI Managed AI Proxy — Cloudflare Worker.
  *
- * Purpose: lets Enterprise-tier drivers use PHI's AI features without setting up
- * their own Anthropic API key. The app owner pays Anthropic for these calls out of
- * Enterprise subscription revenue (that's the whole point of the "Managed AI" tier).
+ * Purpose: lets any paid-tier (Solo/Fleet/Enterprise) driver use PHI's AI features
+ * without setting up their own Anthropic API key. The app owner pays Anthropic for
+ * these calls out of subscription revenue (that's the whole point of "Managed AI").
  *
  * NOT YET WIRED FOR ENTITLEMENT VERIFICATION. `ENTITLEMENT_MODE` below is a
  * placeholder shared-secret check — anyone with the shared secret can use it. Before

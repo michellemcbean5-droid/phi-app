@@ -1,6 +1,7 @@
-// Load discovery powered by Claude AI.
-// When EXPO_PUBLIC_ANTHROPIC_API_KEY is set, Claude generates dynamic,
-// market-accurate freight loads based on current date and real corridor patterns.
+// Load discovery powered by PHI AI, mixing four simulated load board sources
+// (DAT, Truckstop, 123Loadboard, Uber Freight) — real commercial APIs for these
+// boards require paid contracts this app doesn't hold, so listings are AI-generated,
+// market-accurate freight based on current date and real corridor patterns.
 // Falls back to curated static loads when offline.
 
 import { askClaudeJSON, isClaudeConfigured } from '../api/claudeClient';
@@ -77,6 +78,38 @@ const STATIC_LOADS: Load[] = [
     totalMiles: 1020,
     weightLbs: 44000,
   },
+  {
+    id: '123LB-201',
+    source: '123Loadboard',
+    equipmentType: 'Dry Van',
+    brokerName: 'Heartland Freight Solutions',
+    brokerRating: 4.3,
+    origin: { city: 'Kansas City', state: 'MO', latitude: 39.0997, longitude: -94.5786 },
+    destination: { city: 'Denver', state: 'CO', latitude: 39.7392, longitude: -104.9903 },
+    pickupDate: new Date().toISOString().split('T')[0],
+    deliveryDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+    rate: 2210,
+    miles: 605,
+    rpm: 3.65,
+    totalMiles: 605,
+    weightLbs: 40100,
+  },
+  {
+    id: 'UF-401',
+    source: 'Uber Freight',
+    equipmentType: 'Dry Van',
+    brokerName: 'Uber Freight Direct',
+    brokerRating: 4.6,
+    origin: { city: 'Phoenix', state: 'AZ', latitude: 33.4484, longitude: -112.074 },
+    destination: { city: 'Los Angeles', state: 'CA', latitude: 34.0522, longitude: -118.2437 },
+    pickupDate: new Date().toISOString().split('T')[0],
+    deliveryDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+    rate: 1580,
+    miles: 372,
+    rpm: 4.25,
+    totalMiles: 372,
+    weightLbs: 36800,
+  },
 ];
 
 const generateAILoads = async (count: number): Promise<Load[]> => {
@@ -85,10 +118,10 @@ const generateAILoads = async (count: number): Promise<Load[]> => {
 
   return askClaudeJSON<Load[]>(
     `Generate ${count} available dry van truckloads for today (${today}) across major US freight corridors.
-    Mix DAT and Truckstop sources. Only include loads with brokerRating >= 4.0.
+    Mix loads across all four sources: DAT, Truckstop, 123Loadboard, and Uber Freight. Only include loads with brokerRating >= 4.0.
     RPM range: $2.50-$4.20 for current spot market.
     Return JSON array with objects matching exactly this TypeScript type:
-    [{ "id": "DAT-XXX" or "TS-XXX", "source": "DAT" | "Truckstop", "equipmentType": "Dry Van", "brokerName": "...", "brokerRating": 4.0-5.0, "origin": { "city": "...", "state": "XX", "latitude": N.N, "longitude": -N.N }, "destination": { "city": "...", "state": "XX", "latitude": N.N, "longitude": -N.N }, "pickupDate": "${today}", "deliveryDate": "${tomorrow}", "rate": 2000-4500, "miles": 300-1200, "rpm": 2.50-4.20, "totalMiles": 300-1200, "weightLbs": 25000-45000 }]`,
+    [{ "id": "DAT-XXX" or "TS-XXX" or "123LB-XXX" or "UF-XXX", "source": "DAT" | "Truckstop" | "123Loadboard" | "Uber Freight", "equipmentType": "Dry Van", "brokerName": "...", "brokerRating": 4.0-5.0, "origin": { "city": "...", "state": "XX", "latitude": N.N, "longitude": -N.N }, "destination": { "city": "...", "state": "XX", "latitude": N.N, "longitude": -N.N }, "pickupDate": "${today}", "deliveryDate": "${tomorrow}", "rate": 2000-4500, "miles": 300-1200, "rpm": 2.50-4.20, "totalMiles": 300-1200, "weightLbs": 25000-45000 }]`,
     LOAD_BOARD_SYSTEM,
     1200,
   );

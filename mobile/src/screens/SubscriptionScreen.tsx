@@ -12,7 +12,7 @@ import {
   fetchSubscriptionPlans, initBilling, endBilling, isBillingSupported,
   listenForPurchases, purchaseTier, restoreActiveTier, SUBSCRIPTION_SKUS,
 } from '../api/googlePlayBilling';
-import { UserTier } from '../utils/subscriptionGating';
+import { hasManagedAI, UserTier } from '../utils/subscriptionGating';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import usePromoStore from '../store/promoStore';
 import AnimatedPressable from '../components/game/AnimatedPressable';
@@ -32,9 +32,9 @@ const plans: Plan[] = [
   {
     tier: 'Free',
     fallbackPrice: '$0/mo',
-    tagline: 'Free forever — bring your own AI key and run the full stack.',
+    tagline: 'Free forever — bring your own free AI key and run the full stack.',
     features: [
-      'All 10 AI workers (bring your own free API key)',
+      'All 10 AI workers (bring your own free AI API key)',
       '1 truck or van profile',
       'Up to 20 stored documents',
       '5-minute load proximity alerts',
@@ -43,8 +43,8 @@ const plans: Plan[] = [
   {
     tier: 'Solo',
     fallbackPrice: '$49/mo',
-    tagline: 'For owner-operators who want unlimited storage and faster alerts.',
-    features: ['Everything in Free', 'Unlimited document storage', '1-minute priority load alerts', 'Priority support from Michelle'],
+    tagline: 'For owner-operators who don’t want to mess with API keys.',
+    features: ['Managed AI — we run it for you, no API key needed', 'Floating Ask Michelle button on every screen', 'Unlimited document storage', '1-minute priority load alerts'],
   },
   {
     tier: 'Fleet',
@@ -55,8 +55,8 @@ const plans: Plan[] = [
   {
     tier: 'Enterprise',
     fallbackPrice: '$399/mo',
-    tagline: 'Full PHI stack — including AI with no key setup required.',
-    features: ['Everything in Fleet', 'Unlimited trucks/vans', 'Managed AI — we run the AI for you, no API key needed', 'Enterprise analytics'],
+    tagline: 'Full PHI stack for growing fleets.',
+    features: ['Everything in Fleet', 'Unlimited trucks/vans', 'Enterprise analytics'],
   },
 ];
 
@@ -164,7 +164,11 @@ export default function SubscriptionScreen() {
         <View style={styles.statusBanner}>
           <Ionicons name="ribbon-outline" size={28} color={PHI_COLORS.sunshineYellow} />
           <Text style={styles.statusTier}>{effectiveTier} Plan</Text>
-          <Text style={styles.statusWorkers}>All 10 AI workers included — free with your own API key</Text>
+          <Text style={styles.statusWorkers}>
+            {hasManagedAI(effectiveTier)
+              ? 'All 10 AI workers included — managed by PHI, no API key needed'
+              : 'All 10 AI workers included — bring your own free API key'}
+          </Text>
           {trialActive && (
             <View style={styles.trialChip}>
               <Text style={styles.trialChipText}>Free Trial — {days} days left</Text>

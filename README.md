@@ -5,11 +5,41 @@ Prince Haul Intelligence (PHI) is an Expo-based mobile app for owner-operators a
 ## Project Overview
 
 ### Core capabilities
-- 15-worker AI command center with live worker status, heartbeat visibility, and revenue impact tracking
-- Load board automation for DAT and Truckstop-style feeds with scoring, route analysis, and auto-booking
+- 10-worker AI command center with live worker status, heartbeat visibility, and revenue impact tracking
+- Load board automation with scoring, route analysis, and auto-booking (Claude-generated lane rate estimates in place of DAT's paid API)
 - Earnings intelligence with net profit, RPM trend monitoring, yearly projection, and affiliate tracking
 - Compliance, document, notification, vehicle, and subscription screens built for PHI production flows
-- Mock API connectors for DAT, Google Maps, Twilio, Stripe, and Samsara integrations
+- Real, free/low-cost API integrations — no mocks: OpenRouteService (routing), EIA Open Data (fuel prices), OpenStreetMap Overpass (truck stops), Expo push notifications, expo-location (HOS/GPS), Google Play Billing (subscriptions)
+
+## Subscription Tiers & API Keys
+
+PHI is free to use. The only thing that differs by tier is **who pays for AI**:
+
+| Tier | Price | AI features |
+|---|---|---|
+| **Free** | $0/mo | BYOK — the driver enters their own free Anthropic API key in Settings → My API Keys (~2 min, no credit card). Without a key, AI workers still run on simpler built-in logic. |
+| **Solo / Fleet / Enterprise** | $49 / $149 / $399 per mo | **Managed AI** — PHI runs Claude on the driver's behalf, no key setup. Requires deploying `backend/managed-ai-proxy` (see its README) and setting `EXPO_PUBLIC_MANAGED_AI_PROXY_URL` + `EXPO_PUBLIC_MANAGED_AI_SHARED_SECRET`. Without that backend deployed, paid tiers fall back to the same "add your own key" prompt as Free. |
+
+Non-AI tier gating (truck limit, document storage, load-alert refresh rate) is defined in `mobile/src/utils/subscriptionGating.ts`.
+
+### Testing every tier without a real purchase
+Real upgrades go through Google Play Billing, which only works on a Play-installed build. To test each tier locally or in a sideloaded APK, redeem a promo code from the Subscription screen (`mobile/src/store/promoStore.ts`):
+
+| Code | Tier | Trial length |
+|---|---|---|
+| `OWNER1TRUCK` | Solo | 14 days |
+| `PHITEST` | Fleet | 7 days |
+| `PHIFIRSTRUN` | Fleet | 30 days |
+| `PHIFREE30` | Enterprise | 30 days |
+| `PHIVIP` | Enterprise | 60 days |
+
+Each code can only be redeemed once per install; clear app storage (or `usePromoStore`'s persisted state) to reuse one while testing.
+
+### API keys reference
+- **Anthropic (Claude)** — powers all 10 AI workers. Free tier: BYOK. Paid tiers: managed via the proxy above (needs its own `ANTHROPIC_API_KEY` set as a Cloudflare Worker secret, never shipped in the app).
+- **OpenRouteService** (`EXPO_PUBLIC_ORS_API_KEY`, optional) — real truck routing; free tier 2,000 req/day at openrouteservice.org/dev. Falls back to a haversine estimate if unset. Customers can also enter their own in Settings.
+- **EIA Open Data** (`EXPO_PUBLIC_EIA_API_KEY`, optional) — real diesel prices; totally free at eia.gov/opendata/register.php. Falls back to a cached national average if unset. Customers can also enter their own in Settings.
+- No Stripe key, DAT API key, or Twilio credentials are needed — those integrations were replaced by Google Play Billing, Claude-generated rate estimates, and Expo push notifications respectively.
 
 ### Tech stack
 - Expo + React Native + TypeScript

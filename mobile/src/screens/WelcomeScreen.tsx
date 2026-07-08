@@ -66,8 +66,8 @@ const styles = StyleSheet.create({
   background: { flex: 1, width: '100%', height: '100%' },
   safe: { flex: 1, justifyContent: 'flex-end', paddingHorizontal: 24, paddingBottom: 24 },
   freeBadge: {
-    alignSelf: 'center', backgroundColor: 'rgba(1,9,35,0.75)', borderRadius: 999,
-    paddingHorizontal: 16, paddingVertical: 8, marginBottom: 16, borderWidth: 1, borderColor: PHI_COLORS.sunshineYellow,
+    alignSelf: 'center', backgroundColor: 'rgba(1,9,35,0.75)', borderRadius: 16, maxWidth: '90%',
+    paddingHorizontal: 16, paddingVertical: 10, marginBottom: 16, borderWidth: 1, borderColor: PHI_COLORS.sunshineYellow,
   },
   freeBadgeText: { color: PHI_COLORS.sunshineYellow, fontSize: 12, fontWeight: '700', textAlign: 'center' },
   buttonRow: { flexDirection: 'row', gap: 14 },

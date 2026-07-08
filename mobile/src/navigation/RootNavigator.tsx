@@ -13,12 +13,16 @@ import LoadDetailsScreen from '../screens/LoadDetailsScreen';
 import LoadingScreen from '../screens/LoadingScreen';
 import MessageThreadScreen from '../screens/MessageThreadScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import PayoutSettingsScreen from '../screens/PayoutSettingsScreen';
 import PromoCodeScreen from '../screens/PromoCodeScreen';
+import RouteMapScreen from '../screens/RouteMapScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import SupportChatScreen from '../screens/SupportChatScreen';
+import SystemCheckScreen from '../screens/SystemCheckScreen';
 import TruckStopFinderScreen from '../screens/TruckStopFinderScreen';
 import VehicleScreen from '../screens/VehicleScreen';
+import WalkthroughScreen from '../screens/WalkthroughScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import TabNavigator from './TabNavigator';
 
@@ -27,6 +31,7 @@ export type RootStackParamList = {
   Welcome: undefined;
   Main: undefined;
   LoadDetails: { loadId: string };
+  RouteMap: { originLat: number; originLon: number; originLabel: string; destLat: number; destLon: number; destLabel: string };
   AICommandCenter: undefined;
   Compliance: undefined;
   Documents: undefined;
@@ -42,7 +47,10 @@ export type RootStackParamList = {
   MessageThread: { threadId: string };
   EquipmentMarketplace: undefined;
   SupportChat: undefined;
+  SystemCheck: undefined;
   TruckStopFinder: undefined;
+  PayoutSettings: undefined;
+  Walkthrough: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -83,6 +91,10 @@ export default function RootNavigator() {
         options={{ title: 'Ask Michelle', presentation: 'modal', animation: 'slide_from_bottom' }}
       />
       <Stack.Screen name="TruckStopFinder" component={TruckStopFinderScreen} options={{ title: 'Truck Stops & Parking' }} />
+      <Stack.Screen name="SystemCheck" component={SystemCheckScreen} options={{ title: 'System Check' }} />
+      <Stack.Screen name="RouteMap" component={RouteMapScreen} options={{ title: 'Route Analysis' }} />
+      <Stack.Screen name="PayoutSettings" component={PayoutSettingsScreen} options={{ title: 'Payout Settings' }} />
+      <Stack.Screen name="Walkthrough" component={WalkthroughScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

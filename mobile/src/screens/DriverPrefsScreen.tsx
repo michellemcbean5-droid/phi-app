@@ -3,20 +3,30 @@
 
 import React from 'react';
 import {
-  ScrollView, StyleSheet, Switch, Text,
+  Alert, ScrollView, StyleSheet, Switch, Text,
   TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
 import useDriverPrefsStore, { EquipmentPref } from '../store/driverPrefsStore';
+import useProfileStore from '../store/profileStore';
+import useOnboardingStore from '../store/onboardingStore';
+import { RootStackParamList } from '../navigation/RootNavigator';
+
+type DriverPrefsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const EQUIPMENT_OPTIONS: EquipmentPref[] = ['Dry Van', 'Reefer', 'Flatbed', 'Any'];
 
 const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 
 export default function DriverPrefsScreen() {
+  const navigation = useNavigation<DriverPrefsNavigationProp>();
   const { prefs, updatePref, resetPrefs } = useDriverPrefsStore();
+  const { hasSeenWalkthrough } = useOnboardingStore();
+  const { fullName, cdlNumber, cdlState, cdlClass, setField, isComplete } = useProfileStore();
 
   const toggleState = (state: string, list: 'preferredStates' | 'avoidStates') => {
     const current = prefs[list];
@@ -38,6 +48,57 @@ export default function DriverPrefsScreen() {
             Set your preferences once. PHI's 10 AI workers find loads, negotiate rates,
             and book freight automatically — you just drive.
           </Text>
+        </View>
+
+        {/* Driver Identity */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>🪪 Driver Identity</Text>
+          <Text style={styles.helpText}>
+            This is what shows up on rate confirmations and broker communication — worth getting right before you start booking.
+          </Text>
+          <Text style={styles.fieldLabel}>Full Legal Name</Text>
+          <TextInput
+            style={styles.input}
+            value={fullName}
+            onChangeText={(v) => setField('fullName', v)}
+            placeholder="e.g. John A. Smith"
+            placeholderTextColor="#7F8FB3"
+            autoCapitalize="words"
+          />
+          <Text style={styles.fieldLabel}>CDL Number</Text>
+          <TextInput
+            style={styles.input}
+            value={cdlNumber}
+            onChangeText={(v) => setField('cdlNumber', v)}
+            placeholder="e.g. 12345678"
+            placeholderTextColor="#7F8FB3"
+          />
+          <View style={styles.rpmRow}>
+            <View style={{ flex: 1, gap: 8 }}>
+              <Text style={styles.fieldLabel}>CDL State</Text>
+              <TextInput
+                style={styles.input}
+                value={cdlState}
+                onChangeText={(v) => setField('cdlState', v.toUpperCase().slice(0, 2))}
+                placeholder="TX"
+                placeholderTextColor="#7F8FB3"
+                maxLength={2}
+                autoCapitalize="characters"
+              />
+            </View>
+            <View style={{ flex: 1, gap: 8 }}>
+              <Text style={styles.fieldLabel}>CDL Class</Text>
+              <TextInput
+                style={styles.input}
+                value={cdlClass}
+                onChangeText={(v) => setField('cdlClass', v.toUpperCase().slice(0, 1))}
+                placeholder="A"
+                placeholderTextColor="#7F8FB3"
+                maxLength={1}
+                autoCapitalize="characters"
+              />
+            </View>
+          </View>
         </View>
 
         {/* Home Base */}
@@ -222,6 +283,30 @@ export default function DriverPrefsScreen() {
           </View>
         </View>
 
+        <TouchableOpacity
+          style={styles.continueButton}
+          onPress={() => {
+            if (!isComplete()) {
+              Alert.alert(
+                'Finish Your Driver Identity',
+                'Add your full name, CDL number, and CDL state above — brokers and rate confirmations need this to look professional.',
+              );
+              return;
+            }
+            if (navigation.canGoBack()) {
+              navigation.navigate('Main');
+              return;
+            }
+            if (!hasSeenWalkthrough) {
+              navigation.replace('Walkthrough');
+              return;
+            }
+            navigation.replace('Main');
+          }}
+        >
+          <Text style={styles.continueText}>Continue to Dashboard →</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.resetButton} onPress={resetPrefs}>
           <Text style={styles.resetText}>Reset to PHI Defaults</Text>
         </TouchableOpacity>
@@ -255,6 +340,8 @@ const styles = StyleSheet.create({
   stateChipAvoided: { backgroundColor: '#FF525233', borderColor: '#FF5252' },
   stateText: { color: '#D7E3FF', fontWeight: '700', fontSize: 11 },
   stateTextActive: { color: PHI_COLORS.white },
+  continueButton: { backgroundColor: PHI_COLORS.moneyGreen, borderRadius: 14, padding: 16 },
+  continueText: { color: PHI_COLORS.charcoalBlack, textAlign: 'center', fontWeight: '900', fontSize: 16 },
   resetButton: { borderWidth: 1, borderColor: '#29508C', borderRadius: 14, padding: 14 },
   resetText: { color: '#A8B7D8', textAlign: 'center', fontWeight: '700' },
 });

@@ -9,6 +9,9 @@ import { PHI_COLORS } from '../assets/brandColors';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { TabParamList } from '../navigation/TabNavigator';
 import useAuthStore from '../store/authStore';
+import useProfileStore from '../store/profileStore';
+import useLoadsStore from '../store/loadsStore';
+import useDocumentsStore from '../store/documentsStore';
 
 type ProfileNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Profile'>,
@@ -43,6 +46,12 @@ const menuItems: Array<{
 export default function ProfileScreen() {
   const navigation = useNavigation<ProfileNavigationProp>();
   const logout = useAuthStore((state) => state.logout);
+  const { fullName, phone, cdlNumber, cdlState, cdlClass, mcNumber, dotNumber, equipmentType, setField, isComplete } = useProfileStore();
+  const { bookingHistory } = useLoadsStore();
+  const { documents } = useDocumentsStore();
+
+  const totalMiles = bookingHistory.reduce((sum, record) => sum + record.miles, 0);
+  const milesDisplay = totalMiles >= 1000 ? `${(totalMiles / 1000).toFixed(1)}K` : String(totalMiles);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -50,31 +59,79 @@ export default function ProfileScreen() {
         <View style={styles.avatar}>
           <Ionicons name="person" size={60} color={PHI_COLORS.white} />
         </View>
-        <Text style={styles.name}>Prince Haul Driver</Text>
-        <Text style={styles.cdl}>CDL-A Owner Operator Profile</Text>
+        <Text style={styles.name}>{fullName.trim() || 'Add your name below'}</Text>
+        <Text style={styles.cdl}>{cdlNumber.trim() ? `CDL${cdlClass ? `-${cdlClass}` : ''} · ${cdlState || '??'} ${cdlNumber}` : 'CDL not on file yet'}</Text>
+
+        {!isComplete() && (
+          <View style={styles.incompleteBanner}>
+            <Ionicons name="alert-circle-outline" size={18} color={PHI_COLORS.charcoalBlack} />
+            <Text style={styles.incompleteBannerText}>
+              Add your name and CDL info so it's ready when brokers ask — it's what makes booking look professional.
+            </Text>
+          </View>
+        )}
 
         <View style={styles.formCard}>
+          <Text style={styles.formCardTitle}>Driver Identity</Text>
           {(
             [
-              ['MC Number', 'MC-123456'],
-              ['DOT Number', 'DOT-987654'],
-              ['Equipment Type', "53' Dry Van"],
+              ['fullName', 'Full Legal Name', fullName, 'e.g. John A. Smith'],
+              ['phone', 'Phone Number', phone, 'e.g. (555) 123-4567'],
+              ['cdlNumber', 'CDL Number', cdlNumber, 'e.g. 12345678'],
+              ['cdlState', 'CDL State', cdlState, 'e.g. TX'],
+              ['cdlClass', 'CDL Class', cdlClass, 'A, B, or C'],
             ] as const
-          ).map(([label, value]) => (
-            <View key={label} style={styles.fieldGroup}>
+          ).map(([field, label, value, placeholder]) => (
+            <View key={field} style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>{label}</Text>
-              <TextInput value={value} editable={false} style={styles.input} placeholderTextColor="#7F8FB3" />
+              <TextInput
+                value={value}
+                onChangeText={(text) => setField(field, field === 'cdlState' || field === 'cdlClass' ? text.toUpperCase() : text)}
+                style={styles.input}
+                placeholder={placeholder}
+                placeholderTextColor="#7F8FB3"
+                autoCapitalize={field === 'fullName' ? 'words' : 'characters'}
+                keyboardType={field === 'phone' ? 'phone-pad' : 'default'}
+              />
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.formCard}>
+          <Text style={styles.formCardTitle}>Carrier Info</Text>
+          {(
+            [
+              ['mcNumber', 'MC Number', mcNumber, 'e.g. MC-123456'],
+              ['dotNumber', 'DOT Number', dotNumber, 'e.g. DOT-987654'],
+              ['equipmentType', 'Equipment Type', equipmentType, "e.g. 53' Dry Van"],
+            ] as const
+          ).map(([field, label, value, placeholder]) => (
+            <View key={field} style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>{label}</Text>
+              <TextInput
+                value={value}
+                onChangeText={(text) => setField(field, text)}
+                style={styles.input}
+                placeholder={placeholder}
+                placeholderTextColor="#7F8FB3"
+              />
             </View>
           ))}
         </View>
 
         <View style={styles.statsRow}>
-          {[['2.1M', 'Miles Driven'], ['98%', 'On-Time'], ['4.9\u2605', 'Rating']].map(([value, label]) => (
-            <View key={label} style={styles.statBox}>
-              <Text style={styles.statVal}>{value}</Text>
-              <Text style={styles.statLbl}>{label}</Text>
-            </View>
-          ))}
+          <View style={styles.statBox}>
+            <Text style={styles.statVal}>{milesDisplay}</Text>
+            <Text style={styles.statLbl}>Miles Driven</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statVal}>{bookingHistory.length}</Text>
+            <Text style={styles.statLbl}>Loads Booked</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statVal}>{documents.length}</Text>
+            <Text style={styles.statLbl}>Documents</Text>
+          </View>
         </View>
 
         {menuItems.map((item) => (
@@ -105,7 +162,10 @@ const styles = StyleSheet.create({
   avatar: { width: 100, height: 100, borderRadius: 50, backgroundColor: PHI_COLORS.royalBlue, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   name: { color: PHI_COLORS.white, fontSize: 22, fontWeight: '900', textAlign: 'center' },
   cdl: { color: '#D7E3FF', textAlign: 'center' },
+  incompleteBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 14, padding: 14 },
+  incompleteBannerText: { flex: 1, flexShrink: 1, color: PHI_COLORS.charcoalBlack, fontSize: 12, fontWeight: '700', lineHeight: 17 },
   formCard: { backgroundColor: PHI_COLORS.card, borderRadius: 16, padding: 16, gap: 12 },
+  formCardTitle: { color: PHI_COLORS.sunshineYellow, fontWeight: '800', fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 },
   fieldGroup: { gap: 8 },
   fieldLabel: { color: PHI_COLORS.white, fontWeight: '700' },
   input: { backgroundColor: '#132B52', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: PHI_COLORS.white, borderWidth: 1, borderColor: '#29508C' },

@@ -1,20 +1,21 @@
 # PHI Managed AI Proxy
 
-This is the backend piece needed to make the Enterprise plan's "Managed AI — no API
-key needed" promise real. Without deploying this, Enterprise subscribers get no AI
-benefit beyond the free BYOK tiers — the app will just tell them to add their own key.
+This is the backend piece needed to make every paid plan's (Solo/Fleet/Enterprise)
+"Managed AI — no API key needed" promise real. Without deploying this, paid subscribers
+get no AI benefit beyond the free BYOK tier — the app will just tell them to add their
+own key. Only the Free plan is meant to require a personal Anthropic key.
 
 ## What it does
 
 A tiny server that holds **your** Anthropic API key as a secret and forwards AI
-requests to Claude on behalf of Enterprise subscribers, so they never see or need
-their own key. You pay Anthropic for the usage; Enterprise subscription revenue is
-meant to cover it.
+requests to Claude on behalf of any paying subscriber, so they never see or need
+their own key. You pay Anthropic for the usage; subscription revenue from Solo/Fleet/
+Enterprise is meant to cover it.
 
 ## Current state: prototype, not production-ready
 
 `verifyEntitlement()` in `worker.js` only checks a shared secret header right now —
-it does **not** verify that the caller actually has an active Enterprise subscription.
+it does **not** verify that the caller actually has an active paid subscription.
 Before relying on this for real revenue, replace it with a real check against the
 [Google Play Developer API](https://developers.google.com/android-publisher) (requires
 a Google Cloud service account with access to your Play Console app). Until then,
@@ -42,13 +43,14 @@ EXPO_PUBLIC_MANAGED_AI_PROXY_URL=https://phi-managed-ai-proxy.<you>.workers.dev
 EXPO_PUBLIC_MANAGED_AI_SHARED_SECRET=<the same random string you set above>
 ```
 
-Once both are set and rebuilt, Enterprise-tier drivers with no personal API key
-configured will automatically route AI requests through this proxy instead of seeing
-a "no API key set" error.
+Once both are set and rebuilt, any Solo/Fleet/Enterprise driver with no personal API
+key configured will automatically route AI requests through this proxy instead of
+seeing a "no API key set" error. Free-plan drivers keep using their own key.
 
 ## Ongoing cost
 
 - Cloudflare Workers free tier: 100,000 requests/day, no cost.
 - Anthropic API usage: billed per request/token to whatever Anthropic account owns
-  `ANTHROPIC_API_KEY` — this is the real, variable cost this tier needs to cover.
-  Estimate your usage before pricing the Enterprise plan to make sure the margin holds.
+  `ANTHROPIC_API_KEY` — this is the real, variable cost the paid plans need to cover.
+  Estimate your usage before pricing Solo/Fleet/Enterprise to make sure the margin holds
+  (Claude Haiku is the model PHI uses by default — it's the cheap one).

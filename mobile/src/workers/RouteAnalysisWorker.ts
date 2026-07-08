@@ -21,7 +21,12 @@ export const calculateDeadhead = async (
   const deadheadMiles = await calculateGPSDeadhead(currentLocation, pickupLocation);
   const deadheadPercentage = Number(((deadheadMiles / totalMiles) * 100).toFixed(2));
   const estimatedTripHours = Number(((deadheadMiles + totalMiles) / 55).toFixed(2));
-  const hosCompliant = estimatedTripHours <= 11;
+  // HOS only limits how far the driver can go *today* — the deadhead leg to reach
+  // pickup, not the full multi-day haul. An 800-mile load normally takes two-plus
+  // driving days with required rest in between; that's completely normal OTR
+  // freight, not an HOS violation, so it must not factor into this check.
+  const deadheadHours = Number((deadheadMiles / 55).toFixed(2));
+  const hosCompliant = deadheadHours <= 11;
   const rejected = deadheadPercentage > 15 || !hosCompliant;
 
   return {
@@ -33,7 +38,7 @@ export const calculateDeadhead = async (
     rejectionReason: deadheadPercentage > 15
       ? 'Deadhead exceeds 15% of total trip distance.'
       : !hosCompliant
-        ? 'Projected trip would violate HOS drive-time limits.'
+        ? 'Deadhead alone would exceed today\'s HOS drive-time limit.'
         : null,
   };
 };

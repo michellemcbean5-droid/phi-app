@@ -1,53 +1,58 @@
 // Customer-owned API keys — stored securely via expo-secure-store.
-// Customers enter their own keys so PHI uses their accounts (and quotas).
+// Free-tier customers enter their own keys so PHI uses their accounts (and quotas).
+// Paid tiers don't need any of these — see hasManagedAI() in subscriptionGating.ts.
 // Keys override EXPO_PUBLIC_ env vars when present.
 
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 
+export type AIProvider = 'anthropic' | 'kimi' | 'huggingface';
+
 export interface CustomerAPIKeys {
   anthropicKey: string;
+  kimiKey: string;
+  huggingfaceKey: string;
   orsKey: string;
   eiaKey: string;
-  stripeKey: string;
-  datApiKey: string;
-  twilioAccountSid: string;
-  twilioAuthToken: string;
 }
 
 const STORE_KEY = 'phi_customer_api_keys';
 
 const EMPTY_KEYS: CustomerAPIKeys = {
   anthropicKey: '',
+  kimiKey: '',
+  huggingfaceKey: '',
   orsKey: '',
   eiaKey: '',
-  stripeKey: '',
-  datApiKey: '',
-  twilioAccountSid: '',
-  twilioAuthToken: '',
 };
 
 interface APIKeyState {
   keys: CustomerAPIKeys;
+  preferredProvider: AIProvider;
   loaded: boolean;
   loadKeys: () => Promise<void>;
   saveKey: (field: keyof CustomerAPIKeys, value: string) => Promise<void>;
+  setPreferredProvider: (provider: AIProvider) => Promise<void>;
   clearAllKeys: () => Promise<void>;
   getEffectiveKey: (field: keyof CustomerAPIKeys, envFallback?: string) => string;
 }
 
 const useAPIKeyStore = create<APIKeyState>((set, get) => ({
   keys: EMPTY_KEYS,
+  preferredProvider: 'anthropic',
   loaded: false,
 
   loadKeys: async () => {
     try {
       const raw = await SecureStore.getItemAsync(STORE_KEY);
+      const rawProvider = await SecureStore.getItemAsync(`${STORE_KEY}_provider`);
+      const provider: AIProvider =
+        rawProvider === 'kimi' || rawProvider === 'huggingface' ? rawProvider : 'anthropic';
       if (raw) {
         const parsed = JSON.parse(raw) as CustomerAPIKeys;
-        set({ keys: { ...EMPTY_KEYS, ...parsed }, loaded: true });
+        set({ keys: { ...EMPTY_KEYS, ...parsed }, preferredProvider: provider, loaded: true });
       } else {
-        set({ loaded: true });
+        set({ preferredProvider: provider, loaded: true });
       }
     } catch {
       set({ loaded: true });
@@ -60,6 +65,15 @@ const useAPIKeyStore = create<APIKeyState>((set, get) => ({
     set({ keys: updated });
     try {
       await SecureStore.setItemAsync(STORE_KEY, JSON.stringify(updated));
+    } catch {
+      // SecureStore not available in test env — silently skip
+    }
+  },
+
+  setPreferredProvider: async (provider) => {
+    set({ preferredProvider: provider });
+    try {
+      await SecureStore.setItemAsync(`${STORE_KEY}_provider`, provider);
     } catch {
       // SecureStore not available in test env — silently skip
     }

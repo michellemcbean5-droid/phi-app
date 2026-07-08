@@ -11,13 +11,16 @@ import useLoadsStore, { SortOption } from '../store/loadsStore';
 import { getCurrentDriverLocation } from '../api/samsaraConnector';
 import { sendNearbyLoadAlert } from '../api/twilioConnector';
 import { calculateGPSDeadhead, Coordinates } from '../api/googleMapsConnector';
-import { executeBooking } from '../workers/AutoBookingEngine';
+import { BookingConfirmation } from '../workers/AutoBookingEngine';
+import BookingConfirmationModal from '../components/game/BookingConfirmationModal';
 import { aggregateLoads } from '../workers/LoadFinderWorker';
 import { scoreLoad, LoadScore } from '../workers/LoadScoringWorker';
 import { calculateDeadhead } from '../workers/RouteAnalysisWorker';
+import { runOrchestratorPipeline } from '../workers/PHIOrchestrator';
 import { Load } from '../workers/workers-15x';
 import useWorkerStore from '../store/workerStore';
 import usePromoStore from '../store/promoStore';
+import useDriverPrefsStore from '../store/driverPrefsStore';
 import { getProximityRefreshMinutes } from '../utils/subscriptionGating';
 import AnimatedPressable from '../components/game/AnimatedPressable';
 
@@ -38,9 +41,10 @@ const SORT_OPTIONS: { label: string; value: SortOption }[] = [
 
 export default function LoadsScreen() {
   const navigation = useNavigation<LoadsNavigationProp>();
-  const { activeLoads, bookingState, filter, sortBy, setLoads, setBookingState, addBookingRecord, setFilter, setSortBy } = useLoadsStore();
+  const { activeLoads, bookingState, filter, sortBy, setLoads, setFilter, setSortBy } = useLoadsStore();
   const { getEffectiveTier } = usePromoStore();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [bookingConfirmation, setBookingConfirmation] = React.useState<{ load: Load; confirmation: BookingConfirmation } | null>(null);
   const alertedLoadIds = useRef<Set<string>>(new Set());
   const proximityCheckIntervalMs = getProximityRefreshMinutes(getEffectiveTier()) * 60 * 1000;
 
@@ -98,24 +102,60 @@ export default function LoadsScreen() {
   const handleAnalyzeRoute = async (load: Load): Promise<void> => {
     const location = (await getCurrentDriverLocation()) ?? FALLBACK_LOCATION;
     const analysis = await calculateDeadhead(location, load.origin, load.totalMiles);
-    Alert.alert(
-      'Route Analysis',
-      `${load.id}: ${analysis.deadheadMiles.toFixed(1)} deadhead miles (${analysis.deadheadPercentage}%). ${analysis.rejected ? analysis.rejectionReason : 'Route approved.'}`,
-    );
+    if (analysis.rejected) {
+      Alert.alert(
+        'Route Analysis',
+        `${load.id}: ${analysis.deadheadMiles.toFixed(1)} deadhead miles (${analysis.deadheadPercentage}%). ${analysis.rejectionReason}`,
+      );
+      return;
+    }
+    navigation.navigate('RouteMap', {
+      originLat: load.origin.latitude,
+      originLon: load.origin.longitude,
+      originLabel: `${load.origin.city}, ${load.origin.state}`,
+      destLat: load.destination.latitude,
+      destLon: load.destination.longitude,
+      destLabel: `${load.destination.city}, ${load.destination.state}`,
+    });
   };
 
   const handleBookLoad = async (load: Load): Promise<void> => {
-    setBookingState(load.id, 'pending');
-    const confirmation = await executeBooking(load, 82);
-    setBookingState(load.id, confirmation.booked ? 'booked' : 'rejected');
-    Alert.alert('Booking Update', confirmation.message);
-    if (confirmation.booked) {
-      const { recordTaskCompletion } = useWorkerStore.getState();
-      recordTaskCompletion('freight-negotiator', load.rate, `Booked ${load.id} at $${load.rate.toFixed(0)}`);
-      recordTaskCompletion('dispatch-coordinator', 0, `Confirmed pickup for ${load.id}`);
-      addBookingRecord({ id: load.id, rate: load.rate, miles: load.totalMiles, rpm: load.rpm, bookedAt: new Date().toISOString() });
+    const result = await runOrchestratorPipeline(load);
+    if (result.booked && result.confirmation) {
+      setBookingConfirmation({ load, confirmation: result.confirmation });
+    } else {
+      Alert.alert('Booking Update', result.reason ?? 'This load did not clear the PHI Brain pipeline.');
     }
   };
+
+  const prefs = useDriverPrefsStore((s) => s.prefs);
+  const autoPilotRanForLoadIds = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!prefs.autoBookEnabled) return;
+
+    const runAutoPilot = async (): Promise<void> => {
+      const candidates = loadBoard.filter((load) => {
+        if (autoPilotRanForLoadIds.current.has(load.id)) return false;
+        if (bookingState[load.id] === 'booked' || bookingState[load.id] === 'pending') return false;
+        try {
+          return scoreLoad(load) === 'Diamond' || scoreLoad(load) === 'Gold';
+        } catch {
+          return false;
+        }
+      });
+
+      // Sequential on purpose — the pipeline is a deterministic single-lane process,
+      // not a set of competing background jobs, so loads are booked one at a time.
+      for (const load of candidates) {
+        autoPilotRanForLoadIds.current.add(load.id);
+        await handleBookLoad(load);
+      }
+    };
+
+    void runAutoPilot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefs.autoBookEnabled, loadBoard]);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -128,7 +168,7 @@ export default function LoadsScreen() {
           <>
             <View style={styles.headerCard}>
               <Text style={styles.headerTitle}>PHI Load Board</Text>
-              <Text style={styles.headerSubtitle}>Pull to refresh live dry van opportunities from DAT and Truckstop.</Text>
+              <Text style={styles.headerSubtitle}>Pull to refresh live dry van opportunities from DAT, Truckstop, 123Loadboard, and Uber Freight.</Text>
             </View>
             <View style={styles.controlRow}>
               {SCORE_FILTERS.map((f) => (
@@ -170,8 +210,14 @@ export default function LoadsScreen() {
               <Text style={styles.metaText}>Equipment: {item.equipmentType} • Miles: {item.totalMiles}</Text>
               <Text style={styles.bookingState}>Booking: {bookingState[item.id] ?? 'unbooked'}</Text>
               <View style={styles.buttonRow}>
-                <AnimatedPressable style={styles.primaryButton} onPress={() => void handleBookLoad(item)}>
-                  <Text style={styles.primaryButtonText}>Book Load</Text>
+                <AnimatedPressable
+                  style={[styles.primaryButton, bookingState[item.id] === 'booked' && styles.primaryButtonDisabled]}
+                  onPress={() => void handleBookLoad(item)}
+                  disabled={bookingState[item.id] === 'booked' || bookingState[item.id] === 'pending'}
+                >
+                  <Text style={styles.primaryButtonText}>
+                    {bookingState[item.id] === 'booked' ? 'Booked ✓' : bookingState[item.id] === 'pending' ? 'Booking...' : 'Book Load'}
+                  </Text>
                 </AnimatedPressable>
                 <AnimatedPressable style={styles.secondaryButton} onPress={() => void handleAnalyzeRoute(item)}>
                   <Text style={styles.secondaryButtonText}>Analyze Route</Text>
@@ -180,6 +226,12 @@ export default function LoadsScreen() {
             </TouchableOpacity>
           );
         }}
+      />
+      <BookingConfirmationModal
+        visible={bookingConfirmation !== null}
+        load={bookingConfirmation?.load ?? null}
+        confirmation={bookingConfirmation?.confirmation ?? null}
+        onClose={() => setBookingConfirmation(null)}
       />
     </SafeAreaView>
   );
@@ -210,6 +262,7 @@ const styles = StyleSheet.create({
   bookingState: { color: PHI_COLORS.moneyGreen, fontWeight: '700' },
   buttonRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
   primaryButton: { flex: 1, backgroundColor: PHI_COLORS.sunshineYellow, padding: 12, borderRadius: 12 },
+  primaryButtonDisabled: { backgroundColor: PHI_COLORS.moneyGreen, opacity: 0.85 },
   secondaryButton: { flex: 1, backgroundColor: PHI_COLORS.royalBlue, padding: 12, borderRadius: 12 },
   primaryButtonText: { color: PHI_COLORS.charcoalBlack, textAlign: 'center', fontWeight: '800' },
   secondaryButtonText: { color: PHI_COLORS.white, textAlign: 'center', fontWeight: '800' },

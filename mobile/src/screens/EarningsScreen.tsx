@@ -1,10 +1,44 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
-import useLoadsStore from '../store/loadsStore';
+import { RootStackParamList } from '../navigation/RootNavigator';
+import { TabParamList } from '../navigation/TabNavigator';
+import useLoadsStore, { PaymentStatus } from '../store/loadsStore';
 import useExpenseStore, { ExpenseCategory } from '../store/expenseStore';
-import { calculateRPMTrend, categorizeExpense, PHI_ProfitFormula, projectYearlyRevenue } from '../utils/profitFormula';
+import useProfileStore from '../store/profileStore';
+import {
+  calculateLiveCPM,
+  calculateMinimumRPM,
+  calculateRPMTrend,
+  categorizeExpense,
+  PHI_ProfitFormula,
+  projectYearlyRevenue,
+} from '../utils/profitFormula';
+import useDriverPrefsStore from '../store/driverPrefsStore';
+
+const TARGET_PROFIT_MARGIN_PERCENT = 60;
+
+type EarningsNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<TabParamList, 'Earnings'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
+const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
+  unpaid: 'Unpaid',
+  invoice_sent: 'Invoice Sent',
+  paid: 'Paid',
+};
+
+const PAYMENT_STATUS_COLOR: Record<PaymentStatus, string> = {
+  unpaid: '#FF5252',
+  invoice_sent: PHI_COLORS.sunshineYellow,
+  paid: PHI_COLORS.moneyGreen,
+};
 
 // Industry-average cost ratios — used only until the driver has logged real expenses,
 // since PHI doesn't yet know actual fuel/maintenance/insurance spend per load.
@@ -23,10 +57,28 @@ const groupEarningsByDay = (history: { rate: number; bookedAt: string }[]): numb
 };
 
 export default function EarningsScreen() {
-  const { bookingHistory } = useLoadsStore();
+  const navigation = useNavigation<EarningsNavigationProp>();
+  const { bookingHistory, setPaymentStatus } = useLoadsStore();
   const { entries, addExpense, totalsByCategory, totalExpenses } = useExpenseStore();
+  const { fullName } = useProfileStore();
+  const { prefs } = useDriverPrefsStore();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
+
+  const handleRequestPayment = async (record: typeof bookingHistory[number]): Promise<void> => {
+    const message = [
+      `Invoice Request — Load ${record.id}`,
+      `From: ${fullName.trim() || '(driver name not set)'}`,
+      `Broker: ${record.brokerName}`,
+      `Miles: ${record.miles}`,
+      `Rate: $${record.rate.toFixed(2)}`,
+      `Booked: ${new Date(record.bookedAt).toLocaleDateString()}`,
+      '',
+      'Please remit payment for the above load at your earliest convenience. Thank you for your business.',
+    ].join('\n');
+    await Share.share({ message, title: `Invoice — Load ${record.id}` });
+    setPaymentStatus(record.id, 'invoice_sent');
+  };
 
   const handleAddExpense = (): void => {
     const parsedAmount = Number(amount);
@@ -74,12 +126,38 @@ export default function EarningsScreen() {
     ? Math.min(100, Math.max(0, (projection.projectedRevenue / projection.targetRevenue) * 100))
     : 0;
 
+  const totalMilesDriven = bookingHistory.reduce((sum, record) => sum + record.miles, 0);
+  const liveCPM = hasRealExpenses ? calculateLiveCPM(totalExpenses(), totalMilesDriven) : 0;
+  const dynamicMinimumRPM = liveCPM > 0 ? calculateMinimumRPM(liveCPM, TARGET_PROFIT_MARGIN_PERCENT) : prefs.minRPM;
+
+  const handleShareReport = async (): Promise<void> => {
+    const lines = [
+      'PHI EARNINGS REPORT',
+      `Generated: ${new Date().toLocaleString()}`,
+      '',
+      `Loads Booked: ${bookingHistory.length}`,
+      `Total Revenue: $${totalRevenue.toLocaleString()}`,
+      `Operating Cost: $${profit.operatingCost.toLocaleString()}${hasRealExpenses ? ` (${entries.length} logged expenses)` : ' (estimated)'}`,
+      `Net Profit: $${profit.netProfit.toLocaleString()}`,
+      `Profit Margin: ${Math.round(profit.profitMargin)}%`,
+      `7-Day Avg RPM: $${rpmTrend.averageRpm.toFixed(2)} (${rpmTrend.flag})`,
+      projection ? `Yearly Projection: $${projection.projectedRevenue.toLocaleString()} vs $${projection.targetRevenue.toLocaleString()} target` : '',
+      '',
+      'EXPENSE BREAKDOWN',
+      ...(entries.length === 0
+        ? ['No expenses logged yet.']
+        : entries.map((e) => `${e.description} (${e.category}): $${e.amount.toFixed(2)}`)),
+    ].filter(Boolean);
+
+    await Share.share({ message: lines.join('\n'), title: 'PHI Earnings Report' });
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.heroCard}>
           <Text style={styles.heroLabel}>
-            Net Profit ({bookingHistory.length} loads booked) — {hasRealExpenses ? 'Actual expenses' : 'Estimated costs'}
+            Net Profit ({bookingHistory.length} load{bookingHistory.length === 1 ? '' : 's'} booked) — {hasRealExpenses ? 'Actual expenses' : 'Estimated costs'}
           </Text>
           <Text style={styles.heroValue}>${profit.netProfit.toLocaleString()}</Text>
           <Text style={styles.heroSubtext}>
@@ -87,6 +165,10 @@ export default function EarningsScreen() {
             {hasRealExpenses ? ` (${entries.length} logged expenses)` : ''}
           </Text>
         </View>
+
+        <TouchableOpacity style={styles.shareButton} onPress={() => void handleShareReport()}>
+          <Text style={styles.shareButtonText}>📤 Share / Save Earnings Report</Text>
+        </TouchableOpacity>
 
         {projection && (
           <View style={styles.sectionCard}>
@@ -108,6 +190,23 @@ export default function EarningsScreen() {
           <Text style={styles.metricText}>7-day average RPM: {rpmTrend.averageRpm.toFixed(2)}</Text>
           <Text style={[styles.helperText, rpmTrend.flag === 'Market Risk' && styles.riskText]}>
             {rpmTrend.flag} • {rpmTrend.trendPercentage}% vs previous period
+          </Text>
+        </View>
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Live Cost Per Mile</Text>
+          <Text style={styles.metricText}>
+            {hasRealExpenses ? `$${liveCPM.toFixed(2)}/mi` : 'Log a few expenses to unlock your real number'}
+          </Text>
+          <Text style={styles.helperText}>
+            {hasRealExpenses
+              ? `Based on ${entries.length} logged expense${entries.length === 1 ? '' : 's'} over ${totalMilesDriven.toLocaleString()} booked miles.`
+              : 'Until then, PHI uses your Loads tab minimum RPM as the floor.'}
+          </Text>
+          <Text style={[styles.metricText, { marginTop: 6 }]}>Minimum RPM to book: ${dynamicMinimumRPM.toFixed(2)}/mi</Text>
+          <Text style={styles.helperText}>
+            {hasRealExpenses ? `Your cost + a ${TARGET_PROFIT_MARGIN_PERCENT}% margin` : 'From your AI Dispatcher Settings'} — the PHI Brain
+            won't book anything below this.
           </Text>
         </View>
 
@@ -144,6 +243,42 @@ export default function EarningsScreen() {
             </View>
           ))}
         </View>
+
+        <View style={styles.sectionCard}>
+          <View style={styles.getPaidHeaderRow}>
+            <Text style={styles.sectionTitle}>Get Paid</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('PayoutSettings')}>
+              <Text style={styles.payoutSetupLink}>Payout Setup →</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.helperText}>
+            Send a professional invoice to the broker and track payment status here. Direct in-app broker payments
+            aren't live yet — this sends a real invoice via email/text and lets you mark it paid once you receive it.
+          </Text>
+          {bookingHistory.slice(0, 8).map((record) => (
+            <View key={record.id} style={styles.paymentRow}>
+              <View style={styles.paymentTextWrap}>
+                <Text style={styles.paymentLoadId}>{record.id} — {record.brokerName}</Text>
+                <Text style={styles.paymentSub}>${record.rate.toFixed(0)} • {new Date(record.bookedAt).toLocaleDateString()}</Text>
+              </View>
+              <View style={[styles.paymentBadge, { backgroundColor: PAYMENT_STATUS_COLOR[record.paymentStatus] + '33' }]}>
+                <Text style={[styles.paymentBadgeText, { color: PAYMENT_STATUS_COLOR[record.paymentStatus] }]}>
+                  {PAYMENT_STATUS_LABEL[record.paymentStatus]}
+                </Text>
+              </View>
+              {record.paymentStatus === 'unpaid' && (
+                <TouchableOpacity style={styles.paymentActionButton} onPress={() => void handleRequestPayment(record)}>
+                  <Ionicons name="send-outline" size={14} color={PHI_COLORS.charcoalBlack} />
+                </TouchableOpacity>
+              )}
+              {record.paymentStatus === 'invoice_sent' && (
+                <TouchableOpacity style={styles.paymentActionButton} onPress={() => setPaymentStatus(record.id, 'paid')}>
+                  <Ionicons name="checkmark" size={14} color={PHI_COLORS.charcoalBlack} />
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -159,6 +294,8 @@ const styles = StyleSheet.create({
   heroLabel: { color: PHI_COLORS.sunshineYellow, fontWeight: '800' },
   heroValue: { color: PHI_COLORS.white, fontSize: 36, fontWeight: '900', marginTop: 8 },
   heroSubtext: { color: '#E7EEFF', marginTop: 8 },
+  shareButton: { borderWidth: 1, borderColor: PHI_COLORS.sunshineYellow, padding: 12, borderRadius: 14, alignItems: 'center' },
+  shareButtonText: { color: PHI_COLORS.sunshineYellow, fontWeight: '700' },
   sectionCard: { backgroundColor: PHI_COLORS.card, borderRadius: 18, padding: 18, gap: 10 },
   sectionTitle: { color: PHI_COLORS.white, fontSize: 18, fontWeight: '800' },
   metricText: { color: PHI_COLORS.white, fontSize: 16, fontWeight: '700' },
@@ -174,4 +311,13 @@ const styles = StyleSheet.create({
   expenseListDesc: { flex: 2, color: PHI_COLORS.white, fontSize: 13 },
   expenseListCategory: { flex: 1, color: '#7F9FCC', fontSize: 11 },
   expenseListAmount: { color: PHI_COLORS.moneyGreen, fontWeight: '700', fontSize: 13 },
+  getPaidHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  payoutSetupLink: { color: PHI_COLORS.sunshineYellow, fontSize: 12, fontWeight: '700' },
+  paymentRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#21406F' },
+  paymentTextWrap: { flex: 1, flexShrink: 1 },
+  paymentLoadId: { color: PHI_COLORS.white, fontWeight: '700', fontSize: 13 },
+  paymentSub: { color: '#7F9FCC', fontSize: 11, marginTop: 2 },
+  paymentBadge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  paymentBadgeText: { fontWeight: '800', fontSize: 10 },
+  paymentActionButton: { backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 8, width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
 });

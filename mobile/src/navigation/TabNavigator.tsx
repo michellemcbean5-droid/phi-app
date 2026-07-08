@@ -1,4 +1,5 @@
 import React from 'react';
+import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
@@ -7,6 +8,8 @@ import DashboardScreen from '../screens/DashboardScreen';
 import EarningsScreen from '../screens/EarningsScreen';
 import LoadsScreen from '../screens/LoadsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import FloatingAssistantButton from '../components/game/FloatingAssistantButton';
+import FloatingHandsFreeButton from '../components/game/FloatingHandsFreeButton';
 import GameTabBar from './GameTabBar';
 
 export type TabParamList = {
@@ -21,31 +24,35 @@ const Tab = createBottomTabNavigator<TabParamList>();
 
 export default function TabNavigator() {
   return (
-    <Tab.Navigator
-      tabBar={(props) => <GameTabBar {...props} />}
-      screenOptions={({ route }) => ({
-        headerStyle: { backgroundColor: PHI_COLORS.royalBlue },
-        headerTintColor: PHI_COLORS.white,
-        headerTitleStyle: { fontWeight: 'bold' },
-        tabBarStyle: { backgroundColor: PHI_COLORS.royalBlue, borderTopColor: '#1B4BCC' },
-        tabBarActiveTintColor: PHI_COLORS.sunshineYellow,
-        tabBarInactiveTintColor: '#D7E3FF',
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap = 'home-outline';
-          if (route.name === 'Dashboard') iconName = focused ? 'home' : 'home-outline';
-          else if (route.name === 'Loads') iconName = focused ? 'cube' : 'cube-outline';
-          else if (route.name === 'AI') iconName = focused ? 'hardware-chip' : 'hardware-chip-outline';
-          else if (route.name === 'Earnings') iconName = focused ? 'cash' : 'cash-outline';
-          else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-      })}
-    >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="Loads" component={LoadsScreen} />
-      <Tab.Screen name="AI" component={AICommandCenterScreen} options={{ title: 'AI' }} />
-      <Tab.Screen name="Earnings" component={EarningsScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
-    </Tab.Navigator>
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
+        tabBar={(props) => <GameTabBar {...props} />}
+        screenOptions={({ route }) => ({
+          headerStyle: { backgroundColor: PHI_COLORS.royalBlue },
+          headerTintColor: PHI_COLORS.white,
+          headerTitleStyle: { fontWeight: 'bold' },
+          tabBarStyle: { backgroundColor: PHI_COLORS.royalBlue, borderTopColor: '#1B4BCC' },
+          tabBarActiveTintColor: PHI_COLORS.sunshineYellow,
+          tabBarInactiveTintColor: '#D7E3FF',
+          tabBarIcon: ({ focused, color, size }) => {
+            let iconName: keyof typeof Ionicons.glyphMap = 'home-outline';
+            if (route.name === 'Dashboard') iconName = focused ? 'home' : 'home-outline';
+            else if (route.name === 'Loads') iconName = focused ? 'cube' : 'cube-outline';
+            else if (route.name === 'AI') iconName = focused ? 'hardware-chip' : 'hardware-chip-outline';
+            else if (route.name === 'Earnings') iconName = focused ? 'cash' : 'cash-outline';
+            else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
+            return <Ionicons name={iconName} size={size} color={color} />;
+          },
+        })}
+      >
+        <Tab.Screen name="Dashboard" component={DashboardScreen} />
+        <Tab.Screen name="Loads" component={LoadsScreen} />
+        <Tab.Screen name="AI" component={AICommandCenterScreen} options={{ title: 'AI' }} />
+        <Tab.Screen name="Earnings" component={EarningsScreen} />
+        <Tab.Screen name="Profile" component={ProfileScreen} />
+      </Tab.Navigator>
+      <FloatingAssistantButton />
+      <FloatingHandsFreeButton />
+    </View>
   );
 }

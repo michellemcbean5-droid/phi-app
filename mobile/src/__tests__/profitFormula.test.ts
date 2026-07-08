@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PHI_ProfitFormula, projectYearlyRevenue } from '../utils/profitFormula';
+import { calculateLiveCPM, calculateMinimumRPM, PHI_ProfitFormula, projectYearlyRevenue } from '../utils/profitFormula';
 
 describe('PHI_ProfitFormula', () => {
   it('calculates net profit correctly', () => {
@@ -37,5 +37,29 @@ describe('projectYearlyRevenue', () => {
     expect(projection.projectedRevenue).toBe(1168000);
     expect(projection.onTrack).toBe(false);
     expect(projection.gapToTarget).toBe(2000);
+  });
+});
+
+describe('calculateLiveCPM', () => {
+  it('divides total expenses by total miles driven', () => {
+    expect(calculateLiveCPM(1250, 1000)).toBe(1.25);
+  });
+
+  it('returns 0 when no miles have been driven yet', () => {
+    expect(calculateLiveCPM(500, 0)).toBe(0);
+  });
+
+  it('rejects negative inputs', () => {
+    expect(() => calculateLiveCPM(-1, 1000)).toThrow();
+  });
+});
+
+describe('calculateMinimumRPM', () => {
+  it('applies a percentage margin on top of live CPM', () => {
+    expect(calculateMinimumRPM(1.5, 60)).toBe(2.4);
+  });
+
+  it('rejects a negative margin', () => {
+    expect(() => calculateMinimumRPM(1.5, -10)).toThrow();
   });
 });

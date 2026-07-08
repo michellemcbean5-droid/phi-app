@@ -20,6 +20,7 @@ import EfficiencyDial from '../components/game/EfficiencyDial';
 import ProfitBarChart from '../components/game/ProfitBarChart';
 import CoinBurst from '../components/game/CoinBurst';
 import AnimatedPressable from '../components/game/AnimatedPressable';
+import useHandsFreeStore from '../store/handsFreeStore';
 
 const PROFIT_TREND_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'];
 const AVG_TRUCK_MPG = 6.5;
@@ -42,6 +43,7 @@ export default function DashboardScreen() {
   const { workers, dailyRevenue, activityLog, coinBurstSeq } = useWorkerStore();
   const { isTrialActive, daysRemaining, getEffectiveTier } = usePromoStore();
   const { setLoads } = useLoadsStore();
+  const { narrate } = useHandsFreeStore();
   const [findingFreight, setFindingFreight] = useState(false);
   const [tripActive, setTripActive] = useState(false);
   const [cpm, setCpm] = useState(FALLBACK_CPM);
@@ -77,7 +79,10 @@ export default function DashboardScreen() {
   const handleFindFreight = (): void => {
     setFindingFreight(true);
     aggregateLoads()
-      .then((loads) => setLoads(loads))
+      .then((loads) => {
+        setLoads(loads);
+        narrate(loads.length > 0 ? `Found ${loads.length} loads. Opening the loads tab now.` : 'No loads found nearby yet.');
+      })
       .catch(() => {})
       .finally(() => {
         setFindingFreight(false);
@@ -96,7 +101,7 @@ export default function DashboardScreen() {
 
         {/* Header */}
         <Animated.View style={[styles.header, { opacity: slideAnim, transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
-          <View>
+          <View style={styles.headerTextWrap}>
             <Text style={styles.greeting}>{GREETING}, Driver</Text>
             <Text style={styles.subGreeting}>PHI is running your business right now</Text>
           </View>
@@ -160,7 +165,7 @@ export default function DashboardScreen() {
             disabled={findingFreight}
           >
             <Ionicons name={findingFreight ? 'radio-outline' : 'search-outline'} size={26} color={PHI_COLORS.charcoalBlack} />
-            <View>
+            <View style={styles.findFreightTextWrap}>
               <Text style={styles.findFreightTitle}>
                 {findingFreight ? 'Freight Negotiator Working...' : 'Find Freight'}
               </Text>
@@ -177,7 +182,7 @@ export default function DashboardScreen() {
           onPress={handleStartTrip}
         >
           <Ionicons name={tripActive ? 'navigate' : 'navigate-outline'} size={22} color={PHI_COLORS.white} />
-          <View>
+          <View style={styles.startTripTextWrap}>
             <Text style={styles.startTripTitle}>{tripActive ? 'Trip Active — Tap for Status' : 'Start Trip Mode'}</Text>
             <Text style={styles.startTripSub}>Route Optimizer · Fuel Optimizer · Dispatcher take over</Text>
           </View>
@@ -225,6 +230,26 @@ export default function DashboardScreen() {
             <Text style={styles.quickLabel}>Truck Stops</Text>
             <Text style={styles.quickSub}>Fuel · Parking · Weigh Stations</Text>
           </AnimatedPressable>
+          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('Vehicle')}>
+            <Ionicons name="car-outline" size={26} color="#FFB74D" />
+            <Text style={styles.quickLabel}>My Vehicle</Text>
+            <Text style={styles.quickSub}>Mileage · Maintenance</Text>
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('SystemCheck')}>
+            <Ionicons name="build-outline" size={26} color="#C9A6FF" />
+            <Text style={styles.quickLabel}>System Check</Text>
+            <Text style={styles.quickSub}>Troubleshoot & fix issues</Text>
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('EquipmentMarketplace')}>
+            <Ionicons name="car-sport-outline" size={26} color="#9BE8FF" />
+            <Text style={styles.quickLabel}>Equipment</Text>
+            <Text style={styles.quickSub}>Buy or lease a truck/van</Text>
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('PayoutSettings')}>
+            <Ionicons name="cash-outline" size={26} color="#7EE787" />
+            <Text style={styles.quickLabel}>Get Paid</Text>
+            <Text style={styles.quickSub}>Payout setup & invoices</Text>
+          </AnimatedPressable>
         </View>
 
         {/* Worker Status Strip */}
@@ -265,6 +290,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: PHI_COLORS.royalBlue },
   content: { padding: 16, gap: 14 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  headerTextWrap: { flex: 1, flexShrink: 1 },
   greeting: { color: PHI_COLORS.white, fontSize: 22, fontWeight: '900' },
   subGreeting: { color: '#A8C0FF', fontSize: 13, marginTop: 2 },
   tierPill: { backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6 },
@@ -287,10 +313,12 @@ const styles = StyleSheet.create({
   profitChartWrap: { flex: 1 },
   findFreightButton: { backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 20, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 14 },
   findFreightButtonActive: { backgroundColor: '#FFE878' },
+  findFreightTextWrap: { flex: 1, flexShrink: 1 },
   findFreightTitle: { color: PHI_COLORS.charcoalBlack, fontSize: 20, fontWeight: '900' },
   findFreightSub: { color: '#3A3A00', fontSize: 12, marginTop: 3 },
   startTripButton: { backgroundColor: PHI_COLORS.moneyGreen, borderRadius: 18, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14 },
   startTripActive: { backgroundColor: '#00A044' },
+  startTripTextWrap: { flex: 1, flexShrink: 1 },
   startTripTitle: { color: PHI_COLORS.white, fontSize: 17, fontWeight: '900' },
   startTripSub: { color: '#C0FFD8', fontSize: 12, marginTop: 2 },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },

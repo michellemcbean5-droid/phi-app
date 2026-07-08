@@ -50,6 +50,15 @@ const KEY_FIELDS: KeyField[] = [
     provider: 'kimi',
   },
   {
+    field: 'huggingfaceKey',
+    label: 'Hugging Face (Open Model)',
+    placeholder: 'hf_...',
+    helpText: 'Completely free, open-weight AI model. Lower rate limits than Claude or Kimi — a good backup, not your only key.',
+    signupUrl: 'huggingface.co/settings/tokens',
+    required: false,
+    provider: 'huggingface',
+  },
+  {
     field: 'orsKey',
     label: 'OpenRouteService (Routing)',
     placeholder: 'eyJ0eXAiOiJKV...',
@@ -133,9 +142,9 @@ export default function APIKeysScreen() {
               <Ionicons name="alert-circle-outline" size={28} color={PHI_COLORS.sunshineYellow} />
               <Text style={styles.infoTitle}>PHI Is Free — With One Catch</Text>
               <Text style={styles.infoText}>
-                On the Free plan, AI features run on your own free API key — pick Claude or Kimi below (about 2
-                minutes to set up, no credit card). Keys are stored encrypted on your device — never sent to PHI
-                servers.
+                On the Free plan, AI features run on your own free API key — pick Claude, Kimi, or Hugging Face
+                below (about 2 minutes to set up, no credit card). Keys are stored encrypted on your device — never
+                sent to PHI servers.
               </Text>
               <TouchableOpacity style={styles.upgradeButton} onPress={() => navigation.navigate('Subscription')}>
                 <Text style={styles.upgradeButtonText}>Or upgrade and skip setup — we'll run AI for you →</Text>
@@ -148,14 +157,14 @@ export default function APIKeysScreen() {
               <Text style={styles.providerTitle}>Preferred AI Provider</Text>
               <Text style={styles.helpText}>Which key PHI uses first if you've set up more than one.</Text>
               <View style={styles.providerRow}>
-                {(['anthropic', 'kimi'] as AIProvider[]).map((provider) => (
+                {(['anthropic', 'kimi', 'huggingface'] as AIProvider[]).map((provider) => (
                   <TouchableOpacity
                     key={provider}
                     style={[styles.providerButton, preferredProvider === provider && styles.providerButtonActive]}
                     onPress={() => void setPreferredProvider(provider)}
                   >
                     <Text style={[styles.providerButtonText, preferredProvider === provider && styles.providerButtonTextActive]}>
-                      {provider === 'anthropic' ? 'Claude' : 'Kimi'}
+                      {provider === 'anthropic' ? 'Claude' : provider === 'kimi' ? 'Kimi' : 'Hugging Face'}
                     </Text>
                   </TouchableOpacity>
                 ))}

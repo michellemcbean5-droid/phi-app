@@ -6,11 +6,12 @@
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 
-export type AIProvider = 'anthropic' | 'kimi';
+export type AIProvider = 'anthropic' | 'kimi' | 'huggingface';
 
 export interface CustomerAPIKeys {
   anthropicKey: string;
   kimiKey: string;
+  huggingfaceKey: string;
   orsKey: string;
   eiaKey: string;
 }
@@ -20,6 +21,7 @@ const STORE_KEY = 'phi_customer_api_keys';
 const EMPTY_KEYS: CustomerAPIKeys = {
   anthropicKey: '',
   kimiKey: '',
+  huggingfaceKey: '',
   orsKey: '',
   eiaKey: '',
 };
@@ -44,7 +46,8 @@ const useAPIKeyStore = create<APIKeyState>((set, get) => ({
     try {
       const raw = await SecureStore.getItemAsync(STORE_KEY);
       const rawProvider = await SecureStore.getItemAsync(`${STORE_KEY}_provider`);
-      const provider: AIProvider = rawProvider === 'kimi' ? 'kimi' : 'anthropic';
+      const provider: AIProvider =
+        rawProvider === 'kimi' || rawProvider === 'huggingface' ? rawProvider : 'anthropic';
       if (raw) {
         const parsed = JSON.parse(raw) as CustomerAPIKeys;
         set({ keys: { ...EMPTY_KEYS, ...parsed }, preferredProvider: provider, loaded: true });

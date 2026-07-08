@@ -1,4 +1,4 @@
-// Free tier is BYOK — AI features run on the driver's own free API key (Claude or Kimi).
+// Free tier is BYOK — AI features run on the driver's own free API key (Claude, Kimi, or Hugging Face).
 // Any paid tier (Solo/Fleet/Enterprise) gets PHI-managed AI instead: no key setup,
 // requests are billed to PHI and routed through backend/managed-ai-proxy. Paid tiers
 // also unlock non-AI extras (fleet size, document storage, faster load-proximity

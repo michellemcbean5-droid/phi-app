@@ -31,8 +31,8 @@ interface FaqEntry {
 
 const FAQ_ENTRIES: FaqEntry[] = [
   {
-    keywords: ['api key', 'apikey', 'set up ai', 'anthropic', 'claude key', 'kimi key', 'add my key'],
-    answer: 'To turn on AI features, go to Settings > My API Keys and paste in a free AI API key (Claude or Kimi, your choice). Both have a free tier that takes about 2 minutes to sign up for — no credit card needed.',
+    keywords: ['api key', 'apikey', 'set up ai', 'anthropic', 'claude key', 'kimi key', 'hugging face', 'add my key'],
+    answer: 'To turn on AI features, go to Settings > My API Keys and paste in a free AI API key (Claude, Kimi, or Hugging Face — your choice). All three have a free tier that takes about 2 minutes to sign up for — no credit card needed.',
   },
   {
     keywords: ['free', 'cost', 'price', 'pricing', 'how much'],

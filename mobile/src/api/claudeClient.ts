@@ -1,8 +1,9 @@
 // Generic AI client — the exported names (askClaude/askClaudeJSON/isClaudeConfigured)
 // stay as-is since ~10 other files import them, but the model behind them is now
-// selectable: Anthropic Claude or Moonshot Kimi, whichever the driver has configured
-// (see apiKeyStore's preferredProvider). Provider identity is intentionally kept out
-// of user-facing copy elsewhere in the app — this file is where it's allowed to matter.
+// selectable: Anthropic Claude, Moonshot Kimi, or a free Hugging Face-hosted open model,
+// whichever the driver has configured (see apiKeyStore's preferredProvider). Provider
+// identity is intentionally kept out of user-facing copy elsewhere in the app — this
+// file is where it's allowed to matter.
 
 import useAPIKeyStore, { AIProvider } from '../store/apiKeyStore';
 import usePromoStore from '../store/promoStore';
@@ -13,6 +14,13 @@ const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
 
 const KIMI_BASE = 'https://api.moonshot.ai/v1';
 const KIMI_MODEL = 'kimi-k2-0711-preview';
+
+// Hugging Face's OpenAI-compatible router — free tier, a few hundred requests/hour,
+// routed to whichever backend is fastest for this open model. No cost, but the
+// weakest quota of the three providers, so it's meant as a genuinely-free fallback,
+// not the default for heavy use.
+const HUGGINGFACE_BASE = 'https://router.huggingface.co/v1';
+const HUGGINGFACE_MODEL = 'openai/gpt-oss-20b:fastest';
 
 const MANAGED_AI_PROXY_URL = process.env.EXPO_PUBLIC_MANAGED_AI_PROXY_URL ?? '';
 const MANAGED_AI_SHARED_SECRET = process.env.EXPO_PUBLIC_MANAGED_AI_SHARED_SECRET ?? '';
@@ -28,13 +36,15 @@ const getActiveKey = (): ActiveKey | null => {
     const store = useAPIKeyStore.getState();
     const anthropicKey = store.getEffectiveKey('anthropicKey', process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '');
     const kimiKey = store.getEffectiveKey('kimiKey', process.env.EXPO_PUBLIC_KIMI_API_KEY ?? '');
-    const byProvider: Record<AIProvider, string> = { anthropic: anthropicKey, kimi: kimiKey };
+    const huggingfaceKey = store.getEffectiveKey('huggingfaceKey', process.env.EXPO_PUBLIC_HUGGINGFACE_API_KEY ?? '');
+    const byProvider: Record<AIProvider, string> = { anthropic: anthropicKey, kimi: kimiKey, huggingface: huggingfaceKey };
 
     if (byProvider[store.preferredProvider]) {
       return { provider: store.preferredProvider, key: byProvider[store.preferredProvider] };
     }
     if (anthropicKey) return { provider: 'anthropic', key: anthropicKey };
     if (kimiKey) return { provider: 'kimi', key: kimiKey };
+    if (huggingfaceKey) return { provider: 'huggingface', key: huggingfaceKey };
     return null;
   } catch {
     const fallback = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '';
@@ -131,6 +141,35 @@ const askKimi = async (apiKey: string, userPrompt: string, systemPrompt?: string
   return content.trim();
 };
 
+/** Free open-weight model via Hugging Face's OpenAI-compatible Inference Providers router. */
+const askHuggingFace = async (apiKey: string, userPrompt: string, systemPrompt?: string, maxTokens = 512): Promise<string> => {
+  const response = await fetch(`${HUGGINGFACE_BASE}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: HUGGINGFACE_MODEL,
+      max_tokens: maxTokens,
+      messages: [
+        ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+        { role: 'user', content: userPrompt },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`AI provider error ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json() as { choices: Array<{ message: { content: string } }> };
+  const content = data.choices[0]?.message?.content;
+  if (!content) throw new Error('No text content in AI response.');
+  return content.trim();
+};
+
 export const askClaude = async (
   userPrompt: string,
   systemPrompt?: string,
@@ -145,9 +184,9 @@ export const askClaude = async (
     throw new Error('No AI key set. Add your free API key in Settings to unlock AI features.');
   }
 
-  return active.provider === 'kimi'
-    ? askKimi(active.key, userPrompt, systemPrompt, maxTokens)
-    : askAnthropic(active.key, userPrompt, systemPrompt, maxTokens);
+  if (active.provider === 'kimi') return askKimi(active.key, userPrompt, systemPrompt, maxTokens);
+  if (active.provider === 'huggingface') return askHuggingFace(active.key, userPrompt, systemPrompt, maxTokens);
+  return askAnthropic(active.key, userPrompt, systemPrompt, maxTokens);
 };
 
 export const askClaudeJSON = async <T>(

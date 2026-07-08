@@ -28,7 +28,7 @@ PHI is built to automate the entire trucking lifecycle:
 - **Load board automation** for DAT and Truckstop-style feeds with scoring, route analysis, and auto-booking
 - **Earnings intelligence** with net profit, RPM trend monitoring, yearly projection, and affiliate tracking
 - **Compliance, document, notification, vehicle, and subscription screens** built for PHI production flows
-- **Mock API connectors** for DAT, Google Maps, Twilio, Stripe, and Samsara integrations
+- **Mock API connectors** for DAT, Google Maps, Twilio, Stripe, Samsara integrations
 
 ---
 
@@ -93,6 +93,8 @@ phi-app/
 ├── README.md                   # This file
 ├── AGENTS.md                   # AI agent rules & conventions
 ├── CLAUDE.md                   # Claude-specific notes
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
 ├── package.json                # Root package scripts
 ├── next.config.ts              # Next.js config
 ├── tsconfig.json               # TypeScript config
@@ -169,7 +171,7 @@ python main.py
 | `http://localhost:8000/docs` | Swagger UI — interactive API explorer |
 | `http://localhost:8000/redoc` | ReDoc — clean reference documentation |
 | `http://localhost:8000/health` | Health check endpoint |
-| `http://localhost:8000/api/v1/agents` | All 15 agents |
+| `http://localhost:8000/api/v1/agents` | All 15 CrewAI agents |
 
 #### Backend Docker (local production stack)
 ```bash

@@ -1,150 +1,413 @@
-# Architecture
+# PHI Architecture
 
-This document describes the high-level architecture of **Prince Haul Intelligence (PHI)**.
+> System design and architecture documentation for Prince Haul Intelligence.
 
 ---
 
-## System Diagram
+## 1. System Overview
+
+PHI is a fullstack application with three layers:
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                           CLIENT LAYER                                │
-│  ┌────────────────────┐    ┌────────────────────┐                     │
-│  │   Next.js Web App  │    │  Expo Mobile App   │                     │
-│  │   (React + TS)     │    │  (React Native)    │                     │
-│  │   localhost:3000   │    │   Expo Go / APK    │                     │
-│  └────────┬───────────┘    └────────┬───────────┘                     │
-│           │ HTTP / REST             │ HTTP / REST + WS                │
-│           │                         │                                 │
-└───────────┼─────────────────────────┼─────────────────────────────────┘
-            │                         │
-            └─────────────┬───────────┘
-                          │
-┌─────────────────────────┼─────────────────────────────────────────────┐
-│                      API LAYER                                      │
-│  ┌──────────────────────┴──────────────────────┐                    │
-│  │         FastAPI (Python 3.11)               │                    │
-│  │  ┌─────────┐  ┌──────────┐  ┌──────────┐   │                    │
-│  │  │  REST   │  │ WebSocket│  │  Health  │   │                    │
-│  │  │  API    │  │  /ws     │  │  /health │   │                    │
-│  └──┴─────────┴──┴──────────┴──┴──────────┴───┘                    │
-│  ┌──────────────────────────────────────────────┐                    │
-│  │         CrewAI + LangChain-OpenAI            │                    │
-│  │  ┌─────────┐  ┌──────────┐  ┌──────────┐   │                    │
-│  │  │ Agents  │  │  Tasks   │  │  Tools   │   │                    │
-│  │  └─────────┘  └──────────┘  └──────────┘   │                    │
-│  └──────────────────────────────────────────────┘                    │
-│  localhost:8000                                                    │
-└─────────────────────────────────────────────────────────────────────┘
-                          │
-┌─────────────────────────┼─────────────────────────────────────────────┐
-│                   DATA & MESSAGING LAYER                            │
-│  ┌──────────────────────┴──────────────────────┐                    │
-│  │         PostgreSQL (SQLAlchemy 2.0)          │                    │
-│  │  ┌─────────┐  ┌──────────┐  ┌──────────┐   │                    │
-│  │  │  Jobs   │  │ Drivers  │  │  Loads   │   │                    │
-│  │  └─────────┘  └──────────┘  └──────────┘   │                    │
-│  └──────────────────────────────────────────────┘                    │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                 │
-│  │   Twilio    │  │  SendGrid   │  │  Firebase   │                 │
-│  │   (SMS)     │  │  (Email)    │  │  (Push)     │                 │
-│  └─────────────┘  └─────────────┘  └─────────────┘                 │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    Mobile App (Expo)                     │
+│  React Native + TypeScript + Zustand + React Navigation  │
+│  iOS / Android / Web (via react-native-web)              │
+└─────────────────────────────────────────────────────────┘
+                           │
+                           ▼ API / WebSocket
+┌─────────────────────────────────────────────────────────┐
+│                  Backend API (FastAPI)                   │
+│  Python 3.11 + FastAPI + CrewAI + SQLAlchemy + Pydantic  │
+│  PostgreSQL (prod) / SQLite (dev)                      │
+│  WebSocket for real-time dispatcher radio                │
+└─────────────────────────────────────────────────────────┘
+                           │
+                           ▼ Static Site / SSR
+┌─────────────────────────────────────────────────────────┐
+│                  Web Frontend (Next.js)                  │
+│  Next.js 15 + React + TypeScript + Tailwind CSS        │
+│  App Router (app/) + Server Components                 │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Platform Details
+## 2. Mobile Architecture
 
-### 1. Web Frontend (Next.js)
-
-- **Framework:** Next.js 15 with App Router
-- **Styling:** Tailwind CSS + CSS variables for PHI brand palette
-- **Images:** `next/image` with remote patterns configured for GitHub user-attachments
-- **Entry Points:**
-  - `app/page.tsx` — Landing page (marketing site)
-  - `app/layout.tsx` — Root layout with metadata
-- **Components:** Shared in `app/components/`
-
-### 2. Mobile App (Expo)
-
-- **Framework:** Expo SDK 52 + React Native 0.76
-- **Navigation:** React Navigation (stack + bottom tabs)
-- **State:** Zustand (lightweight, no provider boilerplate)
-- **Key Screens:**
-  - Dashboard — KPI cards + AI Command Center
-  - Loads — Load board with scoring
-  - Earnings — Profit tracking + projections
-  - Compliance — HOS + DOT audit
-- **Build:** EAS (Expo Application Services) for Android APK / AAB
-
-### 3. Backend (FastAPI + CrewAI)
-
-- **Framework:** FastAPI with auto-generated OpenAPI docs
-- **AI Engine:** CrewAI + LangChain-OpenAI (GPT-4o)
-- **Agent Architecture:** 15 specialized agents across 5 functional groups
-- **Async Workflows:** BackgroundTasks + in-memory job store (upgrade to Redis + Celery for production)
-- **Database:** SQLAlchemy 2.0 ORM with PostgreSQL in production
-- **Messaging:** Twilio SMS, SendGrid Email, Firebase Cloud Messaging
-
----
-
-## API Contract
-
-### Core Workflow Endpoints
-
-| Method | Endpoint | Description | Mobile Trigger |
-|--------|----------|-------------|----------------|
-| `POST` | `/api/v1/autonomous-booking` | Load Acquisition (async) | "Find Freight" button |
-| `POST` | `/api/v1/active-transit` | Dispatch & Transit (async) | "Start Trip" button |
-| `POST` | `/api/v1/post-delivery` | Post-Delivery Close (async) | "One-Tap Payday" |
-| `GET` | `/api/v1/jobs/{job_id}` | Poll job status | Progress spinner |
-| `GET` | `/api/v1/agents` | List all 15 agents | AI Command Center |
-| `WS` | `/ws/{driver_id}` | Live activity + in-cab AI chat | Real-time dashboard |
-
-### Data Flow (Autonomous Booking Example)
+### 2.1 Navigation Structure
 
 ```
-Mobile App
-    │
-    ▼ POST /api/v1/autonomous-booking
-FastAPI
-    │
-    ├──▶ FreightNegotiator (CrewAI) ──▶ scans top 15 loads
-    ├──▶ RiskAssessor (CrewAI) ───────▶ 5-dimension risk scoring
-    ├──▶ LegalAuditor (CrewAI) ───────▶ contract clause audit
-    ├──▶ FreightNegotiator (CrewAI) ──▶ rate negotiation, books best RPM
-    └──▶ ComplianceOfficer (CrewAI) ──▶ HOS feasibility check
-    │
-    ▼ BackgroundTasks
-    │
-    ▼ Job Store ──▶ Poll GET /api/v1/jobs/{job_id}
-    │
-    ▼ Mobile App (result: load booked or rejected)
+Root Stack Navigator
+├── LoadingScreen (splash + progress bar)
+├── WelcomeScreen (login / get started)
+├── Main (Tab Navigator)
+│   ├── DashboardTab
+│   ├── LoadsTab
+│   ├── AITab (AI Command Center)
+│   ├── EarningsTab
+│   └── ProfileTab
+├── LoadDetailsScreen (modal push)
+├── AICommandCenterScreen
+├── ComplianceScreen
+├── DocumentsScreen
+├── NotificationsScreen
+├── SettingsScreen
+├── VehicleScreen
+├── SubscriptionScreen
+├── PromoCodeScreen
+├── APIKeysScreen
+├── DriverPrefsScreen
+├── DispatcherRadioScreen
+├── InboxScreen
+├── MessageThreadScreen
+├── EquipmentMarketplaceScreen
+├── SupportChatScreen
+└── TruckStopFinderScreen
+```
+
+### 2.2 State Management (Zustand Stores)
+
+| Store | Purpose | Persistence |
+|-------|---------|-------------|
+| `authStore` | JWT token, user role, login/logout | ❌ (memory only) |
+| `workerStore` | 10 AI workers, activity log, revenue | ✅ AsyncStorage |
+| `loadsStore` | Active loads, booking history, filters | ✅ AsyncStorage (partial) |
+| `expenseStore` | Expense entries, category totals | ✅ AsyncStorage |
+| `promoStore` | Active tier, trial dates, redeemed codes | ✅ AsyncStorage |
+| `vehicleStore` | Vehicle profiles, GPS status | ✅ AsyncStorage |
+| `documentsStore` | Scanned documents, file system | ✅ FileSystem + JSON index |
+| `apiKeyStore` | Customer API keys | ✅ SecureStore (encrypted) |
+| `inboxStore` | Message threads | ❌ (memory only) |
+| `radioStore` | Dispatcher radio messages | ❌ (memory only) |
+| `supportChatStore` | Michelle support chat | ❌ (memory only) |
+| `affiliateStore` | Referral affiliate ID | ✅ AsyncStorage |
+| `driverPrefsStore` | AI dispatcher preferences | ❌ (memory only, defaults) |
+
+### 2.3 AI Worker Architecture
+
+```
+WorkerOrchestrator
+├── DispatchCoordinatorWorker
+├── FreightNegotiatorWorker
+├── RouteOptimizerWorker
+├── ComplianceSafetyWorker
+├── InvoiceSpecialistWorker
+├── FuelOptimizerWorker
+├── LoadScoringWorker (Fleet Maintenance)
+├── ProfitAnalystWorker (Track & Trace)
+├── DocumentManagerWorker (Driver Liaison)
+└── NotificationWorker (Business Intelligence)
+
+Each worker has:
+- id, name, role, description
+- aiPoweredBy (which APIs it uses)
+- status: 'active' | 'idle' | 'error'
+- tasksToday, revenueImpact
+- lastHeartbeat (timestamp)
+```
+
+### 2.4 API Layer Architecture
+
+```
+┌────────────────────────────────────────┐
+│           Screen Components           │
+│  Dashboard, Loads, Earnings, etc.     │
+└────────────────────────────────────────┘
+                   │
+                   ▼
+┌────────────────────────────────────────┐
+│           Zustand Stores              │
+│  State + Actions + Persistence         │
+└────────────────────────────────────────┘
+                   │
+                   ▼
+┌────────────────────────────────────────┐
+│           Worker Logic                │
+│  Business logic, calculations, AI    │
+│  prompts, data transformation          │
+└────────────────────────────────────────┘
+                   │
+                   ▼
+┌────────────────────────────────────────┐
+│           API Connectors              │
+│  HTTP clients with fallback logic      │
+│  claudeClient, googleMapsConnector,    │
+│  truckStopFinder, twilioConnector,   │
+│  samsaraConnector, datConnector        │
+└────────────────────────────────────────┘
+                   │
+                   ▼
+┌────────────────────────────────────────┐
+│           External APIs               │
+│  Claude, ORS, EIA, OSM, Expo Push,   │
+│  Play Billing, RevenueCat, AdMob     │
+└────────────────────────────────────────┘
+```
+
+### 2.5 Offline Support Strategy
+
+| Feature | Offline Strategy |
+|---------|-----------------|
+| Load board | Static fallback loads + cached last AI response |
+| Route analysis | Haversine formula (no API needed) |
+| Fuel prices | Cached national average ($3.82) |
+| Truck stops | Empty list with retry button |
+| Documents | Full offline (local FileSystem) |
+| Expenses | Full offline (AsyncStorage) |
+| Earnings | Full offline (AsyncStorage) |
+| AI chat | FAQ fallback (no API needed) |
+| Radio | Canned responses (no API needed) |
+| Compliance | Local HOS calculation from session timestamp |
+
+---
+
+## 3. Backend Architecture
+
+### 3.1 FastAPI Application Structure
+
+```
+backend/
+├── main.py              # FastAPI app, routers, middleware
+├── agents.py            # 15 CrewAI agent definitions
+├── tasks.py             # Task builders and workflows
+├── app/
+│   ├── database.py      # SQLAlchemy ORM, connection
+│   ├── models.py        # Pydantic + SQLAlchemy models
+│   ├── agent_events.py  # Agent event streaming
+│   └── websocket_manager.py  # WebSocket connection manager
+├── services/
+│   ├── communication.py  # Twilio, SendGrid, Firebase
+│   └── push.py           # Push notification service
+├── requirements.txt
+├── Dockerfile
+├── docker-compose.yml
+└── deploy.sh
+```
+
+### 3.2 Database Schema (Simplified)
+
+```sql
+-- Users
+create table users (
+  id uuid primary key default gen_random_uuid(),
+  email text unique not null,
+  role text default 'Driver',
+  created_at timestamptz default now()
+);
+
+-- Loads
+create table loads (
+  id text primary key,
+  source text,
+  equipment_type text,
+  broker_name text,
+  broker_rating decimal,
+  origin_city text,
+  origin_state text,
+  destination_city text,
+  destination_state text,
+  rate decimal,
+  miles integer,
+  rpm decimal,
+  status text default 'available',
+  created_at timestamptz default now()
+);
+
+-- Bookings
+create table bookings (
+  id uuid primary key default gen_random_uuid(),
+  load_id text references loads(id),
+  user_id uuid references users(id),
+  confirmation_id text,
+  booked_at timestamptz default now(),
+  status text default 'confirmed'
+);
+
+-- Expenses
+create table expenses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id),
+  category text,
+  amount decimal,
+  description text,
+  date timestamptz default now()
+);
+
+-- Vehicles
+create table vehicles (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id),
+  year text,
+  make text,
+  model text,
+  plate text,
+  vin text,
+  gps_enabled boolean default true
+);
+```
+
+### 3.3 CrewAI Agent System
+
+```
+AgentOrchestrator
+├── MarketAnalystAgent      # Analyzes freight market trends
+├── LoadFinderAgent         # Discovers available loads
+├── RateNegotiatorAgent     # Negotiates with brokers
+├── RoutePlannerAgent       # Plans optimal routes
+├── ComplianceOfficerAgent  # Monitors HOS/DOT compliance
+├── InvoiceManagerAgent     # Generates and submits invoices
+├── FuelOptimizerAgent      # Finds cheapest fuel stops
+├── MaintenanceTrackerAgent # Schedules preventive maintenance
+├── CustomerServiceAgent    # Updates shippers/receivers
+└── BusinessAnalystAgent    # Calculates P&L, CPM, trends
 ```
 
 ---
 
-## Security Considerations
+## 4. Web Frontend Architecture
 
-- **CORS:** Configured in `main.py` for development origins
-- **Authentication:** None at this stage (roadmap: OAuth2 + JWT)
-- **Secrets:** All API keys stored in `.env` (never committed)
-- **Firebase:** Service account JSON base64-encoded for cloud deployment
-- **Payments:** Stripe publishable key on mobile; Stripe secret key on backend
+### 4.1 Next.js App Router Structure
+
+```
+app/
+├── layout.tsx           # Root layout with providers
+├── page.tsx             # Landing page (marketing)
+├── globals.css          # Tailwind + custom styles
+├── components/
+│   ├── EmailForm.tsx    # Lead capture form
+│   └── ...
+└── (future routes)
+    ├── dashboard/
+    ├── loads/
+    └── api/
+```
+
+### 4.2 Data Flow
+
+```
+User → Next.js Page → React Components → API Client → FastAPI Backend
+                                              ↓
+                                         Zustand Store (client-side state)
+                                              ↓
+                                         LocalStorage / Cookies
+```
 
 ---
 
-## Scalability Roadmap
+## 5. Security Architecture
 
-| Phase | Change | When |
-|-------|--------|------|
-| 1 | In-memory job store → Redis + Celery | > 100 concurrent jobs |
-| 2 | Single Uvicorn worker → Gunicorn + Uvicorn workers | Production deploy |
-| 3 | SQLite → PostgreSQL | Production deploy (already supported) |
-| 4 | Self-hosted → AWS ECS / Render | Production deploy |
-| 5 | Add API Gateway + Rate Limiting | Public API launch |
+### 5.1 Data Protection
+
+| Layer | Protection |
+|-------|-----------|
+| API Keys | SecureStore (encrypted, iOS Keychain / Android Keystore) |
+| JWT Tokens | Memory-only (authStore), not persisted |
+| Documents | Local FileSystem, no cloud upload |
+| Analytics | PII sanitized before sending to Sentry |
+| Push Tokens | Expo handles securely |
+| Payments | Play Billing / RevenueCat (PCI-compliant) |
+
+### 5.2 Authentication Flow
+
+```
+1. User taps "Get Started" or "Log In"
+2. createDemoToken() generates local JWT (no server call)
+3. Token stored in authStore (memory only)
+4. hasRole() checks role hierarchy: Driver < Admin < CEO
+5. Logout clears token from memory
+
+Future: OAuth2 / Firebase Auth integration
+```
+
+### 5.3 Subscription Validation
+
+```
+1. App launch: initRevenueCat() or initBilling()
+2. Check active entitlements / purchases
+3. Map to internal UserTier: Free | Solo | Fleet | Enterprise
+4. Gate features based on tier
+5. Promo codes override via promoStore (client-side validation)
+6. Master Access Code (env var) unlocks Elite for owner testing
+```
 
 ---
 
-*For deployment specifics, see `docs/deployment.md`.*
+## 6. Deployment Architecture
+
+### 6.1 CI/CD Pipeline
+
+```
+GitHub Push to main
+    │
+    ├──► GitHub Actions CI
+    │    ├── Run ESLint
+    │    ├── Run TypeScript check
+    │    ├── Run mobile tests (Vitest)
+    │    └── Run backend tests (pytest)
+    │
+    ├──► Vercel (auto-deploy web)
+    │
+    ├──► Render (auto-deploy backend)
+    │
+    └──► EAS Build (manual trigger or nightly)
+         ├── Android APK (preview)
+         ├── Android AAB (production)
+         └── iOS (production)
+```
+
+### 6.2 Environment Strategy
+
+| Environment | Web | Backend | Mobile |
+|------------|-----|---------|--------|
+| Development | localhost:3000 | localhost:8000 | Expo Go / simulator |
+| Staging | staging.phi.app | staging-api.phi.app | Internal TestFlight / Play Internal |
+| Production | princehaulintelligence.com | api.princehaulintelligence.com | App Store / Play Store |
+
+---
+
+## 7. Performance Considerations
+
+### 7.1 Mobile Optimizations
+
+- **Image assets:** Compressed PNGs, adaptive icons
+- **Bundle size:** Tree-shaking, no unused dependencies
+- **Startup time:** LoadingScreen with progress bar, lazy screen loading
+- **Animations:** useNativeDriver for all Animated APIs
+- **Reanimated:** Worklet-based animations for coin burst, efficiency dial
+- **State hydration:** Zustand persist middleware with AsyncStorage
+- **API caching:** In-memory caches for diesel price, load data
+
+### 7.2 Backend Optimizations
+
+- **Async endpoints:** All I/O-bound operations use async/await
+- **Connection pooling:** SQLAlchemy engine with pool_size=10
+- **Rate limiting:** WorkerOrchestrator.rateLimiter() per worker
+- **Caching:** Redis (future) for load data and market summaries
+- **CDN:** Cloudflare for static assets
+
+---
+
+## 8. Scalability Plan
+
+### Current (MVP)
+- Single FastAPI instance
+- SQLite or single PostgreSQL instance
+- Expo push notifications
+- Static loads + AI-generated loads
+
+### Phase 2 (100+ users)
+- PostgreSQL with read replicas
+- Redis for caching and session storage
+- Celery for background task processing
+- Load balancer with multiple FastAPI workers
+
+### Phase 3 (1000+ users)
+- Kubernetes deployment
+- Dedicated AI inference cluster (Claude proxy)
+- CDN for document storage (S3 / Cloudflare R2)
+- Real-time WebSocket cluster
+
+---
+
+*Last updated: 2026-07-08*

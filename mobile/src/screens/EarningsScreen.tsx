@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PHI_COLORS } from '../assets/brandColors';
+import PrinceHaulMascot from '../components/mascot/PrinceHaulMascot';
+import FloatingShapes from '../components/animations/FloatingShapes';
+import { CARTOON_COLORS, CARTOON_RADIUS, CARTOON_SHADOWS } from '../theme/cartoonTheme';
 import useLoadsStore from '../store/loadsStore';
 import useExpenseStore, { ExpenseCategory } from '../store/expenseStore';
 import { calculateRPMTrend, categorizeExpense, PHI_ProfitFormula, projectYearlyRevenue } from '../utils/profitFormula';
@@ -40,7 +43,14 @@ export default function EarningsScreen() {
   if (bookingHistory.length === 0) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
+        <FloatingShapes shapeCount={6} />
         <View style={styles.emptyState}>
+          <PrinceHaulMascot
+            mood="thinking"
+            size={100}
+            showSpeechBubble={true}
+            speechText="Book your first load to see earnings! 📊"
+          />
           <Text style={styles.emptyTitle}>No earnings yet</Text>
           <Text style={styles.emptyText}>
             Book your first load from the Loads tab and PHI will start tracking your real revenue, RPM trend, and

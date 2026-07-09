@@ -1,10 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Animated, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { PHI_COLORS } from '../assets/brandColors';
+import { LinearGradient } from 'expo-linear-gradient';
+import PrinceHaulMascot from '../components/mascot/PrinceHaulMascot';
+import FloatingShapes from '../components/animations/FloatingShapes';
+import BouncyButton from '../components/animations/BouncyButton';
+import { CARTOON_COLORS, CARTOON_RADIUS, CARTOON_SHADOWS } from '../theme/cartoonTheme';
 import { isClaudeConfigured } from '../api/claudeClient';
 import useWorkerStore from '../store/workerStore';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -21,10 +25,17 @@ const formatHeartbeat = (timestamp: string): string => {
 };
 
 const STATUS_COLORS = {
-  active: PHI_COLORS.moneyGreen,
+  active: CARTOON_COLORS.limeGreen,
   idle: '#7F8FB3',
   error: '#FF5252',
 } as const;
+
+const MASCOT_TIPS = [
+  'Your AI fleet is ready to work!',
+  'Start all workers to maximize revenue!',
+  'Each worker handles a different task!',
+  'Pause workers anytime you need a break!',
+];
 
 export default function AICommandCenterScreen() {
   const navigation = useNavigation<AICommandCenterNavigationProp>();
@@ -34,6 +45,8 @@ export default function AICommandCenterScreen() {
   const aiPowered = isClaudeConfigured();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const [explainerVisible, setExplainerVisible] = useState(false);
+  const [mascotMood, setMascotMood] = useState<'happy' | 'excited' | 'celebrating'>('happy');
+  const [mascotTip, setMascotTip] = useState(MASCOT_TIPS[0]);
 
   useEffect(() => {
     Animated.loop(
@@ -53,24 +66,52 @@ export default function AICommandCenterScreen() {
 
   const totalRevenue = workers.reduce((sum, w) => sum + w.revenueImpact, 0);
 
+  const handleMascotPress = useCallback(() => {
+    const randomTip = MASCOT_TIPS[Math.floor(Math.random() * MASCOT_TIPS.length)];
+    setMascotTip(randomTip);
+    setMascotMood('excited');
+    setTimeout(() => setMascotMood('happy'), 2000);
+  }, []);
+
+  const handleStartAll = () => {
+    startAllWorkers();
+    setMascotMood('celebrating');
+    setTimeout(() => setMascotMood('happy'), 3000);
+  };
+
+  const handleStopAll = () => {
+    stopAllWorkers();
+    setMascotMood('sad' as any);
+    setTimeout(() => setMascotMood('happy'), 2000);
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <FloatingShapes shapeCount={6} />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.title}>PHI AI Command Center</Text>
+          <View style={styles.headerLeft}>
+            <Text style={styles.title}>🤖 AI Command Center</Text>
             <Text style={styles.subtitle}>{activeWorkers}/{workers.length} workers active</Text>
           </View>
-          <TouchableOpacity onPress={() => setExplainerVisible(true)}>
-            <Animated.View style={[styles.aiChip, { transform: [{ scale: pulseAnim }] }]}>
-              <Text style={styles.aiChipText}>{aiPowered ? '🤖 Claude AI' : '📋 How this works'}</Text>
-            </Animated.View>
-          </TouchableOpacity>
+          <PrinceHaulMascot
+            mood={mascotMood}
+            size={70}
+            onPress={handleMascotPress}
+            showSpeechBubble={true}
+            speechText={mascotTip}
+          />
         </View>
+
+        <TouchableOpacity onPress={() => setExplainerVisible(true)}>
+          <Animated.View style={[styles.aiChip, { transform: [{ scale: pulseAnim }] }]}>
+            <Text style={styles.aiChipText}>{aiPowered ? '🤖 Claude AI' : '📋 How this works'}</Text>
+          </Animated.View>
+        </TouchableOpacity>
 
         {!aiPowered && (
           <TouchableOpacity style={styles.noKeyBanner} onPress={() => navigation.navigate('APIKeys')}>
-            <Ionicons name="key-outline" size={18} color={PHI_COLORS.charcoalBlack} />
+            <Ionicons name="key-outline" size={18} color={CARTOON_COLORS.charcoal} />
             <Text style={styles.noKeyBannerText}>
               Workers are running on standard logic. Add a free API key to unlock full AI reasoning →
             </Text>
@@ -78,27 +119,50 @@ export default function AICommandCenterScreen() {
         )}
 
         <View style={styles.metricsRow}>
-          <View style={styles.metricCard}>
+          <LinearGradient
+            colors={CARTOON_COLORS.gradientOcean}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.metricCard}
+          >
             <Text style={styles.metricValue}>${totalRevenue.toLocaleString()}</Text>
             <Text style={styles.metricLabel}>Daily Revenue Impact</Text>
-          </View>
-          <View style={styles.metricCard}>
+          </LinearGradient>
+          <LinearGradient
+            colors={CARTOON_COLORS.gradientForest}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.metricCard}
+          >
             <Text style={styles.metricValue}>{activeWorkers}</Text>
             <Text style={styles.metricLabel}>Active Workers</Text>
-          </View>
-          <View style={styles.metricCard}>
+          </LinearGradient>
+          <LinearGradient
+            colors={CARTOON_COLORS.gradientSunset}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.metricCard}
+          >
             <Text style={styles.metricValue}>{workers.reduce((s, w) => s + w.tasksToday, 0)}</Text>
             <Text style={styles.metricLabel}>Tasks Today</Text>
-          </View>
+          </LinearGradient>
         </View>
 
         <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.primaryButton} onPress={startAllWorkers}>
-            <Text style={styles.primaryButtonText}>▶ Start All</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryButton} onPress={stopAllWorkers}>
-            <Text style={styles.secondaryButtonText}>⏸ Stop All</Text>
-          </TouchableOpacity>
+          <BouncyButton
+            label="▶ Start All"
+            onPress={handleStartAll}
+            variant="success"
+            size="md"
+            style={{ flex: 1 }}
+          />
+          <BouncyButton
+            label="⏸ Stop All"
+            onPress={handleStopAll}
+            variant="secondary"
+            size="md"
+            style={{ flex: 1 }}
+          />
         </View>
 
         {workers.map((worker) => (
@@ -121,13 +185,13 @@ export default function AICommandCenterScreen() {
             <Text style={styles.workerDesc}>{worker.description}</Text>
             <Text style={styles.aiPoweredBy}>Powered by: {worker.aiPoweredBy}</Text>
 
-            <View style={styles.metricsRow}>
+            <View style={styles.inlineMetricsRow}>
               <View style={styles.inlineMetric}>
                 <Text style={styles.inlineValue}>{worker.tasksToday}</Text>
                 <Text style={styles.inlineLabel}>Tasks</Text>
               </View>
               <View style={styles.inlineMetric}>
-                <Text style={[styles.inlineValue, { color: PHI_COLORS.moneyGreen }]}>
+                <Text style={[styles.inlineValue, { color: CARTOON_COLORS.limeGreen }]}>
                   ${worker.revenueImpact.toLocaleString()}
                 </Text>
                 <Text style={styles.inlineLabel}>Revenue Impact</Text>
@@ -152,7 +216,7 @@ export default function AICommandCenterScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>How the AI Workers Work</Text>
               <TouchableOpacity onPress={() => setExplainerVisible(false)}>
-                <Ionicons name="close" size={24} color={PHI_COLORS.white} />
+                <Ionicons name="close" size={24} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
             <ScrollView>
@@ -184,47 +248,45 @@ export default function AICommandCenterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: PHI_COLORS.royalBlue },
+  container: { flex: 1, backgroundColor: '#F0F7FF' },
   content: { padding: 16, gap: 14 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  title: { color: PHI_COLORS.white, fontSize: 24, fontWeight: '800' },
-  subtitle: { color: PHI_COLORS.sunshineYellow, fontSize: 13, marginTop: 4 },
-  aiChip: { backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
-  aiChipText: { color: PHI_COLORS.charcoalBlack, fontWeight: '800', fontSize: 12 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  headerLeft: { flex: 1, marginRight: 12 },
+  title: { color: CARTOON_COLORS.charcoal, fontSize: 24, fontWeight: '900' },
+  subtitle: { color: CARTOON_COLORS.slate, fontSize: 14, marginTop: 4, fontWeight: '600' },
+  aiChip: { backgroundColor: CARTOON_COLORS.sunshineYellow, borderRadius: CARTOON_RADIUS.pill, paddingHorizontal: 14, paddingVertical: 8, alignSelf: 'flex-start', marginBottom: 8 },
+  aiChipText: { color: CARTOON_COLORS.charcoal, fontWeight: '800', fontSize: 12 },
   metricsRow: { flexDirection: 'row', gap: 10 },
-  metricCard: { flex: 1, backgroundColor: PHI_COLORS.card, borderRadius: 14, padding: 14, alignItems: 'center' },
-  metricValue: { color: PHI_COLORS.white, fontSize: 20, fontWeight: '900' },
-  metricLabel: { color: '#A8B7D8', fontSize: 10, marginTop: 4, textAlign: 'center' },
+  metricCard: { flex: 1, borderRadius: CARTOON_RADIUS.lg, padding: 14, alignItems: 'center', ...CARTOON_SHADOWS.sm },
+  metricValue: { color: '#FFFFFF', fontSize: 20, fontWeight: '900' },
+  metricLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 10, marginTop: 4, textAlign: 'center', fontWeight: '600' },
   buttonRow: { flexDirection: 'row', gap: 12 },
-  primaryButton: { flex: 1, backgroundColor: PHI_COLORS.sunshineYellow, padding: 14, borderRadius: 14 },
-  secondaryButton: { flex: 1, backgroundColor: PHI_COLORS.card, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: PHI_COLORS.white },
-  primaryButtonText: { color: PHI_COLORS.charcoalBlack, textAlign: 'center', fontWeight: '800' },
-  secondaryButtonText: { color: PHI_COLORS.white, textAlign: 'center', fontWeight: '700' },
-  card: { backgroundColor: PHI_COLORS.card, borderRadius: 16, padding: 16, gap: 12 },
-  cardError: { borderWidth: 1, borderColor: '#FF5252' },
+  card: { backgroundColor: '#FFFFFF', borderRadius: CARTOON_RADIUS.lg, padding: 16, gap: 12, ...CARTOON_SHADOWS.sm },
+  cardError: { borderWidth: 2, borderColor: '#FF5252' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   statusDot: { width: 10, height: 10, borderRadius: 5 },
-  workerRole: { color: PHI_COLORS.white, fontSize: 14, fontWeight: '800' },
-  workerDesc: { color: '#A8B7D8', fontSize: 12, lineHeight: 18 },
-  aiPoweredBy: { color: PHI_COLORS.sunshineYellow, fontSize: 11, fontWeight: '700' },
-  heartbeat: { color: '#C7D7FF', fontSize: 11, marginTop: 2 },
-  statusBadge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  workerRole: { color: CARTOON_COLORS.charcoal, fontSize: 14, fontWeight: '800' },
+  workerDesc: { color: CARTOON_COLORS.slate, fontSize: 12, lineHeight: 18 },
+  aiPoweredBy: { color: CARTOON_COLORS.electricBlue, fontSize: 11, fontWeight: '700' },
+  heartbeat: { color: '#8B9DC3', fontSize: 11, marginTop: 2 },
+  statusBadge: { borderRadius: CARTOON_RADIUS.pill, paddingHorizontal: 8, paddingVertical: 3 },
   statusBadgeText: { fontWeight: '800', fontSize: 10 },
+  inlineMetricsRow: { flexDirection: 'row', gap: 10 },
   inlineMetric: { flex: 1, alignItems: 'center' },
-  inlineValue: { color: PHI_COLORS.white, fontSize: 18, fontWeight: '800' },
-  inlineLabel: { color: '#A8B7D8', fontSize: 11, marginTop: 2 },
-  startButton: { backgroundColor: PHI_COLORS.moneyGreen, padding: 12, borderRadius: 12 },
-  stopButton: { backgroundColor: '#1A2B45', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#3D5A8A' },
-  actionText: { color: PHI_COLORS.white, fontWeight: '700', textAlign: 'center' },
-  noKeyBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 12, padding: 12 },
-  noKeyBannerText: { flex: 1, color: PHI_COLORS.charcoalBlack, fontWeight: '700', fontSize: 12 },
+  inlineValue: { color: CARTOON_COLORS.charcoal, fontSize: 18, fontWeight: '800' },
+  inlineLabel: { color: '#8B9DC3', fontSize: 11, marginTop: 2 },
+  startButton: { backgroundColor: CARTOON_COLORS.limeGreen, padding: 12, borderRadius: CARTOON_RADIUS.md },
+  stopButton: { backgroundColor: '#F0F4F8', padding: 12, borderRadius: CARTOON_RADIUS.md, borderWidth: 1, borderColor: '#D0D8E0' },
+  actionText: { color: '#FFFFFF', fontWeight: '700', textAlign: 'center' },
+  noKeyBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: CARTOON_COLORS.sunshineYellow, borderRadius: CARTOON_RADIUS.lg, padding: 12, ...CARTOON_SHADOWS.sm },
+  noKeyBannerText: { flex: 1, color: CARTOON_COLORS.charcoal, fontWeight: '700', fontSize: 12 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalCard: { backgroundColor: PHI_COLORS.royalBlue, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '85%' },
+  modalCard: { backgroundColor: '#F0F7FF', borderTopLeftRadius: CARTOON_RADIUS.xl, borderTopRightRadius: CARTOON_RADIUS.xl, padding: 20, maxHeight: '85%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  modalTitle: { color: PHI_COLORS.white, fontSize: 20, fontWeight: '900' },
-  modalParagraph: { color: '#D7E3FF', fontSize: 14, lineHeight: 21, marginBottom: 12 },
-  modalWorkerRow: { paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#1E3A62' },
-  modalWorkerRole: { color: PHI_COLORS.sunshineYellow, fontWeight: '800', fontSize: 13 },
-  modalWorkerDesc: { color: '#C7D7FF', fontSize: 12, marginTop: 2, lineHeight: 17 },
+  modalTitle: { color: CARTOON_COLORS.charcoal, fontSize: 20, fontWeight: '900' },
+  modalParagraph: { color: CARTOON_COLORS.slate, fontSize: 14, lineHeight: 21, marginBottom: 12 },
+  modalWorkerRow: { paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#E0E7FF' },
+  modalWorkerRole: { color: CARTOON_COLORS.electricBlue, fontWeight: '800', fontSize: 13 },
+  modalWorkerDesc: { color: CARTOON_COLORS.slate, fontSize: 12, marginTop: 2, lineHeight: 17 },
 });

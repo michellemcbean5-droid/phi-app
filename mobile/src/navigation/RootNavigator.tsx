@@ -14,6 +14,7 @@ import LoadingScreen from '../screens/LoadingScreen';
 import MessageThreadScreen from '../screens/MessageThreadScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import PromoCodeScreen from '../screens/PromoCodeScreen';
+import PaymentHistoryScreen from '../screens/PaymentHistoryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import SupportChatScreen from '../screens/SupportChatScreen';
@@ -43,6 +44,7 @@ export type RootStackParamList = {
   EquipmentMarketplace: undefined;
   SupportChat: undefined;
   TruckStopFinder: undefined;
+  PaymentHistory: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -83,6 +85,7 @@ export default function RootNavigator() {
         options={{ title: 'Ask Michelle', presentation: 'modal', animation: 'slide_from_bottom' }}
       />
       <Stack.Screen name="TruckStopFinder" component={TruckStopFinderScreen} options={{ title: 'Truck Stops & Parking' }} />
+      <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} options={{ title: 'Payment History' }} />
     </Stack.Navigator>
   );
 }

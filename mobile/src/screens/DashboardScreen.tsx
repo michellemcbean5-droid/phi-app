@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { PHI_COLORS } from '../assets/brandColors';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { TabParamList } from '../navigation/TabNavigator';
@@ -20,10 +21,24 @@ import EfficiencyDial from '../components/game/EfficiencyDial';
 import ProfitBarChart from '../components/game/ProfitBarChart';
 import CoinBurst from '../components/game/CoinBurst';
 import AnimatedPressable from '../components/game/AnimatedPressable';
+import PrinceHaulMascot from '../components/mascot/PrinceHaulMascot';
+import BouncyButton from '../components/animations/BouncyButton';
+import StaggeredList from '../components/animations/StaggeredList';
+import ConfettiCelebration from '../components/animations/ConfettiCelebration';
+import FloatingShapes from '../components/animations/FloatingShapes';
+import { CARTOON_COLORS, CARTOON_RADIUS, CARTOON_SHADOWS, CARTOON_TYPOGRAPHY } from '../theme/cartoonTheme';
 
 const PROFIT_TREND_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'];
 const AVG_TRUCK_MPG = 6.5;
 const FALLBACK_CPM = 0.68;
+
+const MASCOT_TIPS = [
+  'Tap me for a surprise! 🎉',
+  'Check your fuel optimizer daily!',
+  'Your AI workers are crushing it!',
+  'New loads available nearby!',
+  'Keep that streak going! 🔥',
+];
 
 type DashboardNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Dashboard'>,
@@ -46,6 +61,9 @@ export default function DashboardScreen() {
   const [tripActive, setTripActive] = useState(false);
   const [cpm, setCpm] = useState(FALLBACK_CPM);
   const [tip, setTip] = useState(getTipOfTheDay());
+  const [mascotTip, setMascotTip] = useState(MASCOT_TIPS[0]);
+  const [confettiTrigger, setConfettiTrigger] = useState(0);
+  const [mascotMood, setMascotMood] = useState<'happy' | 'excited' | 'celebrating'>('happy');
   const activeTier = getEffectiveTier();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -74,10 +92,22 @@ export default function DashboardScreen() {
     ).start();
   }, [pulseAnim, slideAnim]);
 
+  const handleMascotPress = useCallback(() => {
+    const randomTip = MASCOT_TIPS[Math.floor(Math.random() * MASCOT_TIPS.length)];
+    setMascotTip(randomTip);
+    setMascotMood('excited');
+    setTimeout(() => setMascotMood('happy'), 2000);
+  }, []);
+
   const handleFindFreight = (): void => {
     setFindingFreight(true);
     aggregateLoads()
-      .then((loads) => setLoads(loads))
+      .then((loads) => {
+        setLoads(loads);
+        setMascotMood('celebrating');
+        setConfettiTrigger((prev) => prev + 1);
+        setTimeout(() => setMascotMood('happy'), 3000);
+      })
       .catch(() => {})
       .finally(() => {
         setFindingFreight(false);
@@ -87,35 +117,59 @@ export default function DashboardScreen() {
 
   const handleStartTrip = (): void => {
     setTripActive(true);
+    setMascotMood('excited');
     navigation.navigate('AICommandCenter');
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <FloatingShapes shapeCount={8} />
+      <ConfettiCelebration trigger={confettiTrigger} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
+        {/* Header with Mascot */}
         <Animated.View style={[styles.header, { opacity: slideAnim, transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
-          <View>
-            <Text style={styles.greeting}>{GREETING}, Driver</Text>
-            <Text style={styles.subGreeting}>PHI is running your business right now</Text>
+          <View style={styles.headerLeft}>
+            <Text style={styles.greeting}>{GREETING}, Driver! 👋</Text>
+            <Text style={styles.subGreeting}>Prince Haul is running your business right now</Text>
           </View>
-          <TouchableOpacity style={styles.tierPill} onPress={() => navigation.navigate('Subscription')}>
-            <Text style={styles.tierPillText}>{activeTier}</Text>
-          </TouchableOpacity>
+          <PrinceHaulMascot
+            mood={mascotMood}
+            size={70}
+            onPress={handleMascotPress}
+            showSpeechBubble={true}
+            speechText={mascotTip}
+          />
         </Animated.View>
+
+        {/* Tier Pill */}
+        <TouchableOpacity style={styles.tierPill} onPress={() => navigation.navigate('Subscription')}>
+          <LinearGradient
+            colors={CARTOON_COLORS.gradientCandy}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.tierPillGradient}
+          >
+            <Text style={styles.tierPillText}>⭐ {activeTier}</Text>
+          </LinearGradient>
+        </TouchableOpacity>
 
         {/* Trial Banner */}
         {trialActive && (
           <View style={styles.trialBanner}>
-            <Ionicons name="gift-outline" size={16} color={PHI_COLORS.charcoalBlack} />
-            <Text style={styles.trialBannerText}>Free trial active — {days} days remaining</Text>
+            <Ionicons name="gift-outline" size={20} color={CARTOON_COLORS.charcoal} />
+            <Text style={styles.trialBannerText}>🎁 Free trial active — {days} days remaining!</Text>
           </View>
         )}
 
         {/* Revenue Command Panel */}
-        <View style={styles.commandPanel}>
-          <Text style={styles.commandLabel}>TODAY'S REVENUE</Text>
+        <LinearGradient
+          colors={CARTOON_COLORS.gradientOcean}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.commandPanel}
+        >
+          <Text style={styles.commandLabel}>💰 TODAY'S REVENUE</Text>
           <Text style={styles.revenueValue}>${totalRevenue.toLocaleString()}</Text>
           <View style={styles.metricsRow}>
             <View style={styles.metric}>
@@ -124,22 +178,22 @@ export default function DashboardScreen() {
             </View>
             <View style={styles.metricDivider} />
             <View style={styles.metric}>
-              <Text style={[styles.metricValue, { color: PHI_COLORS.moneyGreen }]}>${Math.round(netProfit).toLocaleString()}</Text>
+              <Text style={[styles.metricValue, { color: CARTOON_COLORS.sunshineYellow }]}>${Math.round(netProfit).toLocaleString()}</Text>
               <Text style={styles.metricLabel}>Net Profit</Text>
             </View>
             <View style={styles.metricDivider} />
             <View style={styles.metric}>
-              <Text style={styles.metricValue}>{activeWorkers}/10</Text>
+              <Text style={styles.metricValue}>{activeWorkers}/10 🤖</Text>
               <Text style={styles.metricLabel}>AI Workers</Text>
             </View>
           </View>
-        </View>
+        </LinearGradient>
 
         {/* Driver Tip of the Day */}
         <TouchableOpacity style={styles.tipCard} onPress={() => setTip(getRandomTip(tip))}>
-          <Ionicons name="bulb-outline" size={20} color={PHI_COLORS.sunshineYellow} />
+          <Ionicons name="bulb-outline" size={24} color={CARTOON_COLORS.sunshineYellow} />
           <Text style={styles.tipText}>{tip}</Text>
-          <Ionicons name="refresh-outline" size={16} color="#7F9FCC" />
+          <Ionicons name="refresh-outline" size={18} color={CARTOON_COLORS.electricBlue} />
         </TouchableOpacity>
 
         {/* Command Dashboard */}
@@ -154,85 +208,70 @@ export default function DashboardScreen() {
 
         {/* Primary Action: Find Freight */}
         <Animated.View style={{ transform: [{ scale: findingFreight ? pulseAnim : 1 }] }}>
-          <TouchableOpacity
-            style={[styles.findFreightButton, findingFreight && styles.findFreightButtonActive]}
+          <BouncyButton
+            label={findingFreight ? '🚛 Finding Freight...' : '🔍 Find Freight'}
             onPress={handleFindFreight}
-            disabled={findingFreight}
-          >
-            <Ionicons name={findingFreight ? 'radio-outline' : 'search-outline'} size={26} color={PHI_COLORS.charcoalBlack} />
-            <View>
-              <Text style={styles.findFreightTitle}>
-                {findingFreight ? 'Freight Negotiator Working...' : 'Find Freight'}
-              </Text>
-              <Text style={styles.findFreightSub}>
-                {findingFreight ? 'Scanning DAT · Bidding on top lanes' : 'AI scans load boards & negotiates your rate'}
-              </Text>
-            </View>
-          </TouchableOpacity>
+            variant="warning"
+            size="lg"
+            icon={<Ionicons
+              name={findingFreight ? 'radio-outline' : 'search-outline'}
+              size={24}
+              color={CARTOON_COLORS.charcoal}
+            />}
+          />
         </Animated.View>
 
         {/* Start Trip */}
-        <TouchableOpacity
-          style={[styles.startTripButton, tripActive && styles.startTripActive]}
+        <BouncyButton
+          label={tripActive ? '🚀 Trip Active — Tap for Status' : '🛣️ Start Trip Mode'}
           onPress={handleStartTrip}
-        >
-          <Ionicons name={tripActive ? 'navigate' : 'navigate-outline'} size={22} color={PHI_COLORS.white} />
-          <View>
-            <Text style={styles.startTripTitle}>{tripActive ? 'Trip Active — Tap for Status' : 'Start Trip Mode'}</Text>
-            <Text style={styles.startTripSub}>Route Optimizer · Fuel Optimizer · Dispatcher take over</Text>
-          </View>
-        </TouchableOpacity>
+          variant="success"
+          size="lg"
+          icon={<Ionicons
+            name={tripActive ? 'navigate' : 'navigate-outline'}
+            size={24}
+            color="#FFFFFF"
+          />}
+        />
 
-        {/* Quick Actions */}
-        <View style={styles.quickGrid}>
-          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('Documents')}>
-            <Ionicons name="folder-outline" size={26} color={PHI_COLORS.sunshineYellow} />
-            <Text style={styles.quickLabel}>Virtual Glovebox</Text>
-            <Text style={styles.quickSub}>BOL · POD · Permits</Text>
-          </AnimatedPressable>
-          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('Compliance')}>
-            <Ionicons name="shield-checkmark-outline" size={26} color={PHI_COLORS.moneyGreen} />
-            <Text style={styles.quickLabel}>Compliance</Text>
-            <Text style={styles.quickSub}>ELD · HOS · IFTA</Text>
-          </AnimatedPressable>
-          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('AICommandCenter')}>
-            <Ionicons name="hardware-chip-outline" size={26} color="#7EA5FF" />
-            <Text style={styles.quickLabel}>AI Workers</Text>
-            <Text style={styles.quickSub}>{activeWorkers} active now</Text>
-          </AnimatedPressable>
-          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('Earnings')}>
-            <Ionicons name="trending-up-outline" size={26} color={PHI_COLORS.sunshineYellow} />
-            <Text style={styles.quickLabel}>Earnings</Text>
-            <Text style={styles.quickSub}>P&L · CPM · Trends</Text>
-          </AnimatedPressable>
-          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('DispatcherRadio')}>
-            <Ionicons name="radio-outline" size={26} color="#FF5252" />
-            <Text style={styles.quickLabel}>Dispatcher Radio</Text>
-            <Text style={styles.quickSub}>Push to talk</Text>
-          </AnimatedPressable>
-          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('Inbox')}>
-            <Ionicons name="chatbubbles-outline" size={26} color="#9BE8FF" />
-            <Text style={styles.quickLabel}>Messages</Text>
-            <Text style={styles.quickSub}>Dispatch & brokers</Text>
-          </AnimatedPressable>
-          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('SupportChat')}>
-            <Ionicons name="chatbubble-ellipses-outline" size={26} color="#FFB6E1" />
-            <Text style={styles.quickLabel}>Ask Michelle</Text>
-            <Text style={styles.quickSub}>Support & how-to</Text>
-          </AnimatedPressable>
-          <AnimatedPressable style={styles.quickCard} onPress={() => navigation.navigate('TruckStopFinder')}>
-            <Ionicons name="speedometer-outline" size={26} color="#7EE787" />
-            <Text style={styles.quickLabel}>Truck Stops</Text>
-            <Text style={styles.quickSub}>Fuel · Parking · Weigh Stations</Text>
-          </AnimatedPressable>
-        </View>
+        {/* Quick Actions Grid */}
+        <StaggeredList staggerDelay={60} direction="up">
+          <View style={styles.quickGrid}>
+            {[
+              { icon: 'folder-outline', color: CARTOON_COLORS.sunshineYellow, label: 'Virtual Glovebox', sub: 'BOL · POD · Permits', screen: 'Documents' },
+              { icon: 'shield-checkmark-outline', color: CARTOON_COLORS.limeGreen, label: 'Compliance', sub: 'ELD · HOS · IFTA', screen: 'Compliance' },
+              { icon: 'hardware-chip-outline', color: CARTOON_COLORS.electricBlue, label: 'AI Workers', sub: `${activeWorkers} active now`, screen: 'AICommandCenter' },
+              { icon: 'trending-up-outline', color: CARTOON_COLORS.sunshineYellow, label: 'Earnings', sub: 'P&L · CPM · Trends', screen: 'Earnings' },
+              { icon: 'radio-outline', color: CARTOON_COLORS.bubblegumPink, label: 'Dispatcher Radio', sub: 'Push to talk', screen: 'DispatcherRadio' },
+              { icon: 'chatbubbles-outline', color: CARTOON_COLORS.neonCyan, label: 'Messages', sub: 'Dispatch & brokers', screen: 'Inbox' },
+              { icon: 'chatbubble-ellipses-outline', color: CARTOON_COLORS.bubblegumPink, label: 'Ask Michelle', sub: 'Support & how-to', screen: 'SupportChat' },
+              { icon: 'speedometer-outline', color: CARTOON_COLORS.limeGreen, label: 'Truck Stops', sub: 'Fuel · Parking · Weigh', screen: 'TruckStopFinder' },
+            ].map((item, index) => (
+              <AnimatedPressable
+                key={item.screen}
+                style={[
+                  styles.quickCard,
+                  { backgroundColor: getPastelTint(item.color, 0.15), borderColor: item.color },
+                ]}
+                onPress={() => navigation.navigate(item.screen as any)}
+              >
+                <Ionicons name={item.icon as any} size={28} color={item.color} />
+                <Text style={[styles.quickLabel, { color: item.color }]}>{item.label}</Text>
+                <Text style={styles.quickSub}>{item.sub}</Text>
+              </AnimatedPressable>
+            ))}
+          </View>
+        </StaggeredList>
 
         {/* Worker Status Strip */}
         <View style={styles.workerStrip}>
-          <Text style={styles.workerStripTitle}>AI Fleet Status</Text>
+          <View style={styles.workerStripHeader}>
+            <PrinceHaulMascot mood="thinking" size={40} showSpeechBubble={false} />
+            <Text style={styles.workerStripTitle}>AI Fleet Status</Text>
+          </View>
           {workers.slice(0, 6).map((w) => (
             <View key={w.id} style={styles.workerRow}>
-              <View style={[styles.workerDot, { backgroundColor: w.status === 'active' ? PHI_COLORS.moneyGreen : '#5C6780' }]} />
+              <View style={[styles.workerDot, { backgroundColor: w.status === 'active' ? CARTOON_COLORS.limeGreen : '#5C6780' }]} />
               <Text style={styles.workerRowName}>{w.role}</Text>
               <Text style={styles.workerRowTasks}>{w.tasksToday} tasks</Text>
             </View>
@@ -242,10 +281,10 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Live AI Activity Feed — real actions recorded as workers complete tasks */}
+        {/* Live AI Activity Feed */}
         {activityLog.length > 0 && (
           <View style={styles.workerStrip}>
-            <Text style={styles.workerStripTitle}>Live AI Activity</Text>
+            <Text style={styles.workerStripTitle}>🔥 Live AI Activity</Text>
             {activityLog.slice(0, 5).map((entry) => (
               <View key={entry.id} style={styles.activityRow}>
                 <Text style={styles.activityAgent}>{entry.workerRole}</Text>
@@ -261,50 +300,53 @@ export default function DashboardScreen() {
   );
 }
 
+function getPastelTint(color: string, opacity: number = 0.15): string {
+  const hex = color.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: PHI_COLORS.royalBlue },
+  container: { flex: 1, backgroundColor: '#F0F7FF' },
   content: { padding: 16, gap: 14 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  greeting: { color: PHI_COLORS.white, fontSize: 22, fontWeight: '900' },
-  subGreeting: { color: '#A8C0FF', fontSize: 13, marginTop: 2 },
-  tierPill: { backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6 },
-  tierPillText: { color: PHI_COLORS.charcoalBlack, fontWeight: '800', fontSize: 12 },
-  trialBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 12, padding: 10 },
-  trialBannerText: { color: PHI_COLORS.charcoalBlack, fontWeight: '800', fontSize: 13 },
-  tipCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: PHI_COLORS.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#29508C' },
-  tipText: { flex: 1, color: '#D7E3FF', fontSize: 12, lineHeight: 18 },
-  commandPanel: { backgroundColor: '#0A1F3D', borderRadius: 22, padding: 22, gap: 4, borderWidth: 1, borderColor: '#1E3A62' },
-  commandLabel: { color: '#7F9FCC', fontSize: 11, fontWeight: '700', letterSpacing: 1.5 },
-  revenueValue: { color: PHI_COLORS.white, fontSize: 44, fontWeight: '900', marginTop: 4 },
-  metricsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, gap: 0 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  headerLeft: { flex: 1, marginRight: 12 },
+  greeting: { color: CARTOON_COLORS.charcoal, fontSize: 24, fontWeight: '900' },
+  subGreeting: { color: CARTOON_COLORS.slate, fontSize: 14, marginTop: 4, fontWeight: '600' },
+  tierPill: { alignSelf: 'flex-start', marginBottom: 8, borderRadius: CARTOON_RADIUS.pill, overflow: 'hidden' },
+  tierPillGradient: { paddingHorizontal: 16, paddingVertical: 8 },
+  tierPillText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
+  trialBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: CARTOON_COLORS.sunshineYellow, borderRadius: CARTOON_RADIUS.lg, padding: 14, ...CARTOON_SHADOWS.md },
+  trialBannerText: { color: CARTOON_COLORS.charcoal, fontWeight: '800', fontSize: 14 },
+  tipCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', borderRadius: CARTOON_RADIUS.lg, padding: 16, borderWidth: 2, borderColor: CARTOON_COLORS.sunshineYellow, ...CARTOON_SHADOWS.sm },
+  tipText: { flex: 1, color: CARTOON_COLORS.charcoal, fontSize: 13, lineHeight: 20, fontWeight: '600' },
+  commandPanel: { borderRadius: CARTOON_RADIUS.xl, padding: 24, gap: 6, ...CARTOON_SHADOWS.lg },
+  commandLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '700', letterSpacing: 1.5 },
+  revenueValue: { color: '#FFFFFF', fontSize: 44, fontWeight: '900', marginTop: 4 },
+  metricsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16, gap: 0 },
   metric: { flex: 1, alignItems: 'center' },
-  metricValue: { color: PHI_COLORS.white, fontSize: 18, fontWeight: '800' },
-  metricLabel: { color: '#7F9FCC', fontSize: 11, marginTop: 3 },
-  metricDivider: { width: 1, height: 36, backgroundColor: '#1E3A62' },
+  metricValue: { color: '#FFFFFF', fontSize: 18, fontWeight: '800' },
+  metricLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 4, fontWeight: '600' },
+  metricDivider: { width: 1, height: 40, backgroundColor: 'rgba(255,255,255,0.2)' },
   teamworkRibbon: { marginTop: 4 },
-  teamworkCard: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  teamworkDivider: { width: 1, alignSelf: 'stretch', backgroundColor: '#1E3A62' },
+  teamworkCard: { flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: '#FFFFFF', borderRadius: CARTOON_RADIUS.xl, padding: 16, ...CARTOON_SHADOWS.md },
+  teamworkDivider: { width: 1, alignSelf: 'stretch', backgroundColor: '#E0E7FF' },
   profitChartWrap: { flex: 1 },
-  findFreightButton: { backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 20, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 14 },
-  findFreightButtonActive: { backgroundColor: '#FFE878' },
-  findFreightTitle: { color: PHI_COLORS.charcoalBlack, fontSize: 20, fontWeight: '900' },
-  findFreightSub: { color: '#3A3A00', fontSize: 12, marginTop: 3 },
-  startTripButton: { backgroundColor: PHI_COLORS.moneyGreen, borderRadius: 18, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14 },
-  startTripActive: { backgroundColor: '#00A044' },
-  startTripTitle: { color: PHI_COLORS.white, fontSize: 17, fontWeight: '900' },
-  startTripSub: { color: '#C0FFD8', fontSize: 12, marginTop: 2 },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  quickCard: { width: '47%', backgroundColor: PHI_COLORS.card, borderRadius: 16, padding: 16, gap: 6 },
-  quickLabel: { color: PHI_COLORS.white, fontWeight: '800', fontSize: 14 },
-  quickSub: { color: '#7F9FCC', fontSize: 12 },
-  workerStrip: { backgroundColor: PHI_COLORS.card, borderRadius: 18, padding: 18, gap: 10 },
-  workerStripTitle: { color: PHI_COLORS.white, fontWeight: '900', fontSize: 16, marginBottom: 4 },
+  quickCard: { width: '47%', borderRadius: CARTOON_RADIUS.lg, padding: 16, gap: 6, borderWidth: 2, ...CARTOON_SHADOWS.sm },
+  quickLabel: { fontWeight: '800', fontSize: 14 },
+  quickSub: { color: CARTOON_COLORS.slate, fontSize: 12, fontWeight: '500' },
+  workerStrip: { backgroundColor: '#FFFFFF', borderRadius: CARTOON_RADIUS.xl, padding: 18, gap: 10, ...CARTOON_SHADOWS.md },
+  workerStripHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  workerStripTitle: { color: CARTOON_COLORS.charcoal, fontWeight: '900', fontSize: 16 },
   workerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  workerDot: { width: 8, height: 8, borderRadius: 4 },
-  workerRowName: { color: '#D7E3FF', fontSize: 13, flex: 1 },
-  workerRowTasks: { color: '#7F9FCC', fontSize: 12 },
-  viewAllLink: { color: PHI_COLORS.sunshineYellow, fontWeight: '700', fontSize: 13, marginTop: 4 },
-  activityRow: { gap: 1 },
-  activityAgent: { color: PHI_COLORS.sunshineYellow, fontWeight: '700', fontSize: 12 },
-  activitySummary: { color: '#D7E3FF', fontSize: 12 },
+  workerDot: { width: 10, height: 10, borderRadius: 5 },
+  workerRowName: { color: CARTOON_COLORS.slate, fontSize: 13, flex: 1, fontWeight: '600' },
+  workerRowTasks: { color: '#8B9DC3', fontSize: 12, fontWeight: '500' },
+  viewAllLink: { color: CARTOON_COLORS.electricBlue, fontWeight: '700', fontSize: 13, marginTop: 4 },
+  activityRow: { gap: 2 },
+  activityAgent: { color: CARTOON_COLORS.electricBlue, fontWeight: '700', fontSize: 12 },
+  activitySummary: { color: CARTOON_COLORS.slate, fontSize: 12, fontWeight: '500' },
 });

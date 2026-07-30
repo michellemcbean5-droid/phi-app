@@ -10,12 +10,21 @@ import Animated, {
 import { CARTOON_COLORS, CARTOON_RADIUS, CARTOON_SHADOWS, CARTOON_TYPOGRAPHY } from '../../theme/cartoonTheme';
 
 interface BouncyButtonProps {
-  label: string;
+  /** Text label. Optional when custom `children` are provided instead. */
+  label?: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
   icon?: React.ReactNode;
+  /** Custom content rendered inside the button instead of the plain label. */
+  children?: React.ReactNode;
+  /** Override the variant background color (e.g. brand payment colors). */
+  backgroundColor?: string;
+  /** Override the variant text color. */
+  textColor?: string;
+  /** Draw an outline in this color (used for secondary/ghost actions). */
+  borderColor?: string;
   style?: any;
 }
 
@@ -30,6 +39,10 @@ export default function BouncyButton({
   size = 'md',
   disabled = false,
   icon,
+  children,
+  backgroundColor,
+  textColor,
+  borderColor,
   style,
 }: BouncyButtonProps) {
   const scale = useSharedValue(1);
@@ -91,15 +104,18 @@ export default function BouncyButton({
           styles.button,
           animatedStyle,
           {
-            backgroundColor: disabled ? '#7F8FB3' : colors.bg,
+            backgroundColor: disabled ? '#7F8FB3' : backgroundColor ?? colors.bg,
             paddingVertical: sizeStyles.paddingVertical,
             paddingHorizontal: sizeStyles.paddingHorizontal,
             shadowColor: disabled ? 'transparent' : colors.shadow,
           },
+          borderColor ? { borderColor, borderWidth: 2 } : null,
         ]}
       >
         {icon && <View style={styles.iconContainer}>{icon}</View>}
-        <Text style={[styles.label, { color: colors.text, fontSize: sizeStyles.fontSize }]}>{label}</Text>
+        {children ?? (
+          <Text style={[styles.label, { color: textColor ?? colors.text, fontSize: sizeStyles.fontSize }]}>{label}</Text>
+        )}
       </Animated.View>
     </Pressable>
   );

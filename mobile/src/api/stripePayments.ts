@@ -131,17 +131,15 @@ export const presentPaymentSheet = async (
     return { success: false, error: presentError.message };
   }
 
-  // Confirm the payment
-  const { error: confirmError, paymentIntent } = await stripe.confirmPaymentSheetPayment();
+  // Confirm the payment. In @stripe/stripe-react-native 0.68 the result only
+  // carries an optional error — a successful Payment Sheet presentation means
+  // the payment was authorized.
+  const { error: confirmError } = await stripe.confirmPaymentSheetPayment();
   if (confirmError) {
     return { success: false, error: confirmError.message };
   }
 
-  if (paymentIntent?.status === 'Succeeded') {
-    return { success: true, paymentIntentId: paymentIntent.id };
-  }
-
-  return { success: false, error: 'Payment did not complete.' };
+  return { success: true };
 };
 
 // ───────────────────────────────────────────────────────────────
@@ -223,14 +221,11 @@ export const confirmStripePayment = async (): Promise<{
     if (!stripe) {
       return { success: false, error: 'Stripe hook not available.' };
     }
-    const { error, paymentIntent } = await stripe.confirmPaymentSheetPayment();
+    const { error } = await stripe.confirmPaymentSheetPayment();
     if (error) {
       return { success: false, error: error.message };
     }
-    if (paymentIntent?.status === 'Succeeded') {
-      return { success: true };
-    }
-    return { success: false, error: 'Payment did not complete.' };
+    return { success: true };
   } catch (e) {
     return { success: false, error: (e as any).message ?? 'Unknown payment error.' };
   }

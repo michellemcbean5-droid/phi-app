@@ -6,6 +6,7 @@ import Animated, {
   withTiming,
   withRepeat,
   withSequence,
+  withDelay,
   Easing,
 } from 'react-native-reanimated';
 import { CARTOON_COLORS } from '../../theme/cartoonTheme';

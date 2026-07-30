@@ -153,12 +153,16 @@ export const listenForCustomerInfoUpdates = (
   if (!isRevenueCatConfigured()) {
     return () => {}; // no-op
   }
-  // react-native-purchases uses an event emitter internally
-  // The modern API uses addCustomerInfoUpdateListener
-  const unsubscribe = Purchases.addCustomerInfoUpdateListener((customerInfo) => {
+  // react-native-purchases uses an event emitter internally.
+  // addCustomerInfoUpdateListener returns void, so build the unsubscribe
+  // function from the paired removeCustomerInfoUpdateListener API.
+  const listener = (customerInfo: CustomerInfo): void => {
     onUpdate(customerInfo);
-  });
-  return unsubscribe;
+  };
+  Purchases.addCustomerInfoUpdateListener(listener);
+  return () => {
+    Purchases.removeCustomerInfoUpdateListener(listener);
+  };
 };
 
 /**

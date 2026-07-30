@@ -104,14 +104,6 @@
         }
       ],
       [
-        "react-native-purchases",
-        {
-          "ios": {
-            "useStoreKit2IfAvailable": true
-          }
-        }
-      ],
-      [
         "react-native-google-mobile-ads",
         {
           "androidAppId": "",

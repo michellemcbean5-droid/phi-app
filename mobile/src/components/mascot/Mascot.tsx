@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, View, Text } from 'react-native';
+import { Animated, TouchableOpacity, StyleSheet, View, Text } from 'react-native';
 import { CARTOON_COLORS } from '../../theme/cartoonTheme';
 
 export type MascotMood = 'happy' | 'thinking' | 'celebrating' | 'warning' | 'sad';
@@ -46,7 +46,7 @@ export default function Mascot({ mood = 'happy', size = 80, onPress }: MascotPro
   const bodyColor = mood === 'sad' ? '#7F9FCC' : '#3B82F6';
 
   return (
-    <Pressable onPress={handlePress} style={[styles.container, { width: size, height: size }]} activeOpacity={0.8}>
+    <TouchableOpacity onPress={handlePress} style={[styles.container, { width: size, height: size }]} activeOpacity={0.8}>
       <Animated.View
         style={[
           styles.mascot,
@@ -72,7 +72,7 @@ export default function Mascot({ mood = 'happy', size = 80, onPress }: MascotPro
         {/* Truck emblem */}
         <View style={[styles.emblem, { top: size * 0.65, left: size * 0.42 }]} />
       </Animated.View>
-    </Pressable>
+    </TouchableOpacity>
   );
 }
 

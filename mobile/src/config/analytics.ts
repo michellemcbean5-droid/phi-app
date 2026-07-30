@@ -34,7 +34,7 @@ export const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 // Analytics helpers
 // ───────────────────────────────────────────────────────────────
 
-let firebaseAnalytics: typeof import('@react-native-firebase/analytics').default | null = null;
+let firebaseAnalytics: ReturnType<typeof import('@react-native-firebase/analytics').default> | null = null;
 
 const getFirebaseAnalytics = async () => {
   if (!FIREBASE_API_KEY) return null;

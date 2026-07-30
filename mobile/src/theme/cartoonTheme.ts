@@ -7,6 +7,7 @@ export const CARTOON_COLORS = {
   royalBlue: '#0057FF',
   bubblegumPink: '#FF6B9D',
   hotPink: '#FF1493',
+  sunshineYellow: '#FFD93D',
   tangerine: '#FF8C42',
   sunsetOrange: '#FF6B35',
   limeGreen: '#6BCF7F',

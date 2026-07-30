@@ -1,12 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
+import { Text } from 'react-native';
 import { render } from '@testing-library/react-native';
-import PrinceHaulMascot from '../../src/components/mascot/PrinceHaulMascot';
-import BouncyButton from '../../src/components/animations/BouncyButton';
-import StaggeredList from '../../src/components/animations/StaggeredList';
-import ConfettiCelebration from '../../src/components/animations/ConfettiCelebration';
-import FloatingShapes from '../../src/components/animations/FloatingShapes';
-import { CARTOON_COLORS, CARTOON_RADIUS, CARTOON_SHADOWS, CARTOON_TYPOGRAPHY } from '../../src/theme/cartoonTheme';
+import PrinceHaulMascot from '../../components/mascot/PrinceHaulMascot';
+import BouncyButton from '../../components/animations/BouncyButton';
+import StaggeredList from '../../components/animations/StaggeredList';
+import ConfettiCelebration from '../../components/animations/ConfettiCelebration';
+import FloatingShapes from '../../components/animations/FloatingShapes';
+import { CARTOON_COLORS, CARTOON_RADIUS, CARTOON_SHADOWS, CARTOON_TYPOGRAPHY } from '../../theme/cartoonTheme';
 
 // Mock react-native-reanimated
 vi.mock('react-native-reanimated', () => ({

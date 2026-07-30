@@ -13,7 +13,7 @@ import {
   BannerAdSize,
   TestIds,
 } from 'react-native-google-mobile-ads';
-import { ADMOB_APP_ID_ANDROID, ADMOB_APP_ID_IOS } from './analytics';
+import { ADMOB_APP_ID_ANDROID, ADMOB_APP_ID_IOS } from '../config/analytics';
 
 // ───────────────────────────────────────────────────────────────
 // Ad Unit IDs
@@ -88,14 +88,12 @@ const loadInterstitial = (): void => {
   interstitialAd = InterstitialAd.createForAdRequest(adUnitId);
   interstitialLoadError = false;
 
-  interstitialAd.onAdEvent((type, error) => {
-    if (type === AdEventType.ERROR) {
-      console.warn('[AdMob] Interstitial error:', error?.message);
-      interstitialLoadError = true;
-    }
-    if (type === AdEventType.CLOSED) {
-      loadInterstitial(); // Pre-load next
-    }
+  interstitialAd.addAdEventListener(AdEventType.ERROR, (error) => {
+    console.warn('[AdMob] Interstitial error:', error?.message);
+    interstitialLoadError = true;
+  });
+  interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
+    loadInterstitial(); // Pre-load next
   });
 };
 
@@ -136,17 +134,15 @@ const loadRewarded = (): void => {
   rewardedAd = RewardedAd.createForAdRequest(adUnitId);
   rewardedLoadError = false;
 
-  rewardedAd.onAdEvent((type, error, reward) => {
-    if (type === AdEventType.ERROR) {
-      console.warn('[AdMob] Rewarded error:', error?.message);
-      rewardedLoadError = true;
-    }
-    if (type === RewardedAdEventType.EARNED_REWARD && reward) {
-      rewardedEarnedCallback?.(reward);
-    }
-    if (type === AdEventType.CLOSED) {
-      loadRewarded(); // Pre-load next
-    }
+  rewardedAd.addAdEventListener(AdEventType.ERROR, (error) => {
+    console.warn('[AdMob] Rewarded error:', error?.message);
+    rewardedLoadError = true;
+  });
+  rewardedAd.addAdEventListener(RewardedAdEventType.EARNED_REWARD, (reward) => {
+    rewardedEarnedCallback?.(reward);
+  });
+  rewardedAd.addAdEventListener(AdEventType.CLOSED, () => {
+    loadRewarded(); // Pre-load next
   });
 };
 

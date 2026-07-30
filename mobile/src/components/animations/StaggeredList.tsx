@@ -10,7 +10,8 @@ import Animated, {
 import { CARTOON_COLORS } from '../../theme/cartoonTheme';
 
 interface StaggeredListProps {
-  children: React.ReactNode[];
+  // Accepts one or many children; React.Children.map normalizes both cases.
+  children: React.ReactNode;
   staggerDelay?: number;
   itemDuration?: number;
   direction?: 'up' | 'down' | 'left' | 'right';

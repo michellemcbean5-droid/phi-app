@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PHI_COLORS } from '../assets/brandColors';
 import PrinceHaulMascot from '../components/mascot/PrinceHaulMascot';
 import FloatingShapes from '../components/animations/FloatingShapes';
+import AnimatedNumber from '../components/animations/AnimatedNumber';
+import StaggeredEntrance from '../components/animations/StaggeredEntrance';
+import AnimatedPressable from '../components/game/AnimatedPressable';
 import { CARTOON_COLORS, CARTOON_RADIUS, CARTOON_SHADOWS } from '../theme/cartoonTheme';
 import useLoadsStore from '../store/loadsStore';
 import useExpenseStore, { ExpenseCategory } from '../store/expenseStore';
@@ -87,18 +90,21 @@ export default function EarningsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
+        <StaggeredEntrance index={0}>
         <View style={styles.heroCard}>
           <Text style={styles.heroLabel}>
             Net Profit ({bookingHistory.length} loads booked) — {hasRealExpenses ? 'Actual expenses' : 'Estimated costs'}
           </Text>
-          <Text style={styles.heroValue}>${profit.netProfit.toLocaleString()}</Text>
+          <AnimatedNumber value={Math.round(profit.netProfit)} prefix="$" style={styles.heroValue} />
           <Text style={styles.heroSubtext}>
             Margin {Math.round(profit.profitMargin)}% • Operating cost ${profit.operatingCost.toLocaleString()}
             {hasRealExpenses ? ` (${entries.length} logged expenses)` : ''}
           </Text>
         </View>
+        </StaggeredEntrance>
 
         {projection && (
+          <StaggeredEntrance index={1}>
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Yearly Projection</Text>
             <Text style={styles.metricText}>
@@ -111,16 +117,23 @@ export default function EarningsScreen() {
               {projection.onTrack ? 'On pace for the $1.17M goal.' : `$${projection.gapToTarget.toLocaleString()} below target.`}
             </Text>
           </View>
+          </StaggeredEntrance>
         )}
 
+        <StaggeredEntrance index={2}>
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>RPM Trend</Text>
-          <Text style={styles.metricText}>7-day average RPM: {rpmTrend.averageRpm.toFixed(2)}</Text>
+          <View style={styles.rpmRow}>
+            <Text style={styles.metricText}>7-day average RPM: </Text>
+            <AnimatedNumber value={rpmTrend.averageRpm} decimals={2} style={styles.metricText} />
+          </View>
           <Text style={[styles.helperText, rpmTrend.flag === 'Market Risk' && styles.riskText]}>
             {rpmTrend.flag} • {rpmTrend.trendPercentage}% vs previous period
           </Text>
         </View>
+        </StaggeredEntrance>
 
+        <StaggeredEntrance index={3}>
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Log an Expense</Text>
           <Text style={styles.helperText}>
@@ -142,9 +155,9 @@ export default function EarningsScreen() {
               placeholderTextColor="#7F8FB3"
               keyboardType="decimal-pad"
             />
-            <TouchableOpacity style={styles.expenseAddButton} onPress={handleAddExpense}>
+            <AnimatedPressable style={styles.expenseAddButton} onPress={handleAddExpense}>
               <Text style={styles.expenseAddButtonText}>Add</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
           </View>
           {entries.slice(0, 5).map((entry) => (
             <View key={entry.id} style={styles.expenseListRow}>
@@ -154,6 +167,7 @@ export default function EarningsScreen() {
             </View>
           ))}
         </View>
+        </StaggeredEntrance>
       </ScrollView>
     </SafeAreaView>
   );
@@ -176,6 +190,7 @@ const styles = StyleSheet.create({
   progressTrack: { height: 14, borderRadius: 999, backgroundColor: '#21406F', overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: PHI_COLORS.moneyGreen, borderRadius: 999 },
   riskText: { color: PHI_COLORS.sunshineYellow, fontWeight: '800' },
+  rpmRow: { flexDirection: 'row', alignItems: 'baseline' },
   expenseRow: { flexDirection: 'row', gap: 8 },
   expenseInput: { backgroundColor: '#132B52', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: PHI_COLORS.white, borderWidth: 1, borderColor: '#29508C' },
   expenseAddButton: { backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 12, paddingHorizontal: 14, justifyContent: 'center' },

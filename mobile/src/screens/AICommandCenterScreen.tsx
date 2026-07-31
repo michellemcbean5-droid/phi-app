@@ -8,6 +8,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import PrinceHaulMascot from '../components/mascot/PrinceHaulMascot';
 import FloatingShapes from '../components/animations/FloatingShapes';
 import BouncyButton from '../components/animations/BouncyButton';
+import AnimatedNumber from '../components/animations/AnimatedNumber';
+import StaggeredEntrance from '../components/animations/StaggeredEntrance';
 import { CARTOON_COLORS, CARTOON_RADIUS, CARTOON_SHADOWS } from '../theme/cartoonTheme';
 import { isClaudeConfigured } from '../api/claudeClient';
 import useWorkerStore from '../store/workerStore';
@@ -118,6 +120,7 @@ export default function AICommandCenterScreen() {
           </TouchableOpacity>
         )}
 
+        <StaggeredEntrance index={0}>
         <View style={styles.metricsRow}>
           <LinearGradient
             colors={CARTOON_COLORS.gradientOcean}
@@ -125,7 +128,7 @@ export default function AICommandCenterScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.metricCard}
           >
-            <Text style={styles.metricValue}>${totalRevenue.toLocaleString()}</Text>
+            <AnimatedNumber value={totalRevenue} prefix="$" style={styles.metricValue} />
             <Text style={styles.metricLabel}>Daily Revenue Impact</Text>
           </LinearGradient>
           <LinearGradient
@@ -134,7 +137,7 @@ export default function AICommandCenterScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.metricCard}
           >
-            <Text style={styles.metricValue}>{activeWorkers}</Text>
+            <AnimatedNumber value={activeWorkers} style={styles.metricValue} />
             <Text style={styles.metricLabel}>Active Workers</Text>
           </LinearGradient>
           <LinearGradient
@@ -143,10 +146,11 @@ export default function AICommandCenterScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.metricCard}
           >
-            <Text style={styles.metricValue}>{workers.reduce((s, w) => s + w.tasksToday, 0)}</Text>
+            <AnimatedNumber value={workers.reduce((s, w) => s + w.tasksToday, 0)} style={styles.metricValue} />
             <Text style={styles.metricLabel}>Tasks Today</Text>
           </LinearGradient>
         </View>
+        </StaggeredEntrance>
 
         <View style={styles.buttonRow}>
           <BouncyButton
@@ -165,8 +169,9 @@ export default function AICommandCenterScreen() {
           />
         </View>
 
-        {workers.map((worker) => (
-          <View key={worker.id} style={[styles.card, worker.status === 'error' && styles.cardError]}>
+        {workers.map((worker, workerIndex) => (
+          <StaggeredEntrance key={worker.id} index={workerIndex + 1}>
+          <View style={[styles.card, worker.status === 'error' && styles.cardError]}>
             <View style={styles.cardHeader}>
               <View style={styles.cardLeft}>
                 <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[worker.status] }]} />
@@ -191,9 +196,11 @@ export default function AICommandCenterScreen() {
                 <Text style={styles.inlineLabel}>Tasks</Text>
               </View>
               <View style={styles.inlineMetric}>
-                <Text style={[styles.inlineValue, { color: CARTOON_COLORS.limeGreen }]}>
-                  ${worker.revenueImpact.toLocaleString()}
-                </Text>
+                <AnimatedNumber
+                  value={worker.revenueImpact}
+                  prefix="$"
+                  style={[styles.inlineValue, { color: CARTOON_COLORS.limeGreen }]}
+                />
                 <Text style={styles.inlineLabel}>Revenue Impact</Text>
               </View>
             </View>
@@ -207,6 +214,7 @@ export default function AICommandCenterScreen() {
               </Text>
             </TouchableOpacity>
           </View>
+          </StaggeredEntrance>
         ))}
       </ScrollView>
 

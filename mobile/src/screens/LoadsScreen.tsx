@@ -20,6 +20,10 @@ import useWorkerStore from '../store/workerStore';
 import usePromoStore from '../store/promoStore';
 import { getProximityRefreshMinutes } from '../utils/subscriptionGating';
 import AnimatedPressable from '../components/game/AnimatedPressable';
+import CoinBurst from '../components/game/CoinBurst';
+import ConfettiCelebration from '../components/animations/ConfettiCelebration';
+import SkeletonShimmer from '../components/animations/SkeletonShimmer';
+import StaggeredEntrance from '../components/animations/StaggeredEntrance';
 
 type LoadsNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Loads'>,
@@ -41,6 +45,8 @@ export default function LoadsScreen() {
   const { activeLoads, bookingState, filter, sortBy, setLoads, setBookingState, addBookingRecord, setFilter, setSortBy } = useLoadsStore();
   const { getEffectiveTier } = usePromoStore();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [confettiTrigger, setConfettiTrigger] = React.useState(0);
+  const [burstSeq, setBurstSeq] = React.useState(0);
   const alertedLoadIds = useRef<Set<string>>(new Set());
   const proximityCheckIntervalMs = getProximityRefreshMinutes(getEffectiveTier()) * 60 * 1000;
 
@@ -110,12 +116,16 @@ export default function LoadsScreen() {
     setBookingState(load.id, confirmation.booked ? 'booked' : 'rejected');
     Alert.alert('Booking Update', confirmation.message);
     if (confirmation.booked) {
+      setConfettiTrigger((prev) => prev + 1);
+      setBurstSeq((prev) => prev + 1);
       const { recordTaskCompletion } = useWorkerStore.getState();
       recordTaskCompletion('freight-negotiator', load.rate, `Booked ${load.id} at $${load.rate.toFixed(0)}`);
       recordTaskCompletion('dispatch-coordinator', 0, `Confirmed pickup for ${load.id}`);
       addBookingRecord({ id: load.id, rate: load.rate, miles: load.totalMiles, rpm: load.rpm, bookedAt: new Date().toISOString() });
     }
   };
+
+  const showInitialSkeleton = refreshing && loadBoard.length === 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -124,6 +134,17 @@ export default function LoadsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refreshLoads()} tintColor={PHI_COLORS.sunshineYellow} />}
+        ListEmptyComponent={
+          showInitialSkeleton ? (
+            <View style={styles.skeletonList}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <SkeletonShimmer key={i} style={styles.skeletonCard} />
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>No loads match right now — pull to refresh the board.</Text>
+          )
+        }
         ListHeaderComponent={
           <>
             <View style={styles.headerCard}>
@@ -155,9 +176,10 @@ export default function LoadsScreen() {
             </View>
           </>
         }
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const loadScore = scoreLoad(item);
           return (
+            <StaggeredEntrance index={index}>
             <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('LoadDetails', { loadId: item.id })}>
               <View style={styles.cardHeader}>
                 <Text style={styles.loadId}>{item.id}</Text>
@@ -178,9 +200,12 @@ export default function LoadsScreen() {
                 </AnimatedPressable>
               </View>
             </TouchableOpacity>
+            </StaggeredEntrance>
           );
         }}
       />
+      <ConfettiCelebration trigger={confettiTrigger} />
+      <CoinBurst trigger={burstSeq} />
     </SafeAreaView>
   );
 }
@@ -211,6 +236,9 @@ const styles = StyleSheet.create({
   buttonRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
   primaryButton: { flex: 1, backgroundColor: PHI_COLORS.sunshineYellow, padding: 12, borderRadius: 12 },
   secondaryButton: { flex: 1, backgroundColor: PHI_COLORS.royalBlue, padding: 12, borderRadius: 12 },
+  skeletonList: { gap: 14 },
+  skeletonCard: { height: 180, borderRadius: 16 },
+  emptyText: { color: '#7F9FCC', fontSize: 13, textAlign: 'center', paddingVertical: 32 },
   primaryButtonText: { color: PHI_COLORS.charcoalBlack, textAlign: 'center', fontWeight: '800' },
   secondaryButtonText: { color: PHI_COLORS.white, textAlign: 'center', fontWeight: '800' },
 });

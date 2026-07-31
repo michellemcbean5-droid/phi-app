@@ -7,6 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
 import usePromoStore from '../store/promoStore';
+import BouncyButton from '../components/animations/BouncyButton';
+import ConfettiCelebration from '../components/animations/ConfettiCelebration';
+import CoinBurst from '../components/game/CoinBurst';
 
 const HINT_CODES = [
   { code: 'PHIFREE30', benefit: '30-day Enterprise — Managed AI + fleet tools' },
@@ -17,6 +20,8 @@ const HINT_CODES = [
 export default function PromoCodeScreen() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [confettiTrigger, setConfettiTrigger] = useState(0);
+  const [burstSeq, setBurstSeq] = useState(0);
   const { applyPromoCode, activeTier, paymentStatus, daysRemaining, isTrialActive } = usePromoStore();
 
   const handleRedeem = async (): Promise<void> => {
@@ -33,6 +38,8 @@ export default function PromoCodeScreen() {
       Alert.alert('Invalid Code', result.error);
     } else {
       setInput('');
+      setConfettiTrigger((prev) => prev + 1);
+      setBurstSeq((prev) => prev + 1);
       Alert.alert('🎉 Code Activated!', result.message, [{ text: 'Let\'s Roll!' }]);
     }
   };
@@ -72,15 +79,14 @@ export default function PromoCodeScreen() {
               autoCapitalize="characters"
               autoCorrect={false}
             />
-            <TouchableOpacity
-              style={[styles.redeemButton, loading && styles.redeemButtonDisabled]}
+            <BouncyButton
+              label={loading ? 'Checking...' : 'Redeem Code'}
               onPress={() => void handleRedeem()}
               disabled={loading}
-            >
-              <Text style={styles.redeemButtonText}>
-                {loading ? 'Checking...' : 'Redeem Code'}
-              </Text>
-            </TouchableOpacity>
+              backgroundColor={PHI_COLORS.sunshineYellow}
+              textColor={PHI_COLORS.charcoalBlack}
+              size="md"
+            />
           </View>
 
           {/* Available Codes */}
@@ -120,6 +126,8 @@ export default function PromoCodeScreen() {
 
         </ScrollView>
       </KeyboardAvoidingView>
+      <ConfettiCelebration trigger={confettiTrigger} />
+      <CoinBurst trigger={burstSeq} />
     </SafeAreaView>
   );
 }

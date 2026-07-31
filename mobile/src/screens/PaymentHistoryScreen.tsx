@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +16,7 @@ import ScreenHero from '../components/hero/ScreenHero';
 import Mascot from '../components/mascot/Mascot';
 import StaggeredList from '../components/animations/StaggeredList';
 import SkeletonShimmer from '../components/animations/SkeletonShimmer';
+import BouncyButton from '../components/animations/BouncyButton';
 import usePromoStore from '../store/promoStore';
 
 interface PaymentRecord {
@@ -150,9 +150,12 @@ export default function PaymentHistoryScreen() {
             <Mascot mood="thinking" size={120} />
             <Text style={styles.emptyTitle}>No payments yet</Text>
             <Text style={styles.emptySub}>Your payment history will appear here once you make a purchase.</Text>
-            <TouchableOpacity style={styles.upgradeButton} onPress={() => navigation.navigate('Subscription')}>
-              <Text style={styles.upgradeText}>Upgrade Now →</Text>
-            </TouchableOpacity>
+            <BouncyButton
+              label="Upgrade Now →"
+              onPress={() => navigation.navigate('Subscription')}
+              variant="warning"
+              size="md"
+            />
           </View>
         ) : (
           <StaggeredList>

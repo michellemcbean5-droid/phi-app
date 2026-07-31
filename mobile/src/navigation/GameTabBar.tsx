@@ -31,6 +31,20 @@ function TabGlyph({ kind, focused, color, size }: { kind: TabIconKind; focused: 
   }
 }
 
+/** Springy scale pop whenever the wrapped icon gains focus. */
+function FocusPop({ focused, children }: { focused: boolean; children: React.ReactNode }) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (focused) {
+      scale.setValue(0.55);
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 12 }).start();
+    }
+  }, [focused, scale]);
+
+  return <Animated.View style={{ transform: [{ scale }] }}>{children}</Animated.View>;
+}
+
 function GlowPulse({ glowColor }: { glowColor: string }) {
   const pulse = useRef(new Animated.Value(0.5)).current;
 
@@ -75,7 +89,9 @@ export default function GameTabBar({ state, navigation }: BottomTabBarProps) {
           >
             <View style={styles.iconWrap}>
               {focused && <GlowPulse glowColor={meta.glow} />}
-              <TabGlyph kind={meta.kind} focused={focused} color={focused ? meta.glow : '#7F9FCC'} size={focused ? 24 : 21} />
+              <FocusPop focused={focused}>
+                <TabGlyph kind={meta.kind} focused={focused} color={focused ? meta.glow : '#7F9FCC'} size={focused ? 24 : 21} />
+              </FocusPop>
             </View>
             <Text style={[styles.label, focused && { color: meta.glow }]}>{meta.label}</Text>
             {focused && <View style={[styles.activeBar, { backgroundColor: meta.glow }]} />}

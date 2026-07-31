@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { RootStackParamList } from '../navigation/RootNavigator';
 import usePromoStore from '../store/promoStore';
 import useAPIKeyStore from '../store/apiKeyStore';
 import AnimatedPressable from '../components/game/AnimatedPressable';
+import StaggeredEntrance from '../components/animations/StaggeredEntrance';
 
 type SettingsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Settings'>;
 
@@ -56,6 +57,7 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
 
         {/* Plan Status */}
+        <StaggeredEntrance index={0}>
         <View style={styles.planCard}>
           <View style={styles.planRow}>
             <Ionicons name="ribbon-outline" size={22} color={PHI_COLORS.sunshineYellow} />
@@ -65,13 +67,15 @@ export default function SettingsScreen() {
                 <Text style={styles.planTrial}>Free trial — {days} days remaining</Text>
               )}
             </View>
-            <TouchableOpacity style={styles.upgradePill} onPress={() => navigation.navigate('Subscription')}>
+            <AnimatedPressable style={styles.upgradePill} onPress={() => navigation.navigate('Subscription')}>
               <Text style={styles.upgradePillText}>Manage</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
           </View>
         </View>
+        </StaggeredEntrance>
 
         {/* AI Dispatcher */}
+        <StaggeredEntrance index={1}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>AI Dispatcher</Text>
           <NavRow
@@ -81,8 +85,10 @@ export default function SettingsScreen() {
             onPress={() => navigation.navigate('DriverPrefs')}
           />
         </View>
+        </StaggeredEntrance>
 
         {/* API & Keys */}
+        <StaggeredEntrance index={2}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>API Keys & Integrations</Text>
           <NavRow
@@ -99,8 +105,10 @@ export default function SettingsScreen() {
             onPress={() => navigation.navigate('PromoCode')}
           />
         </View>
+        </StaggeredEntrance>
 
         {/* Notifications */}
+        <StaggeredEntrance index={3}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Notifications</Text>
           <View style={styles.switchRow}>
@@ -116,8 +124,10 @@ export default function SettingsScreen() {
             />
           </View>
         </View>
+        </StaggeredEntrance>
 
         {/* Account */}
+        <StaggeredEntrance index={4}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Account</Text>
           <NavRow
@@ -145,8 +155,10 @@ export default function SettingsScreen() {
             onPress={() => navigation.navigate('EquipmentMarketplace')}
           />
         </View>
+        </StaggeredEntrance>
 
         {/* Support */}
+        <StaggeredEntrance index={5}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Support</Text>
           <NavRow
@@ -156,6 +168,7 @@ export default function SettingsScreen() {
             onPress={() => navigation.navigate('SupportChat')}
           />
         </View>
+        </StaggeredEntrance>
 
       </ScrollView>
     </SafeAreaView>

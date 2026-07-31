@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import useInboxStore from '../store/inboxStore';
+import StaggeredEntrance from '../components/animations/StaggeredEntrance';
 
 type InboxNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Inbox'>;
 
@@ -23,9 +24,10 @@ export default function InboxScreen() {
         data={threads}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.content}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const lastMessage = item.messages[item.messages.length - 1];
           return (
+            <StaggeredEntrance index={index}>
             <TouchableOpacity
               style={styles.threadRow}
               onPress={() => navigation.navigate('MessageThread', { threadId: item.id })}
@@ -44,6 +46,7 @@ export default function InboxScreen() {
                 {item.unread ? <View style={styles.unreadDot} /> : null}
               </View>
             </TouchableOpacity>
+            </StaggeredEntrance>
           );
         }}
       />

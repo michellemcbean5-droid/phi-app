@@ -8,8 +8,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { PHI_COLORS } from '../assets/brandColors';
 import useDriverPrefsStore, { EquipmentPref } from '../store/driverPrefsStore';
+import BouncyButton from '../components/animations/BouncyButton';
+import FloatingShapes from '../components/animations/FloatingShapes';
 
 const EQUIPMENT_OPTIONS: EquipmentPref[] = ['Dry Van', 'Reefer', 'Flatbed', 'Any'];
 
@@ -17,6 +21,8 @@ const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','
 
 export default function DriverPrefsScreen() {
   const { prefs, updatePref, resetPrefs } = useDriverPrefsStore();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
   const toggleState = (state: string, list: 'preferredStates' | 'avoidStates') => {
     const current = prefs[list];
@@ -28,6 +34,7 @@ export default function DriverPrefsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <FloatingShapes shapeCount={5} />
       <ScrollView contentContainerStyle={styles.content}>
 
         {/* Hero */}
@@ -222,9 +229,22 @@ export default function DriverPrefsScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.resetButton} onPress={resetPrefs}>
-          <Text style={styles.resetText}>Reset to PHI Defaults</Text>
-        </TouchableOpacity>
+        <BouncyButton
+          label="Reset to PHI Defaults"
+          onPress={resetPrefs}
+          backgroundColor={PHI_COLORS.card}
+          textColor="#A8B7D8"
+          borderColor="#29508C"
+          size="md"
+        />
+
+        <BouncyButton
+          label="🚀 Start My Engine"
+          onPress={() => navigation.replace('Main')}
+          backgroundColor={PHI_COLORS.royalBlue}
+          textColor={PHI_COLORS.white}
+          size="lg"
+        />
 
       </ScrollView>
     </SafeAreaView>

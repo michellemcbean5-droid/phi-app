@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
 import useLoadsStore from '../store/loadsStore';
 import { Load } from '../workers/workers-15x';
+import StaggeredEntrance from '../components/animations/StaggeredEntrance';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LoadDetails'>;
 
@@ -51,17 +52,21 @@ export default function LoadDetailsScreen({ route }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <View style={styles.header}>
-          <Text style={styles.loadId}>{load.id}</Text>
-          <Text style={styles.status}>Status: Available</Text>
-        </View>
-        
-        {rows.map((r) => (
-          <View key={r.label} style={styles.row}>
-            <Ionicons name={r.icon} size={20} color={PHI_COLORS.sunshineYellow} style={{ width: 28 }} />
-            <Text style={styles.label}>{r.label}</Text>
-            <Text style={styles.value}>{r.value}</Text>
+        <StaggeredEntrance index={0}>
+          <View style={styles.header}>
+            <Text style={styles.loadId}>{load.id}</Text>
+            <Text style={styles.status}>Status: Available</Text>
           </View>
+        </StaggeredEntrance>
+
+        {rows.map((r, i) => (
+          <StaggeredEntrance key={r.label} index={i + 1}>
+            <View style={styles.row}>
+              <Ionicons name={r.icon} size={20} color={PHI_COLORS.sunshineYellow} style={{ width: 28 }} />
+              <Text style={styles.label}>{r.label}</Text>
+              <Text style={styles.value}>{r.value}</Text>
+            </View>
+          </StaggeredEntrance>
         ))}
       </ScrollView>
     </SafeAreaView>

@@ -14,6 +14,7 @@ import useWorkerStore from '../store/workerStore';
 import usePromoStore from '../store/promoStore';
 import { getDocumentLimit } from '../utils/subscriptionGating';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import SkeletonShimmer from '../components/animations/SkeletonShimmer';
 
 type DocumentsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Documents'>;
 
@@ -179,7 +180,11 @@ export default function DocumentsScreen() {
         <View style={styles.docsCard}>
           <Text style={styles.docsTitle}>Your Glovebox</Text>
           {!loaded ? (
-            <Text style={styles.emptyText}>Loading your documents...</Text>
+            <View style={styles.skeletonList}>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <SkeletonShimmer key={i} style={styles.skeletonRow} />
+              ))}
+            </View>
           ) : documents.length === 0 ? (
             <Text style={styles.emptyText}>No documents yet — tap a button above to scan your first one.</Text>
           ) : (
@@ -227,4 +232,6 @@ const styles = StyleSheet.create({
   statusPill: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   statusText: { fontWeight: '800', fontSize: 11 },
   emptyText: { color: '#7F9FCC', fontSize: 13, textAlign: 'center', paddingVertical: 16 },
+  skeletonList: { gap: 10, paddingVertical: 8 },
+  skeletonRow: { height: 56, borderRadius: 12 },
 });

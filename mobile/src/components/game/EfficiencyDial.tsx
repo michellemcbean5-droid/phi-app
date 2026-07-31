@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { TYCOON_COLORS } from '../../assets/brandColors';
+import AnimatedNumber from '../animations/AnimatedNumber';
 
 interface EfficiencyDialProps {
   value: number; // 0-100
@@ -23,7 +24,8 @@ export default function EfficiencyDial({ value, label = 'EFFICIENCY', size = 160
   const radius = size / 2;
 
   useEffect(() => {
-    Animated.timing(needleAnim, { toValue: clamped, duration: 900, useNativeDriver: true }).start();
+    // Spring with overshoot — the needle swings past the target then settles.
+    Animated.spring(needleAnim, { toValue: clamped, useNativeDriver: true, speed: 6, bounciness: 10 }).start();
   }, [clamped, needleAnim]);
 
   const needleRotate = needleAnim.interpolate({ inputRange: [0, 100], outputRange: ['-90deg', '90deg'] });
@@ -64,7 +66,7 @@ export default function EfficiencyDial({ value, label = 'EFFICIENCY', size = 160
         </View>
         <View style={[styles.hub, { left: radius - 8 }]} />
       </View>
-      <Text style={styles.value}>{Math.round(clamped)}%</Text>
+      <AnimatedNumber value={Math.round(clamped)} suffix="%" style={styles.value} />
       <Text style={styles.label}>{label}</Text>
     </View>
   );

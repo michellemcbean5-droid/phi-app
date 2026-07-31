@@ -11,6 +11,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
 import useAPIKeyStore, { CustomerAPIKeys } from '../store/apiKeyStore';
+import FloatingShapes from '../components/animations/FloatingShapes';
+import SkeletonShimmer from '../components/animations/SkeletonShimmer';
 
 interface KeyField {
   field: keyof CustomerAPIKeys;
@@ -99,8 +101,12 @@ export default function APIKeysScreen() {
   if (!loaded) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator color={PHI_COLORS.sunshineYellow} size="large" />
+        <FloatingShapes shapeCount={6} />
+        <View style={styles.skeletonContent}>
+          <SkeletonShimmer style={styles.skeletonInfo} />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonShimmer key={i} style={styles.skeletonCard} />
+          ))}
         </View>
       </SafeAreaView>
     );
@@ -108,6 +114,7 @@ export default function APIKeysScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <FloatingShapes shapeCount={6} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content}>
 
@@ -192,6 +199,9 @@ export default function APIKeysScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: PHI_COLORS.surface },
   content: { padding: 16, gap: 16 },
+  skeletonContent: { flex: 1, padding: 16, gap: 16 },
+  skeletonInfo: { height: 120, borderRadius: 18 },
+  skeletonCard: { height: 190, borderRadius: 16 },
   infoCard: { backgroundColor: PHI_COLORS.royalBlue, borderRadius: 18, padding: 18, gap: 10, alignItems: 'center' },
   infoTitle: { color: PHI_COLORS.white, fontSize: 20, fontWeight: '800' },
   infoText: { color: '#D7E3FF', lineHeight: 20, textAlign: 'center' },

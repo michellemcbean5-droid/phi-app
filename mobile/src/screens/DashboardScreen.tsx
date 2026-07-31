@@ -23,6 +23,8 @@ import CoinBurst from '../components/game/CoinBurst';
 import AnimatedPressable from '../components/game/AnimatedPressable';
 import PrinceHaulMascot from '../components/mascot/PrinceHaulMascot';
 import BouncyButton from '../components/animations/BouncyButton';
+import AnimatedNumber from '../components/animations/AnimatedNumber';
+import StaggeredEntrance from '../components/animations/StaggeredEntrance';
 import StaggeredList from '../components/animations/StaggeredList';
 import ConfettiCelebration from '../components/animations/ConfettiCelebration';
 import FloatingShapes from '../components/animations/FloatingShapes';
@@ -163,6 +165,7 @@ export default function DashboardScreen() {
         )}
 
         {/* Revenue Command Panel */}
+        <StaggeredEntrance index={1}>
         <LinearGradient
           colors={CARTOON_COLORS.gradientOcean}
           start={{ x: 0, y: 0 }}
@@ -170,15 +173,15 @@ export default function DashboardScreen() {
           style={styles.commandPanel}
         >
           <Text style={styles.commandLabel}>💰 TODAY'S REVENUE</Text>
-          <Text style={styles.revenueValue}>${totalRevenue.toLocaleString()}</Text>
+          <AnimatedNumber value={totalRevenue} prefix="$" style={styles.revenueValue} />
           <View style={styles.metricsRow}>
             <View style={styles.metric}>
-              <Text style={styles.metricValue}>${cpm.toFixed(2)}</Text>
+              <AnimatedNumber value={cpm} prefix="$" decimals={2} style={styles.metricValue} />
               <Text style={styles.metricLabel}>Cost Per Mile</Text>
             </View>
             <View style={styles.metricDivider} />
             <View style={styles.metric}>
-              <Text style={[styles.metricValue, { color: CARTOON_COLORS.sunshineYellow }]}>${Math.round(netProfit).toLocaleString()}</Text>
+              <AnimatedNumber value={Math.round(netProfit)} prefix="$" style={[styles.metricValue, { color: CARTOON_COLORS.sunshineYellow }]} />
               <Text style={styles.metricLabel}>Net Profit</Text>
             </View>
             <View style={styles.metricDivider} />
@@ -188,16 +191,22 @@ export default function DashboardScreen() {
             </View>
           </View>
         </LinearGradient>
+        </StaggeredEntrance>
 
         {/* Driver Tip of the Day */}
+        <StaggeredEntrance index={2}>
         <TouchableOpacity style={styles.tipCard} onPress={() => setTip(getRandomTip(tip))}>
           <Ionicons name="bulb-outline" size={24} color={CARTOON_COLORS.sunshineYellow} />
           <Text style={styles.tipText}>{tip}</Text>
           <Ionicons name="refresh-outline" size={18} color={CARTOON_COLORS.electricBlue} />
         </TouchableOpacity>
+        </StaggeredEntrance>
 
         {/* Command Dashboard */}
-        <RibbonBanner title="Teamwork" style={styles.teamworkRibbon} />
+        <StaggeredEntrance index={3}>
+          <RibbonBanner title="Teamwork" style={styles.teamworkRibbon} />
+        </StaggeredEntrance>
+        <StaggeredEntrance index={4}>
         <GlossyCard style={styles.teamworkCard}>
           <EfficiencyDial value={efficiency} size={140} />
           <View style={styles.teamworkDivider} />
@@ -205,8 +214,10 @@ export default function DashboardScreen() {
             <ProfitBarChart values={profitTrend} labels={PROFIT_TREND_LABELS} height={120} />
           </View>
         </GlossyCard>
+        </StaggeredEntrance>
 
         {/* Primary Action: Find Freight */}
+        <StaggeredEntrance index={5}>
         <Animated.View style={{ transform: [{ scale: findingFreight ? pulseAnim : 1 }] }}>
           <BouncyButton
             label={findingFreight ? '🚛 Finding Freight...' : '🔍 Find Freight'}
@@ -220,8 +231,10 @@ export default function DashboardScreen() {
             />}
           />
         </Animated.View>
+        </StaggeredEntrance>
 
         {/* Start Trip */}
+        <StaggeredEntrance index={6}>
         <BouncyButton
           label={tripActive ? '🚀 Trip Active — Tap for Status' : '🛣️ Start Trip Mode'}
           onPress={handleStartTrip}
@@ -233,6 +246,7 @@ export default function DashboardScreen() {
             color="#FFFFFF"
           />}
         />
+        </StaggeredEntrance>
 
         {/* Quick Actions Grid */}
         <StaggeredList staggerDelay={60} direction="up">
@@ -264,6 +278,7 @@ export default function DashboardScreen() {
         </StaggeredList>
 
         {/* Worker Status Strip */}
+        <StaggeredEntrance index={7}>
         <View style={styles.workerStrip}>
           <View style={styles.workerStripHeader}>
             <PrinceHaulMascot mood="thinking" size={40} showSpeechBubble={false} />
@@ -280,9 +295,11 @@ export default function DashboardScreen() {
             <Text style={styles.viewAllLink}>View all 10 workers →</Text>
           </TouchableOpacity>
         </View>
+        </StaggeredEntrance>
 
         {/* Live AI Activity Feed */}
         {activityLog.length > 0 && (
+          <StaggeredEntrance index={8}>
           <View style={styles.workerStrip}>
             <Text style={styles.workerStripTitle}>🔥 Live AI Activity</Text>
             {activityLog.slice(0, 5).map((entry) => (
@@ -292,6 +309,7 @@ export default function DashboardScreen() {
               </View>
             ))}
           </View>
+          </StaggeredEntrance>
         )}
 
       </ScrollView>

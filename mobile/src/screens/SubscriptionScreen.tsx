@@ -18,6 +18,7 @@ import BouncyButton from '../components/animations/BouncyButton';
 import StaggeredList from '../components/animations/StaggeredList';
 import ConfettiCelebration from '../components/animations/ConfettiCelebration';
 import FloatingShapes from '../components/animations/FloatingShapes';
+import CoinBurst from '../components/game/CoinBurst';
 import { CARTOON_COLORS, CARTOON_RADIUS, CARTOON_SHADOWS, CARTOON_TYPOGRAPHY } from '../theme/cartoonTheme';
 
 type SubscriptionNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Subscription'>;
@@ -90,6 +91,7 @@ export default function SubscriptionScreen() {
   const [livePrices, setLivePrices] = useState<Partial<Record<PaidTier, string>>>({});
   const [billingReady, setBillingReady] = useState(false);
   const [confettiTrigger, setConfettiTrigger] = useState(0);
+  const [burstSeq, setBurstSeq] = useState(0);
   const [mascotTip, setMascotTip] = useState(MASCOT_TIPS[0]);
   const [mascotMood, setMascotMood] = useState<'happy' | 'excited' | 'celebrating'>('happy');
 
@@ -120,6 +122,7 @@ export default function SubscriptionScreen() {
           setPurchasingTier(null);
           setStatusMessage(`${tier} activated — thank you! 🎉`);
           setConfettiTrigger((prev) => prev + 1);
+          setBurstSeq((prev) => prev + 1);
           setMascotMood('celebrating');
           setTimeout(() => setMascotMood('happy'), 4000);
         },
@@ -158,6 +161,7 @@ export default function SubscriptionScreen() {
     if (tier) {
       setActiveTier(tier);
       setConfettiTrigger((prev) => prev + 1);
+      setBurstSeq((prev) => prev + 1);
       setMascotMood('celebrating');
     }
   };
@@ -278,6 +282,7 @@ export default function SubscriptionScreen() {
         />
 
       </ScrollView>
+      <CoinBurst trigger={burstSeq} />
     </SafeAreaView>
   );
 }

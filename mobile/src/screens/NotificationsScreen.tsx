@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PHI_COLORS } from '../assets/brandColors';
+import AnimatedPressable from '../components/game/AnimatedPressable';
+import StaggeredEntrance from '../components/animations/StaggeredEntrance';
 
 interface NotificationItem {
   id: string;
@@ -33,8 +35,9 @@ export default function NotificationsScreen() {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Priority Queue</Text>
-        {orderedNotifications.map((notification) => (
-          <View key={notification.id} style={[styles.card, notification.read && styles.cardRead]}>
+        {orderedNotifications.map((notification, index) => (
+          <StaggeredEntrance key={notification.id} index={index}>
+          <View style={[styles.card, notification.read && styles.cardRead]}>
             <View style={styles.cardHeader}>
               <View style={[styles.priorityBadge, { backgroundColor: priorityColors[notification.priority] }]}>
                 <Text style={styles.priorityText}>{notification.priority}</Text>
@@ -42,7 +45,7 @@ export default function NotificationsScreen() {
               {!notification.read && <Text style={styles.unreadMarker}>Unread</Text>}
             </View>
             <Text style={styles.message}>{notification.message}</Text>
-            <TouchableOpacity
+            <AnimatedPressable
               style={styles.markReadButton}
               onPress={() =>
                 setNotifications((current) =>
@@ -51,8 +54,9 @@ export default function NotificationsScreen() {
               }
             >
               <Text style={styles.markReadText}>{notification.read ? 'Read' : 'Mark as Read'}</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
           </View>
+          </StaggeredEntrance>
         ))}
       </ScrollView>
     </SafeAreaView>

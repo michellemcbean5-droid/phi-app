@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DriverAvailability, fetchHOSData } from '../api/samsaraConnector';
 import { PHI_COLORS } from '../assets/brandColors';
 import { auditDailyTransactions, DailyTransaction, runAIComplianceAudit } from '../workers/ComplianceAuditWorker';
 import useLoadsStore from '../store/loadsStore';
 import useWorkerStore from '../store/workerStore';
+import BouncyButton from '../components/animations/BouncyButton';
+import SkeletonShimmer from '../components/animations/SkeletonShimmer';
+import StaggeredEntrance from '../components/animations/StaggeredEntrance';
 
 const DRIVER_ID = 'driver-001';
 const AVG_ROAD_SPEED_MPH = 50;
@@ -75,9 +78,11 @@ export default function ComplianceScreen() {
   if (!hosSnapshot || !report) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color={PHI_COLORS.sunshineYellow} />
-          <Text style={styles.loadingText}>Loading HOS data from GPS...</Text>
+        <View style={styles.skeletonContent}>
+          <SkeletonShimmer style={styles.skeletonHero} />
+          <SkeletonShimmer style={styles.skeletonButton} />
+          <SkeletonShimmer style={styles.skeletonCard} />
+          <SkeletonShimmer style={styles.skeletonCard} />
         </View>
       </SafeAreaView>
     );
@@ -93,6 +98,7 @@ export default function ComplianceScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
+        <StaggeredEntrance index={0}>
         <View style={styles.heroCard}>
           <Text style={styles.heroTitle}>Hours of Service</Text>
           <Text style={[styles.heroMetric, { color: hosStatusColor }]}>
@@ -108,15 +114,24 @@ export default function ComplianceScreen() {
             <Text style={styles.statusChipText}>{hosSnapshot.status.replace(/-/g, ' ').toUpperCase()}</Text>
           </View>
         </View>
+        </StaggeredEntrance>
 
-        <TouchableOpacity style={styles.auditButton} onPress={() => void handleGenerateAuditReport()} disabled={auditLoading}>
+        <StaggeredEntrance index={1}>
+        <BouncyButton
+          onPress={() => void handleGenerateAuditReport()}
+          disabled={auditLoading}
+          backgroundColor={PHI_COLORS.sunshineYellow}
+          size="md"
+        >
           {auditLoading ? (
             <ActivityIndicator color={PHI_COLORS.charcoalBlack} />
           ) : (
             <Text style={styles.auditButtonText}>Generate AI DOT Audit Report</Text>
           )}
-        </TouchableOpacity>
+        </BouncyButton>
+        </StaggeredEntrance>
 
+        <StaggeredEntrance index={2}>
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Audit Summary</Text>
           <Text style={styles.sectionText}>Compliant: {report.compliant ? '✅ Yes' : '❌ No'}</Text>
@@ -126,16 +141,20 @@ export default function ComplianceScreen() {
             <Text style={styles.riskSummaryText}>{report.aiRiskSummary}</Text>
           ) : null}
         </View>
+        </StaggeredEntrance>
 
         {aiRecommendations.length > 0 && (
+          <StaggeredEntrance index={3}>
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>AI Recommendations</Text>
             {aiRecommendations.map((rec, i) => (
               <Text key={i} style={styles.recommendationText}>• {rec}</Text>
             ))}
           </View>
+          </StaggeredEntrance>
         )}
 
+        <StaggeredEntrance index={4}>
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Load History Ledger</Text>
           {transactions.length === 0 && (
@@ -151,6 +170,7 @@ export default function ComplianceScreen() {
             </View>
           ))}
         </View>
+        </StaggeredEntrance>
       </ScrollView>
     </SafeAreaView>
   );
@@ -158,8 +178,10 @@ export default function ComplianceScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: PHI_COLORS.surface },
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
-  loadingText: { color: PHI_COLORS.white, fontSize: 14 },
+  skeletonContent: { flex: 1, padding: 16, gap: 16 },
+  skeletonHero: { height: 150, borderRadius: 18 },
+  skeletonButton: { height: 50, borderRadius: 14 },
+  skeletonCard: { height: 120, borderRadius: 16 },
   content: { padding: 16, gap: 16 },
   heroCard: { backgroundColor: PHI_COLORS.royalBlue, borderRadius: 18, padding: 20, gap: 8 },
   heroTitle: { color: PHI_COLORS.sunshineYellow, fontSize: 16, fontWeight: '700' },

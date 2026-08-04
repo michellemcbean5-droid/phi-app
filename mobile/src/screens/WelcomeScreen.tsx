@@ -34,7 +34,7 @@ export default function WelcomeScreen() {
     setPending('getStarted');
     setMascotMood('celebrating');
     login(createDemoToken());
-    navigation.replace('DriverPrefs');
+    navigation.navigate('OnboardingWizard');
   };
 
   const handleMascotPress = () => {

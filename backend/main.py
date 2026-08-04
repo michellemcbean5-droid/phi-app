@@ -966,6 +966,358 @@ async def driver_websocket(websocket: WebSocket, driver_id: str):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 2 — AGENT MAP
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class AgentEdge(BaseModel):
+    from_agent: str = Field(description="Source agent role")
+    to_agent: str = Field(description="Destination agent role")
+    label: str = Field(description="Work passing along this edge")
+
+
+class AgentMapNode(BaseModel):
+    id: str
+    role: str
+    group: str
+    status: str = Field(default="idle", description="idle | running | done | error")
+    tasks_today: int = Field(default=0)
+
+
+class AgentMapResponse(BaseModel):
+    nodes: list[AgentMapNode]
+    edges: list[AgentEdge]
+    active_jobs: int
+
+
+# In-memory agent status — updated by task callbacks in tasks.py
+_agent_status: dict[str, str] = {}
+
+
+@app.get(
+    "/api/v1/agent-map",
+    response_model=AgentMapResponse,
+    tags=["agents"],
+    summary="Live agent orchestration map",
+)
+def get_agent_map():
+    """
+    Returns the full agent DAG with current status of each node.
+    Used by the Mission Control screen to render the live orchestration diagram.
+    """
+    group_map: dict[str, str] = {}
+    for group_name, agents in AGENT_GROUPS.items():
+        for agent in agents:
+            group_map[agent.role] = group_name
+
+    nodes = [
+        AgentMapNode(
+            id=agent.role.lower().replace(" ", "-"),
+            role=agent.role,
+            group=group_map.get(agent.role, "Unknown"),
+            status=_agent_status.get(agent.role, "idle"),
+        )
+        for agent in ALL_AGENTS
+    ]
+
+    edges = [
+        AgentEdge(from_agent="Freight Negotiator", to_agent="Insurance Assessor", label="load candidates"),
+        AgentEdge(from_agent="Insurance Assessor", to_agent="Legal Auditor", label="risk-vetted loads"),
+        AgentEdge(from_agent="Legal Auditor", to_agent="Freight Negotiator", label="cleared contracts"),
+        AgentEdge(from_agent="Freight Negotiator", to_agent="Compliance Officer", label="booked load"),
+        AgentEdge(from_agent="Route Optimizer", to_agent="Fuel Optimizer", label="planned route"),
+        AgentEdge(from_agent="Fuel Optimizer", to_agent="Dispatcher", label="optimized stops"),
+        AgentEdge(from_agent="Dispatcher", to_agent="Track & Trace Agent", label="trip underway"),
+        AgentEdge(from_agent="Track & Trace Agent", to_agent="Driver Liaison", label="live ETA"),
+        AgentEdge(from_agent="Driver Liaison", to_agent="Finance Specialist", label="delivery confirmed"),
+        AgentEdge(from_agent="Finance Specialist", to_agent="Tax Auditor", label="invoice"),
+        AgentEdge(from_agent="Tax Auditor", to_agent="BI Executive", label="P&L data"),
+        AgentEdge(from_agent="Maintenance Monitor", to_agent="BI Executive", label="service records"),
+    ]
+
+    active_jobs = sum(1 for j in _job_store.values() if j["status"] == JobStatus.RUNNING)
+
+    return AgentMapResponse(nodes=nodes, edges=edges, active_jobs=active_jobs)
+
+
+@app.websocket("/ws/agent-status")
+async def agent_status_ws(websocket: WebSocket):
+    """
+    WebSocket channel that pushes real-time agent status updates.
+    The mobile Mission Control screen subscribes here to animate node state changes.
+    """
+    await websocket.accept()
+    try:
+        while True:
+            import asyncio
+            await asyncio.sleep(2)
+            await websocket.send_json({
+                "type": "agent_status_update",
+                "statuses": _agent_status,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+    except WebSocketDisconnect:
+        pass
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 3 — LOAD BOARD ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class LoadLocation(BaseModel):
+    city: str
+    state: str
+    latitude: float
+    longitude: float
+
+
+class LoadPost(BaseModel):
+    """Request body for posting a new load (broker board)."""
+    broker_name: str = Field(description="Posting broker or shipper name")
+    equipment_type: EquipmentType = Field(default=EquipmentType.DRY_VAN)
+    origin_city: str
+    origin_state: str
+    origin_lat: float
+    origin_lng: float
+    destination_city: str
+    destination_state: str
+    rate: float = Field(ge=100, description="All-in rate in USD")
+    total_miles: int = Field(ge=1)
+    pickup_date: str = Field(description="ISO date YYYY-MM-DD")
+    weight_lbs: int = Field(default=40000, ge=1, le=80000)
+    notes: str = Field(default="")
+
+
+class LoadPostResponse(BaseModel):
+    load_id: str
+    status: str
+    message: str
+
+
+# In-memory load store for broker board posts
+_broker_loads: list[dict] = []
+
+
+@app.post(
+    "/api/v1/loads",
+    response_model=LoadPostResponse,
+    tags=["loads"],
+    status_code=201,
+    summary="Post a load to the broker board",
+)
+async def post_load(load: LoadPost):
+    """
+    Allows a broker or shipper to post a load directly to the PHI broker board.
+    Returns a load_id that drivers can use to accept the load.
+    """
+    load_id = f"PHI-{uuid.uuid4().hex[:8].upper()}"
+    record = {"load_id": load_id, **load.model_dump(), "posted_at": datetime.now(timezone.utc).isoformat(), "status": "open"}
+    _broker_loads.append(record)
+    logger.info(f"New broker load posted: {load_id}")
+    return LoadPostResponse(load_id=load_id, status="open", message=f"Load {load_id} is live on the broker board.")
+
+
+@app.get(
+    "/api/v1/loads",
+    tags=["loads"],
+    summary="Get broker board loads",
+)
+async def get_loads(
+    equipment_type: Optional[str] = Query(default=None),
+    min_rpm: Optional[float] = Query(default=None, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    """Returns loads posted on the broker board, with optional filtering."""
+    loads = [l for l in _broker_loads if l["status"] == "open"]
+    if equipment_type:
+        loads = [l for l in loads if l["equipment_type"] == equipment_type]
+    if min_rpm is not None:
+        loads = [l for l in loads if l["rate"] / max(l["total_miles"], 1) >= min_rpm]
+    return {"loads": loads[:limit], "total": len(loads)}
+
+
+@app.put(
+    "/api/v1/loads/{load_id}/accept",
+    tags=["loads"],
+    summary="Accept / book a load from the broker board",
+)
+async def accept_load(load_id: str, driver_id: str = Query(description="Driver accepting the load")):
+    """Marks a broker-board load as accepted by the given driver."""
+    for load in _broker_loads:
+        if load["load_id"] == load_id:
+            if load["status"] != "open":
+                raise HTTPException(status_code=409, detail="Load is no longer available.")
+            load["status"] = "accepted"
+            load["accepted_by"] = driver_id
+            load["accepted_at"] = datetime.now(timezone.utc).isoformat()
+            logger.info(f"Load {load_id} accepted by driver {driver_id}")
+            return {"load_id": load_id, "status": "accepted", "message": "Load booked successfully."}
+    raise HTTPException(status_code=404, detail=f"Load {load_id} not found.")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 5 — CO-DRIVER / FIND-A-DRIVER ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class DriverLocationUpdate(BaseModel):
+    driver_id: str
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    cdl_class: str = Field(default="A")
+    available: bool = Field(default=True)
+    looking_for_codriver: bool = Field(default=False)
+    name: str = Field(default="PHI Driver")
+    rating: float = Field(default=5.0, ge=1.0, le=5.0)
+
+
+class CoDriverRequest(BaseModel):
+    requester_driver_id: str
+    target_driver_id: str
+    split_percentage: int = Field(ge=1, le=99, description="Requester's revenue share %")
+    load_id: Optional[str] = Field(default=None)
+
+
+# In-memory driver presence (replace with Redis in production)
+_driver_locations: dict[str, dict] = {}
+
+
+@app.put(
+    "/api/v1/drivers/{driver_id}/location",
+    tags=["drivers"],
+    summary="Update driver location and availability",
+)
+async def update_driver_location(driver_id: str, update: DriverLocationUpdate):
+    """Registers or updates a driver's position and co-driver availability status."""
+    _driver_locations[driver_id] = {
+        **update.model_dump(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    return {"status": "ok", "driver_id": driver_id}
+
+
+@app.get(
+    "/api/v1/drivers/nearby",
+    tags=["drivers"],
+    summary="Find co-drivers within radius",
+)
+async def get_nearby_drivers(
+    latitude: float = Query(ge=-90, le=90),
+    longitude: float = Query(ge=-180, le=180),
+    radius_miles: float = Query(default=50, ge=1, le=500),
+    looking_for_codriver: bool = Query(default=False, description="Only return drivers seeking a team partner"),
+):
+    """
+    Returns drivers within the specified radius of the given coordinates.
+    Uses Haversine formula for distance calculation.
+    """
+    import math
+
+    def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        R = 3958.8  # Earth radius in miles
+        phi1, phi2 = math.radians(lat1), math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lon2 - lon1)
+        a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+        return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    nearby = []
+    for d_id, data in _driver_locations.items():
+        dist = haversine(latitude, longitude, data["latitude"], data["longitude"])
+        if dist <= radius_miles:
+            if looking_for_codriver and not data.get("looking_for_codriver", False):
+                continue
+            nearby.append({**data, "distance_miles": round(dist, 1)})
+
+    nearby.sort(key=lambda d: d["distance_miles"])
+    return {"drivers": nearby, "count": len(nearby), "radius_miles": radius_miles}
+
+
+@app.post(
+    "/api/v1/codriver/request",
+    tags=["drivers"],
+    status_code=201,
+    summary="Send a co-driver request",
+)
+async def send_codriver_request(request: CoDriverRequest):
+    """
+    Sends a co-driver request from one driver to another with proposed revenue split.
+    In production, this triggers a push notification to the target driver.
+    """
+    if request.requester_driver_id not in _driver_locations:
+        raise HTTPException(status_code=404, detail="Requester driver not found. Update your location first.")
+    if request.target_driver_id not in _driver_locations:
+        raise HTTPException(status_code=404, detail="Target driver not found.")
+
+    request_id = f"CDR-{uuid.uuid4().hex[:8].upper()}"
+    logger.info(
+        f"Co-driver request {request_id}: {request.requester_driver_id} → "
+        f"{request.target_driver_id} ({request.split_percentage}/{100 - request.split_percentage} split)"
+    )
+    return {
+        "request_id": request_id,
+        "status": "pending",
+        "message": f"Request sent. Split: {request.split_percentage}% / {100 - request.split_percentage}%",
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 7 — DISPATCH RADIO ENDPOINT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class RadioBroadcast(BaseModel):
+    channel: int = Field(description="CB channel number (1, 9, 19, etc.)")
+    speaker: str = Field(default="Dispatcher", description="Broadcaster name")
+    message: str = Field(description="Message to broadcast")
+    tts: bool = Field(default=True, description="Whether to read via TTS on client")
+
+
+_radio_history: list[dict] = []
+
+
+@app.post(
+    "/api/v1/radio/broadcast",
+    tags=["radio"],
+    status_code=201,
+    summary="Broadcast a message on a dispatch radio channel",
+)
+async def radio_broadcast(broadcast: RadioBroadcast):
+    """
+    Posts a message to a radio channel. All connected drivers on that channel
+    receive the message via the WebSocket stream. Supports AI dispatch TTS reads.
+    """
+    entry = {
+        "id": uuid.uuid4().hex,
+        "channel": broadcast.channel,
+        "speaker": broadcast.speaker,
+        "message": broadcast.message,
+        "tts": broadcast.tts,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    _radio_history.append(entry)
+    # Keep last 1000 transmissions per channel in memory
+    if len(_radio_history) > 1000:
+        _radio_history.pop(0)
+
+    # Broadcast to all connected WebSocket clients
+    await ws_manager.broadcast_to_all({"type": "radio_message", **entry})
+
+    logger.info(f"Radio CH{broadcast.channel} [{broadcast.speaker}]: {broadcast.message[:60]}")
+    return {"status": "broadcast", "id": entry["id"], "channel": broadcast.channel}
+
+
+@app.get(
+    "/api/v1/radio/history",
+    tags=["radio"],
+    summary="Get radio channel history (last 100 transmissions)",
+)
+async def get_radio_history(channel: Optional[int] = Query(default=None)):
+    """Returns the last 100 transmissions for a given channel, or all channels if omitted."""
+    history = _radio_history
+    if channel is not None:
+        history = [h for h in history if h["channel"] == channel]
+    return {"history": history[-100:], "total": len(history)}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # GLOBAL EXCEPTION HANDLER
 # ═══════════════════════════════════════════════════════════════════════════════
 

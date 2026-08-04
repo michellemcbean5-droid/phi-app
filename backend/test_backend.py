@@ -422,6 +422,90 @@ class TestAPIEndpoints(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["status"], "completed")
 
+    def test_agent_map_returns_nodes_and_edges(self):
+        resp = client.get("/api/v1/agent-map")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("nodes", data)
+        self.assertIn("edges", data)
+        self.assertIsInstance(data["nodes"], list)
+        self.assertIsInstance(data["edges"], list)
+        self.assertIn("active_jobs", data)
+
+    def test_post_load_and_get_loads(self):
+        """Posting a load then retrieving it from broker board."""
+        payload = {
+            "broker_name": "Test Broker",
+            "equipment_type": "Dry Van",
+            "origin_city": "Chicago", "origin_state": "IL",
+            "origin_lat": 41.8781, "origin_lng": -87.6298,
+            "destination_city": "Dallas", "destination_state": "TX",
+            "rate": 2800.0, "total_miles": 920,
+            "pickup_date": "2026-08-10",
+        }
+        post_resp = client.post("/api/v1/loads", json=payload)
+        self.assertEqual(post_resp.status_code, 201)
+        load_id = post_resp.json()["load_id"]
+        self.assertTrue(load_id.startswith("PHI-"))
+
+        get_resp = client.get("/api/v1/loads")
+        self.assertEqual(get_resp.status_code, 200)
+        load_ids = [l["load_id"] for l in get_resp.json()["loads"]]
+        self.assertIn(load_id, load_ids)
+
+    def test_accept_load(self):
+        """Accept a posted load."""
+        payload = {
+            "broker_name": "Accept Broker",
+            "equipment_type": "Dry Van",
+            "origin_city": "Atlanta", "origin_state": "GA",
+            "origin_lat": 33.7490, "origin_lng": -84.3880,
+            "destination_city": "Miami", "destination_state": "FL",
+            "rate": 1500.0, "total_miles": 660,
+            "pickup_date": "2026-08-11",
+        }
+        post_resp = client.post("/api/v1/loads", json=payload)
+        load_id = post_resp.json()["load_id"]
+
+        accept_resp = client.put(f"/api/v1/loads/{load_id}/accept?driver_id=driver-001")
+        self.assertEqual(accept_resp.status_code, 200)
+        self.assertEqual(accept_resp.json()["status"], "accepted")
+
+        # Second accept should 409
+        accept2 = client.put(f"/api/v1/loads/{load_id}/accept?driver_id=driver-002")
+        self.assertEqual(accept2.status_code, 409)
+
+    def test_nearby_drivers_empty(self):
+        """No drivers registered yet — returns empty list."""
+        resp = client.get("/api/v1/drivers/nearby?latitude=32.7&longitude=-97.3&radius_miles=50")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["count"], 0)
+
+    def test_codriver_request_missing_drivers(self):
+        """Co-driver request with unknown drivers returns 404."""
+        resp = client.post("/api/v1/codriver/request", json={
+            "requester_driver_id": "ghost-a",
+            "target_driver_id": "ghost-b",
+            "split_percentage": 55,
+        })
+        self.assertEqual(resp.status_code, 404)
+
+    def test_radio_broadcast_and_history(self):
+        """Broadcast a radio message and verify it appears in history."""
+        broadcast_resp = client.post("/api/v1/radio/broadcast", json={
+            "channel": 9,
+            "speaker": "Dispatcher",
+            "message": "PHI load on the board — check channel 21",
+            "tts": True,
+        })
+        self.assertEqual(broadcast_resp.status_code, 201)
+        msg_id = broadcast_resp.json()["id"]
+
+        history_resp = client.get("/api/v1/radio/history?channel=9")
+        self.assertEqual(history_resp.status_code, 200)
+        history_ids = [h["id"] for h in history_resp.json()["history"]]
+        self.assertIn(msg_id, history_ids)
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # AGENT EVENTS / CALLBACKS

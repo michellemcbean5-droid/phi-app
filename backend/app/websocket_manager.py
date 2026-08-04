@@ -75,6 +75,12 @@ class ConnectionManager:
     def is_connected(self, driver_id: str) -> bool:
         return bool(self._connections.get(driver_id))
 
+    async def broadcast_to_all(self, message: dict[str, Any]) -> None:
+        """Broadcast a JSON message to every currently connected driver."""
+        all_driver_ids = list(self._connections.keys())
+        for driver_id in all_driver_ids:
+            await self.broadcast_to_driver(driver_id, message)
+
 
 # Module-level singleton — one process, one connection table. Matches the
 # in-memory _job_store pattern already used in main.py.

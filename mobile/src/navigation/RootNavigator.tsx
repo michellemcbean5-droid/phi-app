@@ -10,6 +10,7 @@ import DriverPrefsScreen from '../screens/DriverPrefsScreen';
 import EquipmentMarketplaceScreen from '../screens/EquipmentMarketplaceScreen';
 import InboxScreen from '../screens/InboxScreen';
 import LoadDetailsScreen from '../screens/LoadDetailsScreen';
+import LoadBoardStatusScreen from '../screens/LoadBoardStatusScreen';
 import LoadingScreen from '../screens/LoadingScreen';
 import MessageThreadScreen from '../screens/MessageThreadScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
@@ -45,6 +46,7 @@ export type RootStackParamList = {
   SupportChat: undefined;
   TruckStopFinder: undefined;
   PaymentHistory: undefined;
+  LoadBoardStatus: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -86,6 +88,7 @@ export default function RootNavigator() {
       />
       <Stack.Screen name="TruckStopFinder" component={TruckStopFinderScreen} options={{ title: 'Truck Stops & Parking' }} />
       <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} options={{ title: 'Payment History' }} />
+      <Stack.Screen name="LoadBoardStatus" component={LoadBoardStatusScreen} options={{ title: 'Load Board Status' }} />
     </Stack.Navigator>
   );
 }

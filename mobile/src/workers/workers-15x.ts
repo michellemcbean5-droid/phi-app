@@ -46,9 +46,11 @@ export interface LocationPoint {
   longitude: number;
 }
 
+export type LoadSource = 'DAT' | 'Truckstop' | 'AmazonRelay' | 'Coyote';
+
 export interface Load {
   id: string;
-  source: 'DAT' | 'Truckstop';
+  source: LoadSource;
   equipmentType: 'Dry Van' | 'Reefer' | 'Flatbed';
   brokerName: string;
   brokerRating: number;

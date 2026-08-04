@@ -69,7 +69,12 @@
       "admobAppIdIos": "",
       "sentryDsn": "",
       "firebaseApiKey": "",
-      "firebaseProjectId": ""
+      "firebaseProjectId": "",
+      "truckstopApiKey": "",
+      "amazonRelayClientId": "",
+      "amazonRelayClientSecret": "",
+      "coyoteApiKey": "",
+      "realtimeWsUrl": ""
     },
     "owner": "q-empire-ai-automation",
     "privacy": "public",

@@ -99,6 +99,12 @@ export default function SettingsScreen() {
             onPress={() => navigation.navigate('APIKeys')}
           />
           <NavRow
+            icon="pulse-outline"
+            label="Load Board Status"
+            sublabel="Live health of DAT, Truckstop, Relay, Coyote, Loadsmart"
+            onPress={() => navigation.navigate('LoadBoardStatus')}
+          />
+          <NavRow
             icon="gift-outline"
             label="Promo Codes"
             sublabel="Redeem free trial or discount codes"

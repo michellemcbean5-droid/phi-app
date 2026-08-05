@@ -30,6 +30,8 @@ import { scoreLoad } from '../workers/LoadScoringWorker';
 import { Load } from '../workers/workers-15x';
 import SkeletonShimmer from '../components/animations/SkeletonShimmer';
 import AnimatedPressable from '../components/game/AnimatedPressable';
+import ConnectionStatusBar from '../components/ConnectionStatusBar';
+import { useRealtimeLoads } from '../hooks/useRealtimeLoads';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -52,6 +54,7 @@ export default function LoadBoardsScreen() {
   const navigation = useNavigation<Nav>();
   const { activeLoads, bookingState, bookingHistory, setLoads, setBookingState, addBookingRecord } =
     useLoadsStore();
+  const { status: realtimeStatus } = useRealtimeLoads();
   const [activeTab, setActiveTab] = useState<BoardTab>('open');
   const [refreshing, setRefreshing] = useState(false);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -118,6 +121,7 @@ export default function LoadBoardsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ConnectionStatusBar status={realtimeStatus} />
       {/* Tab Bar */}
       <View style={styles.tabBar}>
         <FlatList

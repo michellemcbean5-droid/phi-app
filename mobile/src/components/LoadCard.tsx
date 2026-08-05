@@ -34,6 +34,7 @@ const SOURCE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Truckstop: 'car-outline',
   AmazonRelay: 'logo-amazon',
   Coyote: 'paw-outline',
+  Loadsmart: 'flash-outline',
 };
 
 const SOURCE_COLORS: Record<string, string> = {
@@ -41,6 +42,7 @@ const SOURCE_COLORS: Record<string, string> = {
   Truckstop: '#00C853',
   AmazonRelay: '#FFD93D',
   Coyote: '#9B59B6',
+  Loadsmart: '#00B0FF',
 };
 
 function LoadCard({ load, onPress, onBook }: Props): React.JSX.Element {

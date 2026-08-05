@@ -1,4 +1,4 @@
-// Load Board Status screen — shows health of all 4 load board connectors.
+// Load Board Status screen — shows health of all 5 load board connectors.
 // Accessible from Settings → Load Board Status.
 
 import React, { useEffect, useState } from 'react';
@@ -23,6 +23,7 @@ const BOARD_DESCRIPTIONS: Record<string, string> = {
   Truckstop: 'Truckstop.com — 45K+ loads daily from verified brokers',
   AmazonRelay: 'Amazon Relay — direct Amazon shipper loads, no broker markup',
   Coyote: 'Coyote Logistics — UPS subsidiary, 10K+ loads per day',
+  Loadsmart: 'Loadsmart — instant-book digital freight marketplace',
 };
 
 export default function LoadBoardStatusScreen() {

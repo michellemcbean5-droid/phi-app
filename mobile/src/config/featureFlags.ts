@@ -11,6 +11,7 @@ export interface FeatureFlags {
   amazon_relay: boolean;
   coyote_board: boolean;
   truckstop_board: boolean;
+  loadsmart_board: boolean;
   animated_load_cards: boolean;
   offline_mode: boolean;
   crash_reporting: boolean;
@@ -26,6 +27,7 @@ const DEFAULTS: FeatureFlags = {
   amazon_relay: true,
   coyote_board: true,
   truckstop_board: true,
+  loadsmart_board: true,
   animated_load_cards: true,
   offline_mode: true,
   crash_reporting: true,

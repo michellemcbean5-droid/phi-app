@@ -24,6 +24,8 @@ import CoinBurst from '../components/game/CoinBurst';
 import ConfettiCelebration from '../components/animations/ConfettiCelebration';
 import SkeletonShimmer from '../components/animations/SkeletonShimmer';
 import StaggeredEntrance from '../components/animations/StaggeredEntrance';
+import ConnectionStatusBar from '../components/ConnectionStatusBar';
+import { useRealtimeLoads } from '../hooks/useRealtimeLoads';
 
 type LoadsNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Loads'>,
@@ -44,6 +46,7 @@ export default function LoadsScreen() {
   const navigation = useNavigation<LoadsNavigationProp>();
   const { activeLoads, bookingState, filter, sortBy, setLoads, setBookingState, addBookingRecord, setFilter, setSortBy } = useLoadsStore();
   const { getEffectiveTier } = usePromoStore();
+  const { status: realtimeStatus } = useRealtimeLoads();
   const [refreshing, setRefreshing] = React.useState(false);
   const [confettiTrigger, setConfettiTrigger] = React.useState(0);
   const [burstSeq, setBurstSeq] = React.useState(0);

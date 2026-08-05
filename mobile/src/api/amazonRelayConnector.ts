@@ -58,7 +58,7 @@ const normalizeRelayLoad = (raw: RelayApiLoad): Load => {
     : 0;
   return {
     id: 'RELAY-' + raw.loadId,
-    source: 'DAT', // normalized to existing union type; displayed as Amazon Relay via brokerName
+    source: 'AmazonRelay',
     equipmentType:
       raw.trailerType === 'REEFER' ? 'Reefer' : raw.trailerType === 'FLATBED' ? 'Flatbed' : 'Dry Van',
     brokerName: 'Amazon Relay (Direct)',
@@ -100,7 +100,7 @@ const generateAIRelayLoads = async (): Promise<Load[]> => {
     'Generate 5 Amazon Relay direct-shipper loads for ' + today + '. ' +
       'Amazon distribution centers as origins (e.g. ONT8 Rialto CA, MDW6 Markham IL, TEB3 Robbinsville NJ, SAT4 San Antonio TX, DFW7 Haslet TX). ' +
       'All loads: brokerName="Amazon Relay (Direct)", brokerRating=4.9, equipmentType="Dry Van". ' +
-      'RPM $2.80-$3.80. Return array: { id: "RELAY-XXX", source: "DAT", equipmentType: "Dry Van", ' +
+      'RPM $2.80-$3.80. Return array: { id: "RELAY-XXX", source: "AmazonRelay", equipmentType: "Dry Van", ' +
       'brokerName: "Amazon Relay (Direct)", brokerRating: 4.9, ' +
       'origin: {city, state, latitude, longitude}, destination: {city, state, latitude, longitude}, ' +
       'pickupDate: "' + today + '", deliveryDate: "' + tomorrow + '", rate, miles, rpm, totalMiles, weightLbs }',
@@ -112,7 +112,7 @@ const generateAIRelayLoads = async (): Promise<Load[]> => {
 const STATIC_RELAY_LOADS: Load[] = [
   {
     id: 'RELAY-A001',
-    source: 'DAT',
+    source: 'AmazonRelay',
     equipmentType: 'Dry Van',
     brokerName: 'Amazon Relay (Direct)',
     brokerRating: 4.9,
@@ -128,7 +128,7 @@ const STATIC_RELAY_LOADS: Load[] = [
   },
   {
     id: 'RELAY-A002',
-    source: 'DAT',
+    source: 'AmazonRelay',
     equipmentType: 'Dry Van',
     brokerName: 'Amazon Relay (Direct)',
     brokerRating: 4.9,
@@ -144,7 +144,7 @@ const STATIC_RELAY_LOADS: Load[] = [
   },
   {
     id: 'RELAY-A003',
-    source: 'DAT',
+    source: 'AmazonRelay',
     equipmentType: 'Dry Van',
     brokerName: 'Amazon Relay (Direct)',
     brokerRating: 4.9,

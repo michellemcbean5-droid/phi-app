@@ -14,7 +14,7 @@ export interface ConnectorHealth {
 
 const registry: Map<string, ConnectorHealth> = new Map();
 
-const CONNECTORS = ['DAT', 'Truckstop', 'AmazonRelay', 'Coyote'];
+const CONNECTORS = ['DAT', 'Truckstop', 'AmazonRelay', 'Coyote', 'Loadsmart'];
 
 CONNECTORS.forEach((name) => {
   registry.set(name, {

@@ -40,7 +40,7 @@ const normalizeCoyoteLoad = (raw: CoyoteLoad): Load => {
     : 0;
   return {
     id: 'COYOTE-' + raw.loadNumber,
-    source: 'DAT',
+    source: 'Coyote',
     equipmentType: raw.mode === 'FLATBED' ? 'Flatbed' : raw.mode === 'REEFER' ? 'Reefer' : 'Dry Van',
     brokerName: 'Coyote Logistics',
     brokerRating: Math.min(5, Math.max(1, raw.carrierRating)),
@@ -80,7 +80,7 @@ const generateAICoyoteLoads = async (): Promise<Load[]> => {
     'Generate 6 Coyote Logistics loads for ' + today + '. Mix all equipment types. ' +
       'brokerName always "Coyote Logistics", brokerRating 4.1-4.7. ' +
       'Realistic major US freight corridors. RPM $2.30-$3.90. ' +
-      'Return: { id: "COYOTE-XXXX", source: "DAT", equipmentType: "Dry Van"|"Reefer"|"Flatbed", ' +
+      'Return: { id: "COYOTE-XXXX", source: "Coyote", equipmentType: "Dry Van"|"Reefer"|"Flatbed", ' +
       'brokerName: "Coyote Logistics", brokerRating, ' +
       'origin: {city, state, latitude, longitude}, destination: {city, state, latitude, longitude}, ' +
       'pickupDate: "' + today + '", deliveryDate: "' + tomorrow + '", rate, miles, rpm, totalMiles, weightLbs }',
@@ -92,7 +92,7 @@ const generateAICoyoteLoads = async (): Promise<Load[]> => {
 const STATIC_COYOTE_LOADS: Load[] = [
   {
     id: 'COYOTE-88201',
-    source: 'DAT',
+    source: 'Coyote',
     equipmentType: 'Dry Van',
     brokerName: 'Coyote Logistics',
     brokerRating: 4.5,
@@ -108,7 +108,7 @@ const STATIC_COYOTE_LOADS: Load[] = [
   },
   {
     id: 'COYOTE-88202',
-    source: 'DAT',
+    source: 'Coyote',
     equipmentType: 'Dry Van',
     brokerName: 'Coyote Logistics',
     brokerRating: 4.4,
@@ -124,7 +124,7 @@ const STATIC_COYOTE_LOADS: Load[] = [
   },
   {
     id: 'COYOTE-88203',
-    source: 'DAT',
+    source: 'Coyote',
     equipmentType: 'Reefer',
     brokerName: 'Coyote Logistics',
     brokerRating: 4.6,
@@ -140,7 +140,7 @@ const STATIC_COYOTE_LOADS: Load[] = [
   },
   {
     id: 'COYOTE-88204',
-    source: 'DAT',
+    source: 'Coyote',
     equipmentType: 'Flatbed',
     brokerName: 'Coyote Logistics',
     brokerRating: 4.3,

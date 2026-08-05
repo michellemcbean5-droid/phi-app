@@ -6,6 +6,10 @@ const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
+// Prefer classic package "main" resolution so Hermes never sees ESM builds that
+// use import.meta (e.g. some zustand distributions under package exports).
+config.resolver.unstable_enablePackageExports = false;
+
 const NATIVE_ONLY = [
   'react-native-google-mobile-ads',
   'react-native-purchases',

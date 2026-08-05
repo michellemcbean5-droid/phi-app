@@ -1,12 +1,14 @@
 // Load discovery engine — aggregates loads from DAT, Truckstop, Amazon Relay,
-// and Coyote. Deduplicates by corridor, respects freshness timestamps, and
-// applies quality filters before returning results.
+// Coyote, and Loadsmart. Deduplicates by corridor, respects freshness timestamps,
+// and applies quality filters before returning results.
 
 import { askClaudeJSON, isClaudeConfigured } from '../api/claudeClient';
 import { fetchTruckstopLoads } from '../api/truckstopConnector';
 import { fetchAmazonRelayLoads } from '../api/amazonRelayConnector';
 import { fetchCoyoteLoads } from '../api/coyoteConnector';
 import { fetchLoadsmartLoads } from '../api/loadsmartConnector';
+import { isEnabled } from '../config/featureFlags';
+import { recordFailure, recordSuccess } from '../utils/connectorHealth';
 import { scoreLoad } from './LoadScoringWorker';
 import { generateAIOutreachEmail } from './NegotiationStrategyWorker';
 import { Load } from './workers-15x';
@@ -127,21 +129,38 @@ const qualityFilter = (load: Load): boolean =>
   load.miles > 0 &&
   load.rate > 0;
 
+const settleConnector = (
+  name: string,
+  result: PromiseSettledResult<Load[]>,
+  enabled: boolean,
+): Load[] => {
+  if (!enabled) return [];
+  if (result.status === 'fulfilled') {
+    recordSuccess(name);
+    return result.value;
+  }
+  recordFailure(name, result.reason instanceof Error ? result.reason.message : 'fetch failed');
+  return [];
+};
+
 export const aggregateLoads = async (): Promise<Load[]> => {
-  // Fetch from all 5 sources in parallel
+  // Fetch from all 5 sources in parallel (respect feature flags)
   const [truckstopLoads, relayLoads, coyoteLoads, loadsmartLoads] = await Promise.allSettled([
-    fetchTruckstopLoads(),
-    fetchAmazonRelayLoads(),
-    fetchCoyoteLoads(),
-    fetchLoadsmartLoads(),
+    isEnabled('truckstop_board') ? fetchTruckstopLoads() : Promise.resolve([] as Load[]),
+    isEnabled('amazon_relay') ? fetchAmazonRelayLoads() : Promise.resolve([] as Load[]),
+    isEnabled('coyote_board') ? fetchCoyoteLoads() : Promise.resolve([] as Load[]),
+    isEnabled('loadsmart_board') ? fetchLoadsmartLoads() : Promise.resolve([] as Load[]),
   ]);
 
   let allLoads: Load[] = [...DAT_STATIC_LOADS];
+  recordSuccess('DAT');
 
-  if (truckstopLoads.status === 'fulfilled') allLoads = allLoads.concat(truckstopLoads.value);
-  if (relayLoads.status === 'fulfilled') allLoads = allLoads.concat(relayLoads.value);
-  if (coyoteLoads.status === 'fulfilled') allLoads = allLoads.concat(coyoteLoads.value);
-  if (loadsmartLoads.status === 'fulfilled') allLoads = allLoads.concat(loadsmartLoads.value);
+  allLoads = allLoads.concat(
+    settleConnector('Truckstop', truckstopLoads, isEnabled('truckstop_board')),
+    settleConnector('AmazonRelay', relayLoads, isEnabled('amazon_relay')),
+    settleConnector('Coyote', coyoteLoads, isEnabled('coyote_board')),
+    settleConnector('Loadsmart', loadsmartLoads, isEnabled('loadsmart_board')),
+  );
 
   // Augment with AI loads if Claude is configured
   if (isClaudeConfigured()) {

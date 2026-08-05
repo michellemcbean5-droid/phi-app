@@ -1,7 +1,7 @@
 // Real-time loads hook — subscribes to load board WebSocket events and
 // keeps the Zustand loads store in sync with live updates.
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { onEvent, onStatus, getStatus } from '../api/realtimeManager';
 import useLoadsStore from '../store/loadsStore';
 import { Load } from '../workers/workers-15x';
@@ -10,7 +10,7 @@ export type RealtimeStatus = 'connecting' | 'connected' | 'disconnected' | 'offl
 
 export const useRealtimeLoads = (): { status: RealtimeStatus } => {
   const { activeLoads, setLoads } = useLoadsStore();
-  const statusRef = useRef<RealtimeStatus>(getStatus() as RealtimeStatus);
+  const [status, setStatus] = useState<RealtimeStatus>(getStatus() as RealtimeStatus);
 
   const handleNewLoad = useCallback(
     (event: { payload: Load }) => {
@@ -46,13 +46,17 @@ export const useRealtimeLoads = (): { status: RealtimeStatus } => {
     const unsubExpired = onEvent<{ id: string }>('load.expired', (e) =>
       handleLoadExpired({ payload: e.payload }),
     );
-    return () => { unsubNew(); unsubUpdated(); unsubExpired(); };
+    return () => {
+      unsubNew();
+      unsubUpdated();
+      unsubExpired();
+    };
   }, [handleNewLoad, handleLoadUpdated, handleLoadExpired]);
 
   useEffect(() => {
-    const unsub = onStatus((s) => { statusRef.current = s as RealtimeStatus; });
+    const unsub = onStatus((s) => setStatus(s as RealtimeStatus));
     return unsub;
   }, []);
 
-  return { status: statusRef.current };
+  return { status };
 };

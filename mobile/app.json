@@ -28,7 +28,7 @@
     "android": {
       "package": "com.princehaulintelligence.app",
       "versionCode": 1,
-      "compileSdkVersion": 35,
+      "compileSdkVersion": 36,
       "targetSdkVersion": 35,
       "minSdkVersion": 24,
       "adaptiveIcon": {

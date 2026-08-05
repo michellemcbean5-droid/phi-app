@@ -60,17 +60,50 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: Link EAS project
+      # Project is already linked via mobile/app.json extra.eas.projectId.
+      # Do not run `eas init` in CI — it mutates project state and fails when
+      # optional submit credentials are intentionally omitted.
+      - name: Validate Expo configuration
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          EXPO_NO_GIT_STATUS: '1'
-        run: eas init --non-interactive --force
+        shell: bash
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN secret is required for EAS builds."
+            exit 1
+          fi
+          test -f app.json
+          test -f eas.json
+          # Fail fast on the known eas.json failure mode: empty required iOS
+          # submit credential strings (EAS rejects "" values).
+          python3 /dev/stdin <<'PY'
+          import json
+          from pathlib import Path
+
+          app = json.loads(Path('app.json').read_text())
+          eas = json.loads(Path('eas.json').read_text())
+          project_id = app.get('expo', {}).get('extra', {}).get('eas', {}).get('projectId')
+          if not project_id:
+              raise SystemExit('mobile/app.json is missing expo.extra.eas.projectId')
+          if 'preview' not in eas.get('build', {}):
+              raise SystemExit('mobile/eas.json is missing build.preview profile')
+          submit = eas.get('submit', {}).get('production', {})
+          ios = submit.get('ios') or {}
+          empty = [k for k, v in ios.items() if isinstance(v, str) and v.strip() == '']
+          if empty:
+              raise SystemExit(
+                  'mobile/eas.json has empty iOS submit fields (remove or fill): '
+                  + ', '.join(empty)
+              )
+          print('Expo configuration OK (projectId + eas.json)')
+          PY
 
       - name: Build Android APK on EAS servers
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           # Prevents EAS from failing because the CI workspace has untracked files
           EXPO_NO_GIT_STATUS: '1'
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
         run: |
           eas build \
             --platform android \

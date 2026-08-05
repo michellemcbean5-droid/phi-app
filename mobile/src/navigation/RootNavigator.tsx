@@ -28,6 +28,8 @@ import SupportChatScreen from '../screens/SupportChatScreen';
 import TruckStopFinderScreen from '../screens/TruckStopFinderScreen';
 import VehicleScreen from '../screens/VehicleScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
+import BusinessLaunchScreen from '../screens/BusinessLaunchScreen';
+import AgentWorkflowMapScreen from '../screens/AgentWorkflowMapScreen';
 import TabNavigator from './TabNavigator';
 
 export type RootStackParamList = {
@@ -60,6 +62,8 @@ export type RootStackParamList = {
   DriverFeed: undefined;
   Radio: undefined;
   OnboardingWizard: undefined;
+  BusinessLaunch: undefined;
+  AgentWorkflowMap: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -113,6 +117,8 @@ export default function RootNavigator() {
         component={OnboardingWizardScreen}
         options={{ title: 'Set Up Your Business', presentation: 'modal', animation: 'slide_from_bottom' }}
       />
+      <Stack.Screen name="BusinessLaunch" component={BusinessLaunchScreen} options={{ title: 'Start Your Business' }} />
+      <Stack.Screen name="AgentWorkflowMap" component={AgentWorkflowMapScreen} options={{ title: 'AI Agent Workflow', headerStyle: { backgroundColor: '#0D1D35' } }} />
     </Stack.Navigator>
   );
 }

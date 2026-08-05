@@ -630,5 +630,124 @@ class TestAgentEvents(unittest.TestCase):
         mock_send_sms.assert_not_called()
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 4 — BUSINESS CHECKLIST
+# ═══════════════════════════════════════════════════════════════════════════════
+class TestBusinessChecklist(unittest.TestCase):
+
+    def test_get_all_checklist_items(self):
+        resp = client.get("/api/v1/business-checklist")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("total_items", data)
+        self.assertIn("items", data)
+        self.assertGreater(data["total_items"], 0)
+        self.assertGreater(len(data["items"]), 0)
+        # Verify required fields exist on each item
+        for item in data["items"]:
+            self.assertIn("id", item)
+            self.assertIn("title", item)
+            self.assertIn("category", item)
+            self.assertIn("cost", item)
+
+    def test_filter_checklist_by_category(self):
+        resp = client.get("/api/v1/business-checklist?category=authority")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertGreater(len(data["items"]), 0)
+        for item in data["items"]:
+            self.assertEqual(item["category"], "authority")
+
+    def test_checklist_has_startup_cost_estimates(self):
+        resp = client.get("/api/v1/business-checklist")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("estimated_startup_cost_min", data)
+        self.assertIn("estimated_startup_cost_max", data)
+        self.assertGreater(data["estimated_startup_cost_max"], data["estimated_startup_cost_min"])
+
+    def test_required_items_present(self):
+        """Verify that all critical required items exist."""
+        resp = client.get("/api/v1/business-checklist")
+        required_ids = {i["id"] for i in resp.json()["items"] if i["required"]}
+        # These are must-have items for any trucking business
+        for must_have in ["usdot", "mc", "liability", "eld"]:
+            self.assertIn(must_have, required_ids)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 8 — COMMUNITY FEED
+# ═══════════════════════════════════════════════════════════════════════════════
+class TestCommunityFeed(unittest.TestCase):
+
+    def test_get_feed_returns_seeded_posts(self):
+        resp = client.get("/api/v1/community/feed")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIsInstance(data, list)
+        self.assertGreater(len(data), 0)
+        # Verify structure of first post
+        post = data[0]
+        for field in ["id", "author_name", "content", "post_type", "reactions"]:
+            self.assertIn(field, post)
+
+    def test_create_new_feed_post(self):
+        payload = {
+            "author_id": "driver-test-01",
+            "author_name": "Test Driver",
+            "author_city": "Denver",
+            "author_state": "CO",
+            "post_type": "tip",
+            "content": "I-25 northbound has construction near mile 220, budget extra 30 mins.",
+            "location_tag": "I-25 CO MM 220",
+        }
+        resp = client.post("/api/v1/community/feed", json=payload)
+        self.assertEqual(resp.status_code, 201)
+        post = resp.json()
+        self.assertEqual(post["author_name"], "Test Driver")
+        self.assertEqual(post["post_type"], "tip")
+        self.assertIn("id", post)
+
+    def test_filter_feed_by_type(self):
+        resp = client.get("/api/v1/community/feed?post_type=fuel")
+        self.assertEqual(resp.status_code, 200)
+        posts = resp.json()
+        for post in posts:
+            self.assertEqual(post["post_type"], "fuel")
+
+    def test_react_to_post(self):
+        # First get a post id
+        feed_resp = client.get("/api/v1/community/feed")
+        post_id = feed_resp.json()[0]["id"]
+        original_count = feed_resp.json()[0]["reactions"]["🔥"]
+
+        react_resp = client.post(f"/api/v1/community/feed/{post_id}/react", json={
+            "post_id": post_id,
+            "driver_id": "driver-react-test",
+            "reaction": "🔥",
+        })
+        self.assertEqual(react_resp.status_code, 200)
+        self.assertEqual(react_resp.json()["reaction"], "🔥")
+        self.assertEqual(react_resp.json()["count"], original_count + 1)
+
+    def test_react_invalid_reaction_rejected(self):
+        feed_resp = client.get("/api/v1/community/feed")
+        post_id = feed_resp.json()[0]["id"]
+        resp = client.post(f"/api/v1/community/feed/{post_id}/react", json={
+            "post_id": post_id,
+            "driver_id": "driver-test",
+            "reaction": "👍",  # Not a valid PHI reaction
+        })
+        self.assertEqual(resp.status_code, 422)
+
+    def test_react_nonexistent_post(self):
+        resp = client.post("/api/v1/community/feed/nonexistent-id/react", json={
+            "post_id": "nonexistent-id",
+            "driver_id": "driver-test",
+            "reaction": "🚛",
+        })
+        self.assertEqual(resp.status_code, 404)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

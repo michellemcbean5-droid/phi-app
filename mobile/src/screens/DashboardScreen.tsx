@@ -264,6 +264,8 @@ export default function DashboardScreen() {
               { icon: 'chatbubbles-outline', color: CARTOON_COLORS.neonCyan, label: 'Messages', sub: 'Dispatch & brokers', screen: 'Inbox' },
               { icon: 'chatbubble-ellipses-outline', color: CARTOON_COLORS.bubblegumPink, label: 'Ask Michelle', sub: 'Support & how-to', screen: 'SupportChat' },
               { icon: 'speedometer-outline', color: CARTOON_COLORS.limeGreen, label: 'Truck Stops', sub: 'Fuel · Parking · Weigh', screen: 'TruckStopFinder' },
+              { icon: 'business-outline', color: '#FFB300', label: 'Start Business', sub: 'LLC · DOT · MC · IFTA', screen: 'BusinessLaunch' },
+              { icon: 'git-network-outline', color: '#CE93D8', label: 'Agent Map', sub: 'AI lifecycle flow', screen: 'AgentWorkflowMap' },
             ].map((item) => (
               <AnimatedPressable
                 key={item.screen}

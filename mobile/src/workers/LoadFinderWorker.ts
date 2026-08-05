@@ -6,6 +6,7 @@ import { askClaudeJSON, isClaudeConfigured } from '../api/claudeClient';
 import { fetchTruckstopLoads } from '../api/truckstopConnector';
 import { fetchAmazonRelayLoads } from '../api/amazonRelayConnector';
 import { fetchCoyoteLoads } from '../api/coyoteConnector';
+import { fetchLoadsmartLoads } from '../api/loadsmartConnector';
 import { scoreLoad } from './LoadScoringWorker';
 import { generateAIOutreachEmail } from './NegotiationStrategyWorker';
 import { Load } from './workers-15x';
@@ -127,11 +128,12 @@ const qualityFilter = (load: Load): boolean =>
   load.rate > 0;
 
 export const aggregateLoads = async (): Promise<Load[]> => {
-  // Fetch from all 4 sources in parallel
-  const [truckstopLoads, relayLoads, coyoteLoads] = await Promise.allSettled([
+  // Fetch from all 5 sources in parallel
+  const [truckstopLoads, relayLoads, coyoteLoads, loadsmartLoads] = await Promise.allSettled([
     fetchTruckstopLoads(),
     fetchAmazonRelayLoads(),
     fetchCoyoteLoads(),
+    fetchLoadsmartLoads(),
   ]);
 
   let allLoads: Load[] = [...DAT_STATIC_LOADS];
@@ -139,6 +141,7 @@ export const aggregateLoads = async (): Promise<Load[]> => {
   if (truckstopLoads.status === 'fulfilled') allLoads = allLoads.concat(truckstopLoads.value);
   if (relayLoads.status === 'fulfilled') allLoads = allLoads.concat(relayLoads.value);
   if (coyoteLoads.status === 'fulfilled') allLoads = allLoads.concat(coyoteLoads.value);
+  if (loadsmartLoads.status === 'fulfilled') allLoads = allLoads.concat(loadsmartLoads.value);
 
   // Augment with AI loads if Claude is configured
   if (isClaudeConfigured()) {

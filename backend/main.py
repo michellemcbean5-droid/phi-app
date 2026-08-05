@@ -1318,6 +1318,218 @@ async def get_radio_history(channel: Optional[int] = Query(default=None)):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 4 — BUSINESS LAUNCH TOOLKIT ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class BusinessChecklistItem(BaseModel):
+    id: str
+    phase: str
+    title: str
+    description: str
+    cost: str
+    required: bool = False
+    category: str = Field(description="legal | authority | insurance | compliance | banking | equipment")
+
+
+class BusinessChecklistResponse(BaseModel):
+    total_items: int
+    phases: int
+    estimated_startup_cost_min: int
+    estimated_startup_cost_max: int
+    items: list[BusinessChecklistItem]
+
+
+BUSINESS_CHECKLIST_ITEMS: list[BusinessChecklistItem] = [
+    # Phase 1 — Legal
+    BusinessChecklistItem(id="ein", phase="legal", title="Get Federal EIN", description="Apply free at IRS.gov. Required to open a business bank account.", cost="Free", required=True, category="legal"),
+    BusinessChecklistItem(id="llc", phase="legal", title="File LLC", description="File Articles of Organization with your state's Secretary of State.", cost="$50–$500", required=True, category="legal"),
+    BusinessChecklistItem(id="bank", phase="legal", title="Open Business Bank Account", description="Keep business and personal money separate. Use Relay or Mercury.", cost="Free", category="legal"),
+    # Phase 2 — Authority
+    BusinessChecklistItem(id="usdot", phase="authority", title="Get USDOT Number", description="Register free at FMCSA.dot.gov. Required for interstate commerce.", cost="Free", required=True, category="authority"),
+    BusinessChecklistItem(id="mc", phase="authority", title="Apply for MC Authority", description="$300 one-time fee. Takes 20-25 business days to activate.", cost="$300", required=True, category="authority"),
+    BusinessChecklistItem(id="boc3", phase="authority", title="File BOC-3", description="Designate a process agent. Required before MC activates.", cost="$20–$40", required=True, category="authority"),
+    # Phase 3 — Insurance
+    BusinessChecklistItem(id="liability", phase="insurance", title="Primary Liability Insurance ($750K min)", description="Required by FMCSA before MC authority activates.", cost="$800–$2,000/mo", required=True, category="insurance"),
+    BusinessChecklistItem(id="cargo", phase="insurance", title="Cargo Insurance ($100K min)", description="Covers the freight you haul. Most brokers require this.", cost="$150–$400/mo", required=True, category="insurance"),
+    # Phase 4 — Compliance
+    BusinessChecklistItem(id="ucr", phase="compliance", title="UCR Registration", description="Annual fee. Register at ucr.gov before Jan 1 each year.", cost="$59–$90/year", required=True, category="compliance"),
+    BusinessChecklistItem(id="irp", phase="compliance", title="IRP Apportioned Plates", description="Interstate license plates from your state DMV.", cost="$1,500–$2,500/year", required=True, category="compliance"),
+    BusinessChecklistItem(id="ifta", phase="compliance", title="IFTA Registration", description="Quarterly fuel tax reporting across state lines.", cost="Free to register", required=True, category="compliance"),
+    BusinessChecklistItem(id="eld", phase="compliance", title="ELD Device", description="Federally required for HOS compliance. Use Motive or Samsara.", cost="$35–$60/mo", required=True, category="compliance"),
+    # Phase 5 — Banking
+    BusinessChecklistItem(id="factoring", phase="banking", title="Set Up Freight Factoring", description="Get paid same-day instead of waiting 30-90 days.", cost="2–5% fee per invoice", category="banking"),
+    BusinessChecklistItem(id="fuel-card", phase="banking", title="Fuel Card", description="EFS or Comdata for $0.10–$0.40/gallon discounts.", cost="Free", category="banking"),
+    # Phase 6 — Equipment
+    BusinessChecklistItem(id="load-board", phase="equipment", title="Load Board Access", description="DAT, Truckstop, or use PHI's built-in 5-board aggregator.", cost="$0–$120/mo", required=True, category="equipment"),
+    BusinessChecklistItem(id="phi-workers", phase="equipment", title="Activate PHI AI Workers", description="10 AI agents handle dispatch, compliance, invoicing automatically.", cost="Included with PHI", required=False, category="equipment"),
+]
+
+
+@app.get(
+    "/api/v1/business-checklist",
+    response_model=BusinessChecklistResponse,
+    tags=["business"],
+    summary="Get the owner-operator startup checklist",
+)
+async def get_business_checklist(
+    category: Optional[str] = Query(default=None, description="Filter by: legal | authority | insurance | compliance | banking | equipment"),
+):
+    """
+    Returns the complete step-by-step checklist to launch a trucking business.
+    Covers LLC, USDOT, MC authority, insurance, IFTA, IRP, UCR, ELD, and more.
+    """
+    items = BUSINESS_CHECKLIST_ITEMS
+    if category:
+        items = [i for i in items if i.category == category]
+    return BusinessChecklistResponse(
+        total_items=len(items),
+        phases=len({i.phase for i in items}),
+        estimated_startup_cost_min=5000,
+        estimated_startup_cost_max=8000,
+        items=items,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 8 — DRIVER COMMUNITY FEED ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class FeedPostType(str, Enum):
+    TIP = "tip"
+    ALERT = "alert"
+    FUEL = "fuel"
+    GENERAL = "general"
+    WEIGH_STATION = "weigh_station"
+
+
+class NewFeedPost(BaseModel):
+    author_id: str
+    author_name: str
+    author_city: str = Field(default="")
+    author_state: str = Field(default="")
+    post_type: FeedPostType = Field(default=FeedPostType.GENERAL)
+    content: str = Field(min_length=1, max_length=500)
+    location_tag: Optional[str] = Field(default=None)
+
+
+class FeedReaction(BaseModel):
+    post_id: str
+    driver_id: str
+    reaction: str = Field(description="One of: 🚛 💰 ⭐ 🔥 ✅")
+
+
+class FeedPostResponse(BaseModel):
+    id: str
+    author_id: str
+    author_name: str
+    author_city: str
+    author_state: str
+    post_type: str
+    content: str
+    time_ago: str
+    reactions: dict
+    comment_count: int
+    location_tag: Optional[str]
+    created_at: str
+
+
+# In-memory feed (replace with PostgreSQL in production)
+_feed_posts: list[dict] = [
+    {
+        "id": "p1", "author_id": "seed-1", "author_name": "Big Mike T.",
+        "author_city": "Dallas", "author_state": "TX",
+        "post_type": "tip", "content": "DAT rates on the TX→GA lane just jumped $0.30/mile. Lock in a load before EOD if you're in the DFW area.",
+        "time_ago": "2h ago", "reactions": {"🚛": 14, "💰": 22, "⭐": 0, "🔥": 8, "✅": 5},
+        "comment_count": 7, "location_tag": "Dallas, TX",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    },
+    {
+        "id": "p2", "author_id": "seed-2", "author_name": "Sandra Lee",
+        "author_city": "Memphis", "author_state": "TN",
+        "post_type": "weigh_station", "content": "I-40 weigh station at mile marker 162 in TN is running full inspection today. Allow extra time.",
+        "time_ago": "4h ago", "reactions": {"🚛": 31, "💰": 0, "⭐": 0, "🔥": 2, "✅": 18},
+        "comment_count": 12, "location_tag": "I-40 TN MM 162",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    },
+    {
+        "id": "p3", "author_id": "seed-3", "author_name": "Carlos M.",
+        "author_city": "Houston", "author_state": "TX",
+        "post_type": "fuel", "content": "Love's Travel Stop on I-10 West near San Antonio has diesel at $3.68 — cheapest I've seen all week.",
+        "time_ago": "6h ago", "reactions": {"🚛": 9, "💰": 18, "⭐": 0, "🔥": 11, "✅": 6},
+        "comment_count": 3, "location_tag": "I-10 San Antonio TX",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    },
+]
+
+
+@app.get(
+    "/api/v1/community/feed",
+    response_model=list[FeedPostResponse],
+    tags=["community"],
+    summary="Get community driver feed",
+)
+async def get_community_feed(
+    post_type: Optional[str] = Query(default=None, description="Filter by: tip | alert | fuel | general | weigh_station"),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+):
+    """
+    Returns the latest posts from the driver community feed.
+    Includes road tips, fuel prices, weigh station alerts, and general driver chatter.
+    """
+    posts = list(reversed(_feed_posts))  # Newest first
+    if post_type:
+        posts = [p for p in posts if p["post_type"] == post_type]
+    page = posts[offset:offset + limit]
+    return [FeedPostResponse(**p) for p in page]
+
+
+@app.post(
+    "/api/v1/community/feed",
+    response_model=FeedPostResponse,
+    tags=["community"],
+    status_code=201,
+    summary="Post to the driver community feed",
+)
+async def create_feed_post(post: NewFeedPost):
+    """Creates a new post on the community driver feed."""
+    new_post = {
+        "id": f"p{uuid.uuid4().hex[:8]}",
+        "author_id": post.author_id,
+        "author_name": post.author_name,
+        "author_city": post.author_city,
+        "author_state": post.author_state,
+        "post_type": post.post_type,
+        "content": post.content,
+        "time_ago": "just now",
+        "reactions": {"🚛": 0, "💰": 0, "⭐": 0, "🔥": 0, "✅": 0},
+        "comment_count": 0,
+        "location_tag": post.location_tag,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    _feed_posts.append(new_post)
+    logger.info(f"New community post by {post.author_name}: {post.content[:60]}")
+    return FeedPostResponse(**new_post)
+
+
+@app.post(
+    "/api/v1/community/feed/{post_id}/react",
+    tags=["community"],
+    summary="React to a feed post",
+)
+async def react_to_post(post_id: str, reaction: FeedReaction):
+    """Adds or toggles a reaction emoji on a feed post."""
+    valid_reactions = {"🚛", "💰", "⭐", "🔥", "✅"}
+    if reaction.reaction not in valid_reactions:
+        raise HTTPException(status_code=422, detail=f"Invalid reaction. Must be one of: {valid_reactions}")
+    for post in _feed_posts:
+        if post["id"] == post_id:
+            post["reactions"][reaction.reaction] = post["reactions"].get(reaction.reaction, 0) + 1
+            return {"post_id": post_id, "reaction": reaction.reaction, "count": post["reactions"][reaction.reaction]}
+    raise HTTPException(status_code=404, detail=f"Post '{post_id}' not found.")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # GLOBAL EXCEPTION HANDLER
 # ═══════════════════════════════════════════════════════════════════════════════
 

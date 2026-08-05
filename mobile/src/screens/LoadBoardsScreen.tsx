@@ -94,7 +94,9 @@ export default function LoadBoardsScreen() {
         // Approximate: filter loads within LOCAL_RADIUS_MILES of a TX origin
         return activeLoads.filter((l) => l.totalMiles <= LOCAL_RADIUS_MILES);
       case 'broker':
-        return activeLoads.filter((l) => l.source === 'DAT' || l.source === 'Truckstop');
+        return activeLoads.filter(
+          (l) => l.source === 'DAT' || l.source === 'Truckstop' || l.source === 'Loadsmart',
+        );
       default:
         return activeLoads;
     }

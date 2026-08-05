@@ -31,13 +31,6 @@
         "serviceAccountKeyPath": "./google-play-key.json",
         "track": "internal",
         "releaseStatus": "draft"
-      },
-      "ios": {
-        "ascAppId": "",
-        "ascApiKeyPath": "./AuthKey.p8",
-        "ascApiKeyIssuerId": "",
-        "ascApiKeyId": "",
-        "ascTeamId": ""
       }
     }
   }

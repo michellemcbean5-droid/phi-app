@@ -3,6 +3,8 @@ name: Build Android APK
 on:
   push:
     branches: [claude/app-review-deployment-bkpb38, main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -75,11 +77,95 @@ jobs:
           sed -i 's/org.gradle.parallel=true/org.gradle.parallel=false/' gradle.properties
           grep parallel gradle.properties
 
-      - name: Pin Android Gradle Plugin to a known-working version
+      # Newer AndroidX artifacts (core 1.17, activity 1.12, browser 1.9) require
+      # AGP >= 8.9.1 and compileSdk >= 36. Pin both after prebuild.
+      - name: Pin Android Gradle Plugin, Gradle wrapper, and compileSdk
         working-directory: mobile/android
         run: |
-          sed -i "s/classpath('com.android.tools.build:gradle')/classpath('com.android.tools.build:gradle:8.6.0')/" build.gradle
-          grep "com.android.tools.build:gradle" build.gradle
+          python3 /dev/stdin <<'PY'
+          from pathlib import Path
+          import re
+
+          build_gradle = Path('build.gradle')
+          text = build_gradle.read_text()
+          # Match classpath('com.android.tools.build:gradle') or with any version
+          new_text, n = re.subn(
+              r"""classpath\((['"])com\.android\.tools\.build:gradle(?::[^'"]+)?\1\)""",
+              r"classpath(\1com.android.tools.build:gradle:8.9.1\1)",
+              text,
+          )
+          if n == 0:
+              raise SystemExit('Could not locate Android Gradle Plugin declaration in build.gradle')
+
+          # Expo sets compileSdk via rootProject.ext / findProperty default
+          new_text, c_ext = re.subn(
+              r"compileSdkVersion\s*=\s*Integer\.parseInt\(findProperty\('android\.compileSdkVersion'\)\s*\?: \s*'(\d+)'\)",
+              "compileSdkVersion = Integer.parseInt(findProperty('android.compileSdkVersion') ?: '36')",
+              new_text,
+          )
+          new_text, c_ext2 = re.subn(
+              r"compileSdkVersion\s*=\s*\d+",
+              "compileSdkVersion = 36",
+              new_text,
+          )
+          build_gradle.write_text(new_text)
+          print('--- build.gradle AGP/compileSdk ---')
+          for line in build_gradle.read_text().splitlines():
+              if 'com.android.tools.build:gradle' in line or 'compileSdk' in line:
+                  print(line)
+
+          app_gradle = Path('app/build.gradle')
+          app_text = app_gradle.read_text()
+          # Force numeric compileSdk even when it references rootProject.ext
+          app_text2, c1 = re.subn(
+              r'compileSdk\s+rootProject\.ext\.compileSdkVersion',
+              'compileSdk 36',
+              app_text,
+          )
+          app_text3, c2 = re.subn(r'compileSdkVersion\s+\d+', 'compileSdkVersion 36', app_text2)
+          app_text4, c3 = re.subn(r'compileSdk\s+\d+', 'compileSdk 36', app_text3)
+          if c1 + c2 + c3 == 0:
+              raise SystemExit('Could not locate compileSdk in app/build.gradle')
+          app_gradle.write_text(app_text4)
+          print('--- app compileSdk lines ---')
+          for line in app_gradle.read_text().splitlines():
+              if 'compileSdk' in line:
+                  print(line)
+
+          # gradle.properties may also pin android.compileSdkVersion
+          gp = Path('gradle.properties')
+          if gp.exists():
+              gp_text = gp.read_text()
+              gp_text2, gpn = re.subn(
+                  r'android\.compileSdkVersion\s*=\s*\d+',
+                  'android.compileSdkVersion=36',
+                  gp_text,
+              )
+              if gpn:
+                  gp.write_text(gp_text2)
+                  print('Updated android.compileSdkVersion in gradle.properties')
+
+          # AGP 8.9.x requires Gradle >= 8.11.1
+          # Expo escapes the URL as https\://...
+          props = Path('gradle/wrapper/gradle-wrapper.properties')
+          ptext = props.read_text()
+          ptext2, pn = re.subn(
+              r'distributionUrl=https\\?://services\.gradle\.org/distributions/gradle-[^/\s]+-all\.zip',
+              r'distributionUrl=https\://services.gradle.org/distributions/gradle-8.11.1-all.zip',
+              ptext,
+          )
+          if pn == 0:
+              ptext2, pn = re.subn(
+                  r'distributionUrl=https\\?://services\.gradle\.org/distributions/gradle-[^/\s]+-bin\.zip',
+                  r'distributionUrl=https\://services.gradle.org/distributions/gradle-8.11.1-bin.zip',
+                  ptext,
+              )
+          if pn == 0:
+              raise SystemExit('Could not update gradle-wrapper.properties distributionUrl')
+          props.write_text(ptext2)
+          print('--- gradle-wrapper.properties ---')
+          print(props.read_text())
+          PY
 
       - name: Build release APK (bundles JS, no Metro/computer needed)
         working-directory: mobile/android
@@ -94,6 +180,9 @@ jobs:
           done
           exit 1
         env:
+          # Sentry org/project are empty in app.json — skip source-map upload in CI
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
+          SENTRY_ALLOW_FAILURE: 'true'
           GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.internal.http.connectionTimeout=60000 -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.repository.max.retries=5
 
       - name: Upload APK

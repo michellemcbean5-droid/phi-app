@@ -10,7 +10,10 @@
     "preview": {
       "distribution": "internal",
       "android": { "buildType": "apk" },
-      "ios": { "simulator": false }
+      "ios": { "simulator": false },
+      "env": {
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      }
     },
     "production": {
       "distribution": "store",
@@ -22,7 +25,10 @@
         "enterpriseProvisioning": "adhoc"
       },
       "channel": "production",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      }
     }
   },
   "submit": {
@@ -31,13 +37,6 @@
         "serviceAccountKeyPath": "./google-play-key.json",
         "track": "internal",
         "releaseStatus": "draft"
-      },
-      "ios": {
-        "ascAppId": "",
-        "ascApiKeyPath": "./AuthKey.p8",
-        "ascApiKeyIssuerId": "",
-        "ascApiKeyId": "",
-        "ascTeamId": ""
       }
     }
   }

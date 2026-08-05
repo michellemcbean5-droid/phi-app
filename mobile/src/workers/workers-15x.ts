@@ -46,9 +46,11 @@ export interface LocationPoint {
   longitude: number;
 }
 
+export type LoadSource = 'DAT' | 'Truckstop' | 'AmazonRelay' | 'Coyote' | 'Loadsmart';
+
 export interface Load {
   id: string;
-  source: 'DAT' | 'Truckstop';
+  source: LoadSource;
   equipmentType: 'Dry Van' | 'Reefer' | 'Flatbed';
   brokerName: string;
   brokerRating: number;
@@ -117,7 +119,7 @@ export const WORKER_DEFINITIONS: WorkerDefinition[] = [
   }),
   buildWorker({
     id: 'fleet-maintenance',
-    name: 'LoadScoringWorker',
+    name: 'DocumentManagerWorker',
     role: '🔧 Fleet Maintenance Monitor',
     description: 'The Mechanic. Tracks the truck\'s mileage, engine diagnostics, and wear-and-tear in real time. Predicts when an oil change, tire rotation, or brake check is needed — and schedules preventative maintenance before a breakdown happens on the road.',
     aiPoweredBy: 'Claude AI + Vehicle Telemetry + Maintenance Schedules',
@@ -133,7 +135,7 @@ export const WORKER_DEFINITIONS: WorkerDefinition[] = [
   }),
   buildWorker({
     id: 'driver-liaison',
-    name: 'DocumentManagerWorker',
+    name: 'DispatchCoordinatorWorker',
     role: '🚛 Driver Liaison',
     description: 'The digital co-pilot inside the cab. Manages digital Bills of Lading, alerts the driver to upcoming weigh stations and port-of-entry checkpoints, and schedules mandatory rest stops to keep the driver legal, rested, and on time.',
     aiPoweredBy: 'Claude AI + GPS + HOS Rules Engine',

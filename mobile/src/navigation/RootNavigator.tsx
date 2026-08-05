@@ -4,23 +4,32 @@ import { PHI_COLORS } from '../assets/brandColors';
 import AICommandCenterScreen from '../screens/AICommandCenterScreen';
 import APIKeysScreen from '../screens/APIKeysScreen';
 import ComplianceScreen from '../screens/ComplianceScreen';
+import CoDriverScreen from '../screens/CoDriverScreen';
 import DispatcherRadioScreen from '../screens/DispatcherRadioScreen';
 import DocumentsScreen from '../screens/DocumentsScreen';
+import DriverFeedScreen from '../screens/DriverFeedScreen';
 import DriverPrefsScreen from '../screens/DriverPrefsScreen';
 import EquipmentMarketplaceScreen from '../screens/EquipmentMarketplaceScreen';
 import InboxScreen from '../screens/InboxScreen';
+import LoadBoardsScreen from '../screens/LoadBoardsScreen';
 import LoadDetailsScreen from '../screens/LoadDetailsScreen';
+import LoadBoardStatusScreen from '../screens/LoadBoardStatusScreen';
 import LoadingScreen from '../screens/LoadingScreen';
 import MessageThreadScreen from '../screens/MessageThreadScreen';
+import MissionControlScreen from '../screens/MissionControlScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import OnboardingWizardScreen from '../screens/OnboardingWizardScreen';
 import PromoCodeScreen from '../screens/PromoCodeScreen';
 import PaymentHistoryScreen from '../screens/PaymentHistoryScreen';
+import RadioScreen from '../screens/RadioScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import SupportChatScreen from '../screens/SupportChatScreen';
 import TruckStopFinderScreen from '../screens/TruckStopFinderScreen';
 import VehicleScreen from '../screens/VehicleScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
+import BusinessLaunchScreen from '../screens/BusinessLaunchScreen';
+import AgentWorkflowMapScreen from '../screens/AgentWorkflowMapScreen';
 import TabNavigator from './TabNavigator';
 
 export type RootStackParamList = {
@@ -45,6 +54,16 @@ export type RootStackParamList = {
   SupportChat: undefined;
   TruckStopFinder: undefined;
   PaymentHistory: undefined;
+  LoadBoardStatus: undefined;
+  // New screens
+  LoadBoards: undefined;
+  MissionControl: undefined;
+  CoDriver: undefined;
+  DriverFeed: undefined;
+  Radio: undefined;
+  OnboardingWizard: undefined;
+  BusinessLaunch: undefined;
+  AgentWorkflowMap: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -86,6 +105,20 @@ export default function RootNavigator() {
       />
       <Stack.Screen name="TruckStopFinder" component={TruckStopFinderScreen} options={{ title: 'Truck Stops & Parking' }} />
       <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} options={{ title: 'Payment History' }} />
+      <Stack.Screen name="LoadBoardStatus" component={LoadBoardStatusScreen} options={{ title: 'Load Board Status' }} />
+      {/* New screens */}
+      <Stack.Screen name="LoadBoards" component={LoadBoardsScreen} options={{ title: '5 Load Boards' }} />
+      <Stack.Screen name="MissionControl" component={MissionControlScreen} options={{ title: 'Mission Control' }} />
+      <Stack.Screen name="CoDriver" component={CoDriverScreen} options={{ title: 'Find a Co-Driver' }} />
+      <Stack.Screen name="DriverFeed" component={DriverFeedScreen} options={{ title: 'Driver Feed' }} />
+      <Stack.Screen name="Radio" component={RadioScreen} options={{ title: 'Dispatch Radio', headerStyle: { backgroundColor: '#0D1525' } }} />
+      <Stack.Screen
+        name="OnboardingWizard"
+        component={OnboardingWizardScreen}
+        options={{ title: 'Set Up Your Business', presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen name="BusinessLaunch" component={BusinessLaunchScreen} options={{ title: 'Start Your Business' }} />
+      <Stack.Screen name="AgentWorkflowMap" component={AgentWorkflowMapScreen} options={{ title: 'AI Agent Workflow', headerStyle: { backgroundColor: '#0D1D35' } }} />
     </Stack.Navigator>
   );
 }

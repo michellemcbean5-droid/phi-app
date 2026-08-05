@@ -966,6 +966,570 @@ async def driver_websocket(websocket: WebSocket, driver_id: str):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 2 — AGENT MAP
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class AgentEdge(BaseModel):
+    from_agent: str = Field(description="Source agent role")
+    to_agent: str = Field(description="Destination agent role")
+    label: str = Field(description="Work passing along this edge")
+
+
+class AgentMapNode(BaseModel):
+    id: str
+    role: str
+    group: str
+    status: str = Field(default="idle", description="idle | running | done | error")
+    tasks_today: int = Field(default=0)
+
+
+class AgentMapResponse(BaseModel):
+    nodes: list[AgentMapNode]
+    edges: list[AgentEdge]
+    active_jobs: int
+
+
+# In-memory agent status — updated by task callbacks in tasks.py
+_agent_status: dict[str, str] = {}
+
+
+@app.get(
+    "/api/v1/agent-map",
+    response_model=AgentMapResponse,
+    tags=["agents"],
+    summary="Live agent orchestration map",
+)
+def get_agent_map():
+    """
+    Returns the full agent DAG with current status of each node.
+    Used by the Mission Control screen to render the live orchestration diagram.
+    """
+    group_map: dict[str, str] = {}
+    for group_name, agents in AGENT_GROUPS.items():
+        for agent in agents:
+            group_map[agent.role] = group_name
+
+    nodes = [
+        AgentMapNode(
+            id=agent.role.lower().replace(" ", "-"),
+            role=agent.role,
+            group=group_map.get(agent.role, "Unknown"),
+            status=_agent_status.get(agent.role, "idle"),
+        )
+        for agent in ALL_AGENTS
+    ]
+
+    edges = [
+        AgentEdge(from_agent="Freight Negotiator", to_agent="Insurance Assessor", label="load candidates"),
+        AgentEdge(from_agent="Insurance Assessor", to_agent="Legal Auditor", label="risk-vetted loads"),
+        AgentEdge(from_agent="Legal Auditor", to_agent="Freight Negotiator", label="cleared contracts"),
+        AgentEdge(from_agent="Freight Negotiator", to_agent="Compliance Officer", label="booked load"),
+        AgentEdge(from_agent="Route Optimizer", to_agent="Fuel Optimizer", label="planned route"),
+        AgentEdge(from_agent="Fuel Optimizer", to_agent="Dispatcher", label="optimized stops"),
+        AgentEdge(from_agent="Dispatcher", to_agent="Track & Trace Agent", label="trip underway"),
+        AgentEdge(from_agent="Track & Trace Agent", to_agent="Driver Liaison", label="live ETA"),
+        AgentEdge(from_agent="Driver Liaison", to_agent="Finance Specialist", label="delivery confirmed"),
+        AgentEdge(from_agent="Finance Specialist", to_agent="Tax Auditor", label="invoice"),
+        AgentEdge(from_agent="Tax Auditor", to_agent="BI Executive", label="P&L data"),
+        AgentEdge(from_agent="Maintenance Monitor", to_agent="BI Executive", label="service records"),
+    ]
+
+    active_jobs = sum(1 for j in _job_store.values() if j["status"] == JobStatus.RUNNING)
+
+    return AgentMapResponse(nodes=nodes, edges=edges, active_jobs=active_jobs)
+
+
+@app.websocket("/ws/agent-status")
+async def agent_status_ws(websocket: WebSocket):
+    """
+    WebSocket channel that pushes real-time agent status updates.
+    The mobile Mission Control screen subscribes here to animate node state changes.
+    """
+    await websocket.accept()
+    try:
+        while True:
+            import asyncio
+            await asyncio.sleep(2)
+            await websocket.send_json({
+                "type": "agent_status_update",
+                "statuses": _agent_status,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+    except WebSocketDisconnect:
+        pass
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 3 — LOAD BOARD ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class LoadLocation(BaseModel):
+    city: str
+    state: str
+    latitude: float
+    longitude: float
+
+
+class LoadPost(BaseModel):
+    """Request body for posting a new load (broker board)."""
+    broker_name: str = Field(description="Posting broker or shipper name")
+    equipment_type: EquipmentType = Field(default=EquipmentType.DRY_VAN)
+    origin_city: str
+    origin_state: str
+    origin_lat: float
+    origin_lng: float
+    destination_city: str
+    destination_state: str
+    rate: float = Field(ge=100, description="All-in rate in USD")
+    total_miles: int = Field(ge=1)
+    pickup_date: str = Field(description="ISO date YYYY-MM-DD")
+    weight_lbs: int = Field(default=40000, ge=1, le=80000)
+    notes: str = Field(default="")
+
+
+class LoadPostResponse(BaseModel):
+    load_id: str
+    status: str
+    message: str
+
+
+# In-memory load store for broker board posts
+_broker_loads: list[dict] = []
+
+
+@app.post(
+    "/api/v1/loads",
+    response_model=LoadPostResponse,
+    tags=["loads"],
+    status_code=201,
+    summary="Post a load to the broker board",
+)
+async def post_load(load: LoadPost):
+    """
+    Allows a broker or shipper to post a load directly to the PHI broker board.
+    Returns a load_id that drivers can use to accept the load.
+    """
+    load_id = f"PHI-{uuid.uuid4().hex[:8].upper()}"
+    record = {"load_id": load_id, **load.model_dump(), "posted_at": datetime.now(timezone.utc).isoformat(), "status": "open"}
+    _broker_loads.append(record)
+    logger.info(f"New broker load posted: {load_id}")
+    return LoadPostResponse(load_id=load_id, status="open", message=f"Load {load_id} is live on the broker board.")
+
+
+@app.get(
+    "/api/v1/loads",
+    tags=["loads"],
+    summary="Get broker board loads",
+)
+async def get_loads(
+    equipment_type: Optional[str] = Query(default=None),
+    min_rpm: Optional[float] = Query(default=None, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    """Returns loads posted on the broker board, with optional filtering."""
+    loads = [l for l in _broker_loads if l["status"] == "open"]
+    if equipment_type:
+        loads = [l for l in loads if l["equipment_type"] == equipment_type]
+    if min_rpm is not None:
+        loads = [l for l in loads if l["rate"] / max(l["total_miles"], 1) >= min_rpm]
+    return {"loads": loads[:limit], "total": len(loads)}
+
+
+@app.put(
+    "/api/v1/loads/{load_id}/accept",
+    tags=["loads"],
+    summary="Accept / book a load from the broker board",
+)
+async def accept_load(load_id: str, driver_id: str = Query(description="Driver accepting the load")):
+    """Marks a broker-board load as accepted by the given driver."""
+    for load in _broker_loads:
+        if load["load_id"] == load_id:
+            if load["status"] != "open":
+                raise HTTPException(status_code=409, detail="Load is no longer available.")
+            load["status"] = "accepted"
+            load["accepted_by"] = driver_id
+            load["accepted_at"] = datetime.now(timezone.utc).isoformat()
+            logger.info(f"Load {load_id} accepted by driver {driver_id}")
+            return {"load_id": load_id, "status": "accepted", "message": "Load booked successfully."}
+    raise HTTPException(status_code=404, detail=f"Load {load_id} not found.")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 5 — CO-DRIVER / FIND-A-DRIVER ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class DriverLocationUpdate(BaseModel):
+    driver_id: str
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    cdl_class: str = Field(default="A")
+    available: bool = Field(default=True)
+    looking_for_codriver: bool = Field(default=False)
+    name: str = Field(default="PHI Driver")
+    rating: float = Field(default=5.0, ge=1.0, le=5.0)
+
+
+class CoDriverRequest(BaseModel):
+    requester_driver_id: str
+    target_driver_id: str
+    split_percentage: int = Field(ge=1, le=99, description="Requester's revenue share %")
+    load_id: Optional[str] = Field(default=None)
+
+
+# In-memory driver presence (replace with Redis in production)
+_driver_locations: dict[str, dict] = {}
+
+
+@app.put(
+    "/api/v1/drivers/{driver_id}/location",
+    tags=["drivers"],
+    summary="Update driver location and availability",
+)
+async def update_driver_location(driver_id: str, update: DriverLocationUpdate):
+    """Registers or updates a driver's position and co-driver availability status."""
+    _driver_locations[driver_id] = {
+        **update.model_dump(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    return {"status": "ok", "driver_id": driver_id}
+
+
+@app.get(
+    "/api/v1/drivers/nearby",
+    tags=["drivers"],
+    summary="Find co-drivers within radius",
+)
+async def get_nearby_drivers(
+    latitude: float = Query(ge=-90, le=90),
+    longitude: float = Query(ge=-180, le=180),
+    radius_miles: float = Query(default=50, ge=1, le=500),
+    looking_for_codriver: bool = Query(default=False, description="Only return drivers seeking a team partner"),
+):
+    """
+    Returns drivers within the specified radius of the given coordinates.
+    Uses Haversine formula for distance calculation.
+    """
+    import math
+
+    def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        R = 3958.8  # Earth radius in miles
+        phi1, phi2 = math.radians(lat1), math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lon2 - lon1)
+        a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+        return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    nearby = []
+    for d_id, data in _driver_locations.items():
+        dist = haversine(latitude, longitude, data["latitude"], data["longitude"])
+        if dist <= radius_miles:
+            if looking_for_codriver and not data.get("looking_for_codriver", False):
+                continue
+            nearby.append({**data, "distance_miles": round(dist, 1)})
+
+    nearby.sort(key=lambda d: d["distance_miles"])
+    return {"drivers": nearby, "count": len(nearby), "radius_miles": radius_miles}
+
+
+@app.post(
+    "/api/v1/codriver/request",
+    tags=["drivers"],
+    status_code=201,
+    summary="Send a co-driver request",
+)
+async def send_codriver_request(request: CoDriverRequest):
+    """
+    Sends a co-driver request from one driver to another with proposed revenue split.
+    In production, this triggers a push notification to the target driver.
+    """
+    if request.requester_driver_id not in _driver_locations:
+        raise HTTPException(status_code=404, detail="Requester driver not found. Update your location first.")
+    if request.target_driver_id not in _driver_locations:
+        raise HTTPException(status_code=404, detail="Target driver not found.")
+
+    request_id = f"CDR-{uuid.uuid4().hex[:8].upper()}"
+    logger.info(
+        f"Co-driver request {request_id}: {request.requester_driver_id} → "
+        f"{request.target_driver_id} ({request.split_percentage}/{100 - request.split_percentage} split)"
+    )
+    return {
+        "request_id": request_id,
+        "status": "pending",
+        "message": f"Request sent. Split: {request.split_percentage}% / {100 - request.split_percentage}%",
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 7 — DISPATCH RADIO ENDPOINT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class RadioBroadcast(BaseModel):
+    channel: int = Field(description="CB channel number (1, 9, 19, etc.)")
+    speaker: str = Field(default="Dispatcher", description="Broadcaster name")
+    message: str = Field(description="Message to broadcast")
+    tts: bool = Field(default=True, description="Whether to read via TTS on client")
+
+
+_radio_history: list[dict] = []
+
+
+@app.post(
+    "/api/v1/radio/broadcast",
+    tags=["radio"],
+    status_code=201,
+    summary="Broadcast a message on a dispatch radio channel",
+)
+async def radio_broadcast(broadcast: RadioBroadcast):
+    """
+    Posts a message to a radio channel. All connected drivers on that channel
+    receive the message via the WebSocket stream. Supports AI dispatch TTS reads.
+    """
+    entry = {
+        "id": uuid.uuid4().hex,
+        "channel": broadcast.channel,
+        "speaker": broadcast.speaker,
+        "message": broadcast.message,
+        "tts": broadcast.tts,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    _radio_history.append(entry)
+    # Keep last 1000 transmissions per channel in memory
+    if len(_radio_history) > 1000:
+        _radio_history.pop(0)
+
+    # Broadcast to all connected WebSocket clients
+    await ws_manager.broadcast_to_all({"type": "radio_message", **entry})
+
+    logger.info(f"Radio CH{broadcast.channel} [{broadcast.speaker}]: {broadcast.message[:60]}")
+    return {"status": "broadcast", "id": entry["id"], "channel": broadcast.channel}
+
+
+@app.get(
+    "/api/v1/radio/history",
+    tags=["radio"],
+    summary="Get radio channel history (last 100 transmissions)",
+)
+async def get_radio_history(channel: Optional[int] = Query(default=None)):
+    """Returns the last 100 transmissions for a given channel, or all channels if omitted."""
+    history = _radio_history
+    if channel is not None:
+        history = [h for h in history if h["channel"] == channel]
+    return {"history": history[-100:], "total": len(history)}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 4 — BUSINESS LAUNCH TOOLKIT ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class BusinessChecklistItem(BaseModel):
+    id: str
+    phase: str
+    title: str
+    description: str
+    cost: str
+    required: bool = False
+    category: str = Field(description="legal | authority | insurance | compliance | banking | equipment")
+
+
+class BusinessChecklistResponse(BaseModel):
+    total_items: int
+    phases: int
+    estimated_startup_cost_min: int
+    estimated_startup_cost_max: int
+    items: list[BusinessChecklistItem]
+
+
+BUSINESS_CHECKLIST_ITEMS: list[BusinessChecklistItem] = [
+    # Phase 1 — Legal
+    BusinessChecklistItem(id="ein", phase="legal", title="Get Federal EIN", description="Apply free at IRS.gov. Required to open a business bank account.", cost="Free", required=True, category="legal"),
+    BusinessChecklistItem(id="llc", phase="legal", title="File LLC", description="File Articles of Organization with your state's Secretary of State.", cost="$50–$500", required=True, category="legal"),
+    BusinessChecklistItem(id="bank", phase="legal", title="Open Business Bank Account", description="Keep business and personal money separate. Use Relay or Mercury.", cost="Free", category="legal"),
+    # Phase 2 — Authority
+    BusinessChecklistItem(id="usdot", phase="authority", title="Get USDOT Number", description="Register free at FMCSA.dot.gov. Required for interstate commerce.", cost="Free", required=True, category="authority"),
+    BusinessChecklistItem(id="mc", phase="authority", title="Apply for MC Authority", description="$300 one-time fee. Takes 20-25 business days to activate.", cost="$300", required=True, category="authority"),
+    BusinessChecklistItem(id="boc3", phase="authority", title="File BOC-3", description="Designate a process agent. Required before MC activates.", cost="$20–$40", required=True, category="authority"),
+    # Phase 3 — Insurance
+    BusinessChecklistItem(id="liability", phase="insurance", title="Primary Liability Insurance ($750K min)", description="Required by FMCSA before MC authority activates.", cost="$800–$2,000/mo", required=True, category="insurance"),
+    BusinessChecklistItem(id="cargo", phase="insurance", title="Cargo Insurance ($100K min)", description="Covers the freight you haul. Most brokers require this.", cost="$150–$400/mo", required=True, category="insurance"),
+    # Phase 4 — Compliance
+    BusinessChecklistItem(id="ucr", phase="compliance", title="UCR Registration", description="Annual fee. Register at ucr.gov before Jan 1 each year.", cost="$59–$90/year", required=True, category="compliance"),
+    BusinessChecklistItem(id="irp", phase="compliance", title="IRP Apportioned Plates", description="Interstate license plates from your state DMV.", cost="$1,500–$2,500/year", required=True, category="compliance"),
+    BusinessChecklistItem(id="ifta", phase="compliance", title="IFTA Registration", description="Quarterly fuel tax reporting across state lines.", cost="Free to register", required=True, category="compliance"),
+    BusinessChecklistItem(id="eld", phase="compliance", title="ELD Device", description="Federally required for HOS compliance. Use Motive or Samsara.", cost="$35–$60/mo", required=True, category="compliance"),
+    # Phase 5 — Banking
+    BusinessChecklistItem(id="factoring", phase="banking", title="Set Up Freight Factoring", description="Get paid same-day instead of waiting 30-90 days.", cost="2–5% fee per invoice", category="banking"),
+    BusinessChecklistItem(id="fuel-card", phase="banking", title="Fuel Card", description="EFS or Comdata for $0.10–$0.40/gallon discounts.", cost="Free", category="banking"),
+    # Phase 6 — Equipment
+    BusinessChecklistItem(id="load-board", phase="equipment", title="Load Board Access", description="DAT, Truckstop, or use PHI's built-in 5-board aggregator.", cost="$0–$120/mo", required=True, category="equipment"),
+    BusinessChecklistItem(id="phi-workers", phase="equipment", title="Activate PHI AI Workers", description="10 AI agents handle dispatch, compliance, invoicing automatically.", cost="Included with PHI", required=False, category="equipment"),
+]
+
+
+@app.get(
+    "/api/v1/business-checklist",
+    response_model=BusinessChecklistResponse,
+    tags=["business"],
+    summary="Get the owner-operator startup checklist",
+)
+async def get_business_checklist(
+    category: Optional[str] = Query(default=None, description="Filter by: legal | authority | insurance | compliance | banking | equipment"),
+):
+    """
+    Returns the complete step-by-step checklist to launch a trucking business.
+    Covers LLC, USDOT, MC authority, insurance, IFTA, IRP, UCR, ELD, and more.
+    """
+    items = BUSINESS_CHECKLIST_ITEMS
+    if category:
+        items = [i for i in items if i.category == category]
+    return BusinessChecklistResponse(
+        total_items=len(items),
+        phases=len({i.phase for i in items}),
+        estimated_startup_cost_min=5000,
+        estimated_startup_cost_max=8000,
+        items=items,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 8 — DRIVER COMMUNITY FEED ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class FeedPostType(str, Enum):
+    TIP = "tip"
+    ALERT = "alert"
+    FUEL = "fuel"
+    GENERAL = "general"
+    WEIGH_STATION = "weigh_station"
+
+
+class NewFeedPost(BaseModel):
+    author_id: str
+    author_name: str
+    author_city: str = Field(default="")
+    author_state: str = Field(default="")
+    post_type: FeedPostType = Field(default=FeedPostType.GENERAL)
+    content: str = Field(min_length=1, max_length=500)
+    location_tag: Optional[str] = Field(default=None)
+
+
+class FeedReaction(BaseModel):
+    post_id: str
+    driver_id: str
+    reaction: str = Field(description="One of: 🚛 💰 ⭐ 🔥 ✅")
+
+
+class FeedPostResponse(BaseModel):
+    id: str
+    author_id: str
+    author_name: str
+    author_city: str
+    author_state: str
+    post_type: str
+    content: str
+    time_ago: str
+    reactions: dict
+    comment_count: int
+    location_tag: Optional[str]
+    created_at: str
+
+
+# In-memory feed (replace with PostgreSQL in production)
+_feed_posts: list[dict] = [
+    {
+        "id": "p1", "author_id": "seed-1", "author_name": "Big Mike T.",
+        "author_city": "Dallas", "author_state": "TX",
+        "post_type": "tip", "content": "DAT rates on the TX→GA lane just jumped $0.30/mile. Lock in a load before EOD if you're in the DFW area.",
+        "time_ago": "2h ago", "reactions": {"🚛": 14, "💰": 22, "⭐": 0, "🔥": 8, "✅": 5},
+        "comment_count": 7, "location_tag": "Dallas, TX",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    },
+    {
+        "id": "p2", "author_id": "seed-2", "author_name": "Sandra Lee",
+        "author_city": "Memphis", "author_state": "TN",
+        "post_type": "weigh_station", "content": "I-40 weigh station at mile marker 162 in TN is running full inspection today. Allow extra time.",
+        "time_ago": "4h ago", "reactions": {"🚛": 31, "💰": 0, "⭐": 0, "🔥": 2, "✅": 18},
+        "comment_count": 12, "location_tag": "I-40 TN MM 162",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    },
+    {
+        "id": "p3", "author_id": "seed-3", "author_name": "Carlos M.",
+        "author_city": "Houston", "author_state": "TX",
+        "post_type": "fuel", "content": "Love's Travel Stop on I-10 West near San Antonio has diesel at $3.68 — cheapest I've seen all week.",
+        "time_ago": "6h ago", "reactions": {"🚛": 9, "💰": 18, "⭐": 0, "🔥": 11, "✅": 6},
+        "comment_count": 3, "location_tag": "I-10 San Antonio TX",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    },
+]
+
+
+@app.get(
+    "/api/v1/community/feed",
+    response_model=list[FeedPostResponse],
+    tags=["community"],
+    summary="Get community driver feed",
+)
+async def get_community_feed(
+    post_type: Optional[str] = Query(default=None, description="Filter by: tip | alert | fuel | general | weigh_station"),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+):
+    """
+    Returns the latest posts from the driver community feed.
+    Includes road tips, fuel prices, weigh station alerts, and general driver chatter.
+    """
+    posts = list(reversed(_feed_posts))  # Newest first
+    if post_type:
+        posts = [p for p in posts if p["post_type"] == post_type]
+    page = posts[offset:offset + limit]
+    return [FeedPostResponse(**p) for p in page]
+
+
+@app.post(
+    "/api/v1/community/feed",
+    response_model=FeedPostResponse,
+    tags=["community"],
+    status_code=201,
+    summary="Post to the driver community feed",
+)
+async def create_feed_post(post: NewFeedPost):
+    """Creates a new post on the community driver feed."""
+    new_post = {
+        "id": f"p{uuid.uuid4().hex[:8]}",
+        "author_id": post.author_id,
+        "author_name": post.author_name,
+        "author_city": post.author_city,
+        "author_state": post.author_state,
+        "post_type": post.post_type,
+        "content": post.content,
+        "time_ago": "just now",
+        "reactions": {"🚛": 0, "💰": 0, "⭐": 0, "🔥": 0, "✅": 0},
+        "comment_count": 0,
+        "location_tag": post.location_tag,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    _feed_posts.append(new_post)
+    logger.info(f"New community post by {post.author_name}: {post.content[:60]}")
+    return FeedPostResponse(**new_post)
+
+
+@app.post(
+    "/api/v1/community/feed/{post_id}/react",
+    tags=["community"],
+    summary="React to a feed post",
+)
+async def react_to_post(post_id: str, reaction: FeedReaction):
+    """Adds or toggles a reaction emoji on a feed post."""
+    valid_reactions = {"🚛", "💰", "⭐", "🔥", "✅"}
+    if reaction.reaction not in valid_reactions:
+        raise HTTPException(status_code=422, detail=f"Invalid reaction. Must be one of: {valid_reactions}")
+    for post in _feed_posts:
+        if post["id"] == post_id:
+            post["reactions"][reaction.reaction] = post["reactions"].get(reaction.reaction, 0) + 1
+            return {"post_id": post_id, "reaction": reaction.reaction, "count": post["reactions"][reaction.reaction]}
+    raise HTTPException(status_code=404, detail=f"Post '{post_id}' not found.")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # GLOBAL EXCEPTION HANDLER
 # ═══════════════════════════════════════════════════════════════════════════════
 

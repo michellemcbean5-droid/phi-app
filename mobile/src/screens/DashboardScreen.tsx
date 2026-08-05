@@ -256,11 +256,17 @@ export default function DashboardScreen() {
               { icon: 'shield-checkmark-outline', color: CARTOON_COLORS.limeGreen, label: 'Compliance', sub: 'ELD · HOS · IFTA', screen: 'Compliance' },
               { icon: 'hardware-chip-outline', color: CARTOON_COLORS.electricBlue, label: 'AI Workers', sub: `${activeWorkers} active now`, screen: 'AICommandCenter' },
               { icon: 'trending-up-outline', color: CARTOON_COLORS.sunshineYellow, label: 'Earnings', sub: 'P&L · CPM · Trends', screen: 'Earnings' },
-              { icon: 'radio-outline', color: CARTOON_COLORS.bubblegumPink, label: 'Dispatcher Radio', sub: 'Push to talk', screen: 'DispatcherRadio' },
+              { icon: 'analytics-outline', color: '#9BE8FF', label: 'Mission Control', sub: 'Live agent map', screen: 'MissionControl' },
+              { icon: 'albums-outline', color: '#C7A6FF', label: '5 Load Boards', sub: 'Open · Hot · Local', screen: 'LoadBoards' },
+              { icon: 'people-outline', color: CARTOON_COLORS.neonCyan, label: 'Find Co-Driver', sub: 'Team drive nearby', screen: 'CoDriver' },
+              { icon: 'newspaper-outline', color: '#FF9F43', label: 'Driver Feed', sub: 'Community & alerts', screen: 'DriverFeed' },
+              { icon: 'radio-outline', color: CARTOON_COLORS.bubblegumPink, label: 'Radio', sub: 'CH 9 · 19 · Emergency', screen: 'Radio' },
               { icon: 'chatbubbles-outline', color: CARTOON_COLORS.neonCyan, label: 'Messages', sub: 'Dispatch & brokers', screen: 'Inbox' },
               { icon: 'chatbubble-ellipses-outline', color: CARTOON_COLORS.bubblegumPink, label: 'Ask Michelle', sub: 'Support & how-to', screen: 'SupportChat' },
               { icon: 'speedometer-outline', color: CARTOON_COLORS.limeGreen, label: 'Truck Stops', sub: 'Fuel · Parking · Weigh', screen: 'TruckStopFinder' },
-            ].map((item, index) => (
+              { icon: 'business-outline', color: '#FFB300', label: 'Start Business', sub: 'LLC · DOT · MC · IFTA', screen: 'BusinessLaunch' },
+              { icon: 'git-network-outline', color: '#CE93D8', label: 'Agent Map', sub: 'AI lifecycle flow', screen: 'AgentWorkflowMap' },
+            ].map((item) => (
               <AnimatedPressable
                 key={item.screen}
                 style={[

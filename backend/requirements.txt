@@ -5,7 +5,6 @@ crewai-tools==0.17.0
 # ─── LLM Provider (OpenAI via LangChain) ──────────────────────────────────────
 langchain-openai==0.2.14
 langchain==0.3.13
-openai==1.54.0
 
 # ─── API Framework ────────────────────────────────────────────────────────────
 fastapi==0.115.0

@@ -13,7 +13,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#01092C"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.princehaulintelligence.app",
@@ -28,8 +30,8 @@
     "android": {
       "package": "com.princehaulintelligence.app",
       "versionCode": 1,
-      "compileSdkVersion": 35,
-      "targetSdkVersion": 35,
+      "compileSdkVersion": 36,
+      "targetSdkVersion": 36,
       "minSdkVersion": 24,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -73,7 +75,11 @@
     },
     "owner": "q-empire-ai-automation",
     "privacy": "public",
-    "platforms": ["android", "ios", "web"],
+    "platforms": [
+      "android",
+      "ios",
+      "web"
+    ],
     "plugins": [
       [
         "expo-notifications",

@@ -1,16 +1,36 @@
 {
   "name": "phi-app",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "Prince Haul Intelligence - Mobile App",
+  "description": "Prince Haul Intelligence — unified owner-operator launch and autonomous dispatch platform",
   "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "mobile:start": "cd mobile && npm start",
     "mobile:android": "cd mobile && npm run android",
     "mobile:ios": "cd mobile && npm run ios",
     "mobile:test": "cd mobile && npm test",
     "mobile:build": "cd mobile && eas build"
   },
-  "keywords": ["trucking", "logistics", "ai", "automation"],
+  "keywords": ["trucking", "logistics", "ai", "automation", "dispatch", "owner-operator"],
   "author": "Prince Haul Intelligence",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.1.13",
+    "next": "^15.5.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "tailwindcss": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.3",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "eslint": "^9.35.0",
+    "eslint-config-next": "^15.5.2",
+    "typescript": "^5.9.2"
+  }
 }

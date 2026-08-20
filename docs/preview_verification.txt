@@ -29,3 +29,11 @@ The Factoring option automatically applied the preview’s 95% advance assumptio
 Independent Dispatch Hub smoke test — 2026-08-20
 
 The Independent Dispatch Hub opened successfully from the Dashboard. The preview rendered minimum all-in RPM, maximum deadhead percentage, and fuel-cost-per-mile target inputs; the explanatory broker and rate-confirmation warning; and the zero-plan state directing the driver to use the Loads tab’s “Plan in Hub” action. Load-plan metrics and verification checklists are covered by unit tests; a live DAT/Truckstop credential set was not available in this preview session.
+
+Clean preview recovery — 2026-08-20
+
+After the stale port-8081 process was stopped and the Expo web bundle was rebuilt with a cleared cache, the public preview successfully rendered the PHI animated loading view and transitioned to the Welcome screen. The tested link is not blank in a fresh browser session.
+
+Clean preview end-to-end check — 2026-08-20
+
+The rebuilt public preview progressed from the Welcome screen to AI Dispatcher Settings and then to the Dashboard. The Dashboard visibly includes Business Blueprint, Driver’s Circle, Dispatch Hub, and Cash Flow. This verifies that the restarted preview provides a usable live interface rather than a blank screen.

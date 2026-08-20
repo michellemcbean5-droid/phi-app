@@ -103,3 +103,97 @@ def test_customer_lead_lifecycle_requires_consent_and_admin_controls(monkeypatch
     assert "lead.created" in event_types
     assert "lead.stage_changed" in event_types
     assert "onboarding.in_progress" in event_types
+
+
+def test_free_customer_workspace_queues_actions_and_tracks_verified_revenue(monkeypatch):
+    """The free PHI workspace is an auditable operating layer, not a simulated CRM."""
+    init_db()
+    monkeypatch.setenv("PHI_ADMIN_TOKEN", ADMIN_TOKEN)
+    headers = {"X-PHI-Admin-Token": ADMIN_TOKEN}
+
+    created = client.post("/api/v1/customer-journey/leads", json=make_lead_payload())
+    assert created.status_code == 201
+    lead = created.json()
+    lead_id = lead["id"]
+
+    followups = client.get("/api/v1/customer-journey/followups", headers=headers)
+    assert followups.status_code == 200
+    queued = next(item for item in followups.json() if item["lead_id"] == lead_id)
+    assert queued["status"] == "ready"
+    assert queued["sequence_step"] == "assessment_response"
+
+    missing_delivery_id = client.patch(
+        f"/api/v1/customer-journey/followups/{queued['id']}",
+        headers=headers,
+        json={"status": "sent", "reason": "Testing protected delivery state."},
+    )
+    assert missing_delivery_id.status_code == 422
+
+    delivered = client.patch(
+        f"/api/v1/customer-journey/followups/{queued['id']}",
+        headers=headers,
+        json={
+            "status": "sent",
+            "reason": "Verified test sender delivery.",
+            "external_message_id": "provider-message-test-001",
+        },
+    )
+    assert delivered.status_code == 200
+    assert delivered.json()["status"] == "sent"
+
+    appointment = client.post(
+        f"/api/v1/customer-journey/leads/{lead_id}/appointments",
+        headers=headers,
+        json={"booking_url": "https://example.com/phi-plan", "host_name": "PHI Planning Pod"},
+    )
+    assert appointment.status_code == 201
+    assert appointment.json()["status"] == "requested"
+
+    not_won = client.post(
+        f"/api/v1/customer-journey/leads/{lead_id}/revenue",
+        headers=headers,
+        json={"amount_mrr": 149, "reason": "Attempt before a verified win."},
+    )
+    assert not_won.status_code == 409
+
+    won = client.patch(
+        f"/api/v1/customer-journey/leads/{lead_id}/stage",
+        headers=headers,
+        json={"stage": "won", "reason": "Verified test commercial outcome."},
+    )
+    assert won.status_code == 200
+
+    revenue = client.post(
+        f"/api/v1/customer-journey/leads/{lead_id}/revenue",
+        headers=headers,
+        json={"amount_mrr": 149, "reason": "Verified test subscription."},
+    )
+    assert revenue.status_code == 200
+    assert revenue.json()["amount_mrr"] == 149
+
+    dashboard = client.get("/api/v1/customer-journey/operations/dashboard", headers=headers)
+    assert dashboard.status_code == 200
+    assert dashboard.json()["verified_mrr"] >= 149
+    assert dashboard.json()["appointment_counts"]["requested"] >= 1
+
+
+def test_prepared_assessment_followup_includes_approved_business_identity(monkeypatch):
+    """Prepared commercial follow-up must carry PHI's approved identity before it can be sent."""
+    init_db()
+    monkeypatch.setenv("PHI_ADMIN_TOKEN", ADMIN_TOKEN)
+    monkeypatch.setenv(
+        "PHI_BUSINESS_MAILING_ADDRESS",
+        "1642 McCulloch Blvd, Unit 466, Lake Havasu City, Arizona",
+    )
+    headers = {"X-PHI-Admin-Token": ADMIN_TOKEN}
+
+    created = client.post("/api/v1/customer-journey/leads", json=make_lead_payload())
+    assert created.status_code == 201
+    lead_id = created.json()["id"]
+
+    followups = client.get("/api/v1/customer-journey/followups", headers=headers)
+    assert followups.status_code == 200
+    followup = next(item for item in followups.json() if item["lead_id"] == lead_id)
+    assert "Prince Haul Intelligence" in followup["body"]
+    assert "1642 McCulloch Blvd, Unit 466, Lake Havasu City, Arizona" in followup["body"]
+    assert "reply UNSUBSCRIBE" in followup["body"]

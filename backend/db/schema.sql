@@ -106,6 +106,75 @@ create table if not exists customer_journey_events (
 
 create index if not exists idx_customer_journey_events_lead on customer_journey_events(lead_id, created_at desc);
 
+-- Prepared and delivered follow-up actions. A message is never represented as sent
+-- until the configured delivery channel reports a successful outcome.
+create table if not exists customer_followups (
+  id                    uuid primary key default gen_random_uuid(),
+  lead_id               uuid not null references customer_leads(id) on delete cascade,
+  sequence_step         text not null check (sequence_step in ('assessment_response', 'practical_follow_up', 'close_the_loop', 'appointment_reminder')),
+  channel               text not null default 'email' check (channel in ('email', 'calendar')),
+  status                text not null default 'ready' check (status in ('ready', 'held', 'sent', 'cancelled', 'failed', 'suppressed')),
+  subject               text,
+  body                  text not null,
+  scheduled_at          timestamptz,
+  sent_at               timestamptz,
+  external_message_id   text,
+  suppression_reason    text,
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now()
+);
+
+create index if not exists idx_customer_followups_queue on customer_followups(status, scheduled_at, created_at);
+create index if not exists idx_customer_followups_lead on customer_followups(lead_id, created_at desc);
+
+drop trigger if exists trg_customer_followups_updated_at on customer_followups;
+create trigger trg_customer_followups_updated_at
+  before update on customer_followups
+  for each row execute function set_updated_at();
+
+-- Consultation requests keep a booking handoff inside PHI even before an external
+-- calendar account is authorized.
+create table if not exists customer_appointments (
+  id                    uuid primary key default gen_random_uuid(),
+  lead_id               uuid not null references customer_leads(id) on delete cascade,
+  status                text not null default 'requested' check (status in ('requested', 'scheduled', 'completed', 'cancelled', 'no_show')),
+  booking_url           text,
+  provider_booking_id   text,
+  host_name             text,
+  scheduled_for         timestamptz,
+  completed_at          timestamptz,
+  notes                 text,
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now()
+);
+
+create index if not exists idx_customer_appointments_queue on customer_appointments(status, scheduled_for, created_at);
+create index if not exists idx_customer_appointments_lead on customer_appointments(lead_id, created_at desc);
+
+drop trigger if exists trg_customer_appointments_updated_at on customer_appointments;
+create trigger trg_customer_appointments_updated_at
+  before update on customer_appointments
+  for each row execute function set_updated_at();
+
+-- Revenue entries are restricted to verified subscription MRR, not pipeline forecasts.
+create table if not exists customer_revenue_entries (
+  id                    uuid primary key default gen_random_uuid(),
+  lead_id               uuid references customer_leads(id) on delete set null,
+  amount_mrr            numeric(10,2) not null default 0 check (amount_mrr >= 0),
+  status                text not null default 'active' check (status in ('active', 'cancelled', 'paused')),
+  source                text not null default 'manual_verified',
+  verified_at           timestamptz not null default now(),
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now()
+);
+
+create index if not exists idx_customer_revenue_entries_status on customer_revenue_entries(status, verified_at desc);
+
+drop trigger if exists trg_customer_revenue_entries_updated_at on customer_revenue_entries;
+create trigger trg_customer_revenue_entries_updated_at
+  before update on customer_revenue_entries
+  for each row execute function set_updated_at();
+
 drop trigger if exists trg_customer_leads_updated_at on customer_leads;
 create trigger trg_customer_leads_updated_at
   before update on customer_leads
@@ -204,6 +273,9 @@ create index if not exists idx_financial_vault_status on financial_vault(factori
 alter table users enable row level security;
 alter table customer_leads enable row level security;
 alter table customer_journey_events enable row level security;
+alter table customer_followups enable row level security;
+alter table customer_appointments enable row level security;
+alter table customer_revenue_entries enable row level security;
 alter table active_loads enable row level security;
 alter table ai_action_logs enable row level security;
 alter table financial_vault enable row level security;
@@ -226,6 +298,36 @@ create policy customer_journey_events_select_own on customer_journey_events
     exists (
       select 1 from customer_leads
       where customer_leads.id = customer_journey_events.lead_id
+        and customer_leads.activated_user_id = auth.uid()
+    )
+  );
+
+drop policy if exists customer_followups_select_own on customer_followups;
+create policy customer_followups_select_own on customer_followups
+  for select using (
+    exists (
+      select 1 from customer_leads
+      where customer_leads.id = customer_followups.lead_id
+        and customer_leads.activated_user_id = auth.uid()
+    )
+  );
+
+drop policy if exists customer_appointments_select_own on customer_appointments;
+create policy customer_appointments_select_own on customer_appointments
+  for select using (
+    exists (
+      select 1 from customer_leads
+      where customer_leads.id = customer_appointments.lead_id
+        and customer_leads.activated_user_id = auth.uid()
+    )
+  );
+
+drop policy if exists customer_revenue_entries_select_own on customer_revenue_entries;
+create policy customer_revenue_entries_select_own on customer_revenue_entries
+  for select using (
+    exists (
+      select 1 from customer_leads
+      where customer_leads.id = customer_revenue_entries.lead_id
         and customer_leads.activated_user_id = auth.uid()
     )
   );

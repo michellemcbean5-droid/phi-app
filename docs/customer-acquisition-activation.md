@@ -47,3 +47,19 @@ The PHI website was run locally with its customer API relay configured. The asse
 The local browser assessment was configured as a three-truck fleet, routed to the small-fleet operations priority, and supplied with explicit follow-up consent. This verifies that PHI captures the information needed to select the fleet path without treating a form submission as a commercial acceptance.
 
 The local browser-to-API test completed successfully. The consented three-truck test profile was stored as a **fleet** lead, returned the **Fleet Operations Snapshot** offer, displayed a success acknowledgment in the website, and generated the associated personalized plan. This was a local validation record only; it did not send email, charge a card, create a customer contract, or contact a real prospect.
+
+## Free PHI Operations Workspace Validation
+
+The new `/operations` route rendered as a private CEO command center with a separate operations access key gate. The user interface does not expose the customer API administration secret; the browser supplies only the operations access key to the server-side gateway. A local test access key was entered before the workspace data-load validation.
+
+The protected local dashboard then loaded successfully with live records from the PHI API. It rendered the verified-MRR progress card, inbound-assessment and qualified-lead counts, follow-ups that were explicitly marked as prepared rather than sent, consultation-handoff counts, a multi-stage pipeline, source-awareness placeholder, and autonomy guardrails. The dashboard correctly kept external email and calendar actions labeled as awaiting an authorized connection.
+
+The follow-up queue was exercised in the local browser. A **Ready** assessment-response record opened a personalized PHI draft with the prospect’s recommended offer and journey context. The interface explicitly stated that no external delivery was available and required a real sender-provided delivery identifier before any record can be marked sent. The only available operator control without a connected sender was to hold the draft for review.
+
+A qualified local lead was converted into a consultation handoff from the pipeline. The action created only an internal PHI appointment request and explicitly did not send a message or publish a calendar booking; this confirms the booking-control boundary is preserved before a free calendar account is authorized.
+
+During the local post-handoff refresh, the server-side operations gateway encountered an empty/non-JSON upstream response and the browser displayed a parsing error. The gateway was hardened to parse upstream text defensively and return a controlled JSON availability message rather than an HTML error page. The web project rebuilt successfully after this correction; final browser retesting continues against the refreshed development process.
+
+The local preview was restarted after the production-build artifact conflict. The private Operations access gate then rendered normally again with the branded PHI CEO command-center design and no stale styling or module errors.
+
+Final clean-preview validation succeeded. The private PHI Operations dashboard loaded from the protected gateway with live customer lifecycle data; the consultation-handoff count increased from two to three after the local pipeline action, confirming that the browser workspace persisted and reread the appointment request through the API. No real prospect was contacted, no payment was collected, and no external calendar event was created during validation.

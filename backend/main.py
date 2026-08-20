@@ -63,8 +63,11 @@ from tasks import (
 from agents import ALL_AGENTS, AGENT_GROUPS
 from app.websocket_manager import manager as ws_manager
 from app.database import (
+    CustomerAppointment,
+    CustomerFollowUp,
     CustomerJourneyEvent,
     CustomerLead,
+    CustomerRevenueEntry,
     SessionLocal,
     User,
     get_customer_lead,
@@ -423,6 +426,92 @@ class CustomerJourneyEventResponse(BaseModel):
     created_at: datetime
 
 
+class FollowUpStatus(str, Enum):
+    READY = "ready"
+    HELD = "held"
+    SENT = "sent"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
+    SUPPRESSED = "suppressed"
+
+
+class AppointmentStatus(str, Enum):
+    REQUESTED = "requested"
+    SCHEDULED = "scheduled"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    NO_SHOW = "no_show"
+
+
+class FollowUpStatusUpdateRequest(BaseModel):
+    status: FollowUpStatus
+    reason: str = Field(min_length=3, max_length=500)
+    external_message_id: Optional[str] = Field(default=None, max_length=200)
+
+
+class AppointmentCreateRequest(BaseModel):
+    booking_url: Optional[str] = Field(default=None, max_length=500)
+    host_name: Optional[str] = Field(default=None, max_length=120)
+    notes: Optional[str] = Field(default=None, max_length=2_000)
+
+
+class AppointmentStatusUpdateRequest(BaseModel):
+    status: AppointmentStatus
+    reason: str = Field(min_length=3, max_length=500)
+    scheduled_for: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    provider_booking_id: Optional[str] = Field(default=None, max_length=200)
+    notes: Optional[str] = Field(default=None, max_length=2_000)
+
+
+class RevenueEntryCreateRequest(BaseModel):
+    amount_mrr: float = Field(gt=0, le=1_000_000)
+    source: str = Field(default="manual_verified", min_length=2, max_length=120)
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class CustomerFollowUpResponse(BaseModel):
+    id: str
+    lead_id: str
+    lead_name: str
+    lead_email: str
+    sequence_step: str
+    channel: str
+    status: FollowUpStatus
+    subject: Optional[str]
+    body: str
+    scheduled_at: Optional[datetime]
+    sent_at: Optional[datetime]
+    suppression_reason: Optional[str]
+    created_at: datetime
+
+
+class CustomerAppointmentResponse(BaseModel):
+    id: str
+    lead_id: str
+    lead_name: str
+    status: AppointmentStatus
+    booking_url: Optional[str]
+    host_name: Optional[str]
+    scheduled_for: Optional[datetime]
+    completed_at: Optional[datetime]
+    notes: Optional[str]
+    created_at: datetime
+
+
+class CustomerOperationsDashboardResponse(BaseModel):
+    revenue_target_mrr: float
+    verified_mrr: float
+    remaining_mrr: float
+    stage_counts: dict[str, int]
+    qualified_leads: int
+    active_followups: int
+    held_followups: int
+    appointment_counts: dict[str, int]
+    source_counts: dict[str, int]
+    conversion_notes: list[str]
+
+
 # ── Response Models ───────────────────────────────────────────────────────────
 
 class JobResponse(BaseModel):
@@ -513,7 +602,113 @@ def _lead_response(lead: CustomerLead) -> CustomerLeadResponse:
     )
 
 
-def _create_job(workflow: str) -> str:
+def _followup_response(followup: CustomerFollowUp, lead: CustomerLead) -> CustomerFollowUpResponse:
+    """Map a follow-up queue record with only the related lead data needed by staff."""
+    return CustomerFollowUpResponse(
+        id=followup.id,
+        lead_id=lead.id,
+        lead_name=lead.full_name,
+        lead_email=lead.email,
+        sequence_step=followup.sequence_step,
+        channel=followup.channel,
+        status=FollowUpStatus(followup.status),
+        subject=followup.subject,
+        body=followup.body,
+        scheduled_at=followup.scheduled_at,
+        sent_at=followup.sent_at,
+        suppression_reason=followup.suppression_reason,
+        created_at=followup.created_at,
+    )
+
+
+def _appointment_response(appointment: CustomerAppointment, lead: CustomerLead) -> CustomerAppointmentResponse:
+    """Map a consultation record without exposing database-only details."""
+    return CustomerAppointmentResponse(
+        id=appointment.id,
+        lead_id=lead.id,
+        lead_name=lead.full_name,
+        status=AppointmentStatus(appointment.status),
+        booking_url=appointment.booking_url,
+        host_name=appointment.host_name,
+        scheduled_for=appointment.scheduled_for,
+        completed_at=appointment.completed_at,
+        notes=appointment.notes,
+        created_at=appointment.created_at,
+    )
+
+
+def _commercial_email_footer() -> str:
+    """Return PHI's approved commercial-email identity without pretending a message was delivered."""
+    mailing_address = os.getenv("PHI_BUSINESS_MAILING_ADDRESS", "").strip()
+    address_line = mailing_address or "PHI business mailing address must be configured before delivery."
+    return (
+        "\n\n—\n"
+        "Prince Haul Intelligence\n"
+        f"{address_line}\n\n"
+        "You received this follow-up after requesting a PHI assessment. "
+        "To stop future PHI follow-up emails, reply UNSUBSCRIBE."
+    )
+
+
+def _assessment_followup_copy(lead: CustomerLead) -> tuple[str, str]:
+    """Create factual assessment-response copy; sending remains a separately controlled action."""
+    subject = f"Your PHI {lead.recommended_offer or 'Game Plan'}"
+    if lead.journey == CustomerJourney.LAUNCH.value:
+        next_step = "your business-readiness, equipment, and first-load operating priorities"
+    elif lead.journey == CustomerJourney.FLEET.value:
+        next_step = "where information is breaking between trucks, dispatch, documents, and customers"
+    else:
+        next_step = "your load, dispatch, document, and profit workflow"
+    body = (
+        f"Hi {lead.full_name},\n\n"
+        f"Thank you for requesting a PHI assessment. Based on what you shared, "
+        f"your recommended starting point is: {lead.recommended_offer or 'PHI Game Plan'}. "
+        f"The first conversation will focus on {next_step}.\n\n"
+        "PHI can organize the work and explain the next step, but you remain in control of business, safety, regulatory, and commercial decisions.\n\n"
+        "Reply with the best time for a short planning conversation, or use the PHI booking link when it is available."
+        f"{_commercial_email_footer()}"
+    )
+    return subject, body
+
+
+def _queue_assessment_followup(db, lead: CustomerLead) -> CustomerFollowUp | None:
+    """Create one assessment follow-up draft per consented lead; never send from this function."""
+    if not lead.consent_marketing:
+        return None
+    existing = (
+        db.query(CustomerFollowUp)
+        .filter(
+            CustomerFollowUp.lead_id == lead.id,
+            CustomerFollowUp.sequence_step == "assessment_response",
+        )
+        .first()
+    )
+    if existing:
+        return existing
+    subject, body = _assessment_followup_copy(lead)
+    followup = CustomerFollowUp(
+        lead_id=lead.id,
+        sequence_step="assessment_response",
+        channel="email",
+        status=FollowUpStatus.READY.value,
+        subject=subject,
+        body=body,
+        scheduled_at=datetime.now(timezone.utc),
+    )
+    db.add(followup)
+    db.commit()
+    db.refresh(followup)
+    log_customer_event(
+        db,
+        lead_id=lead.id,
+        event_type="followup.prepared",
+        actor="acquisition-orchestrator",
+        metadata={"followup_id": followup.id, "sequence_step": followup.sequence_step},
+    )
+    return followup
+
+
+def _create_job(workflow: str):
     """Initialize a new job record and return its job_id."""
     job_id = str(uuid.uuid4())
     _job_store[job_id] = {
@@ -639,6 +834,7 @@ def capture_customer_lead(request: LeadCaptureRequest):
                 actor="website",
                 metadata={"source": request.lead_source, "journey": request.journey.value},
             )
+            _queue_assessment_followup(db, existing)
             return _lead_response(existing)
 
         lead = CustomerLead(
@@ -683,6 +879,7 @@ def capture_customer_lead(request: LeadCaptureRequest):
                 actor="qualification-engine",
                 metadata={"qualification_score": score, "recommended_offer": offer},
             )
+        _queue_assessment_followup(db, lead)
         return _lead_response(lead)
     finally:
         db.close()
@@ -835,6 +1032,297 @@ def update_customer_onboarding(
             metadata={"reason": request.reason, "activated_user_id": lead.activated_user_id},
         )
         return _lead_response(lead)
+    finally:
+        db.close()
+
+
+# ── PHI-native free sales workspace ───────────────────────────────────────────
+
+@app.get(
+    "/api/v1/customer-journey/operations/dashboard",
+    response_model=CustomerOperationsDashboardResponse,
+    tags=["customer-journey"],
+    summary="Return the free PHI customer-acquisition command center metrics",
+)
+def get_customer_operations_dashboard(
+    x_phi_admin_token: Optional[str] = Header(default=None),
+):
+    """Returns verified pipeline and revenue information for an authorized PHI operator."""
+    _require_admin_token(x_phi_admin_token)
+    db = SessionLocal()
+    try:
+        stages = [stage.value for stage in CustomerLeadStage]
+        appointment_statuses = [status.value for status in AppointmentStatus]
+        stage_counts = {
+            stage: db.query(CustomerLead).filter(CustomerLead.stage == stage).count()
+            for stage in stages
+        }
+        appointment_counts = {
+            status: db.query(CustomerAppointment).filter(CustomerAppointment.status == status).count()
+            for status in appointment_statuses
+        }
+        source_counts: dict[str, int] = {}
+        for lead_source, count in (
+            db.query(CustomerLead.lead_source, CustomerLead.id)
+            .order_by(CustomerLead.created_at.desc())
+            .all()
+        ):
+            source_counts[lead_source] = source_counts.get(lead_source, 0) + 1
+        verified_mrr = sum(
+            entry.amount_mrr
+            for entry in db.query(CustomerRevenueEntry)
+            .filter(CustomerRevenueEntry.status == "active")
+            .all()
+        )
+        target = 35_000.0
+        return CustomerOperationsDashboardResponse(
+            revenue_target_mrr=target,
+            verified_mrr=round(verified_mrr, 2),
+            remaining_mrr=round(max(target - verified_mrr, 0), 2),
+            stage_counts=stage_counts,
+            qualified_leads=stage_counts[CustomerLeadStage.QUALIFIED.value],
+            active_followups=db.query(CustomerFollowUp)
+            .filter(CustomerFollowUp.status == FollowUpStatus.READY.value)
+            .count(),
+            held_followups=db.query(CustomerFollowUp)
+            .filter(CustomerFollowUp.status == FollowUpStatus.HELD.value)
+            .count(),
+            appointment_counts=appointment_counts,
+            source_counts=source_counts,
+            conversion_notes=[
+                "Verified MRR includes active revenue entries only; it excludes forecasts and pipeline value.",
+                "A prepared follow-up is not represented as sent until a verified sender returns a delivery identifier.",
+                "Appointment and commercial outcomes require the configured PHI operating policy.",
+            ],
+        )
+    finally:
+        db.close()
+
+
+@app.get(
+    "/api/v1/customer-journey/followups",
+    response_model=list[CustomerFollowUpResponse],
+    tags=["customer-journey"],
+    summary="List the PHI free follow-up queue",
+)
+def list_customer_followups(
+    status: Optional[FollowUpStatus] = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    x_phi_admin_token: Optional[str] = Header(default=None),
+):
+    """Returns prepared and delivery-tracked messages for authorized customer operations."""
+    _require_admin_token(x_phi_admin_token)
+    db = SessionLocal()
+    try:
+        query = db.query(CustomerFollowUp)
+        if status:
+            query = query.filter(CustomerFollowUp.status == status.value)
+        followups = query.order_by(CustomerFollowUp.created_at.desc()).limit(limit).all()
+        response: list[CustomerFollowUpResponse] = []
+        for followup in followups:
+            lead = get_customer_lead(db, followup.lead_id)
+            if lead:
+                response.append(_followup_response(followup, lead))
+        return response
+    finally:
+        db.close()
+
+
+@app.patch(
+    "/api/v1/customer-journey/followups/{followup_id}",
+    response_model=CustomerFollowUpResponse,
+    tags=["customer-journey"],
+    summary="Record a controlled follow-up delivery, hold, cancellation, or suppression",
+)
+def update_customer_followup(
+    followup_id: str,
+    request: FollowUpStatusUpdateRequest,
+    x_phi_admin_token: Optional[str] = Header(default=None),
+):
+    """Records delivery state without ever sending a message from an unconfigured channel."""
+    _require_admin_token(x_phi_admin_token)
+    if request.status == FollowUpStatus.SENT and not request.external_message_id:
+        raise HTTPException(
+            status_code=422,
+            detail="A sender delivery ID is required before marking a follow-up as sent.",
+        )
+    db = SessionLocal()
+    try:
+        followup = db.query(CustomerFollowUp).filter(CustomerFollowUp.id == followup_id).first()
+        if not followup:
+            raise HTTPException(status_code=404, detail="Customer follow-up not found.")
+        lead = get_customer_lead(db, followup.lead_id)
+        if not lead:
+            raise HTTPException(status_code=404, detail="Related customer lead not found.")
+        followup.status = request.status.value
+        if request.status == FollowUpStatus.SENT:
+            followup.sent_at = datetime.now(timezone.utc)
+            followup.external_message_id = request.external_message_id
+        if request.status == FollowUpStatus.SUPPRESSED:
+            followup.suppression_reason = request.reason
+            lead.consent_marketing = False
+        db.commit()
+        db.refresh(followup)
+        log_customer_event(
+            db,
+            lead_id=lead.id,
+            event_type=f"followup.{request.status.value}",
+            actor="customer-operations",
+            metadata={"followup_id": followup.id, "reason": request.reason},
+        )
+        return _followup_response(followup, lead)
+    finally:
+        db.close()
+
+
+@app.get(
+    "/api/v1/customer-journey/appointments",
+    response_model=list[CustomerAppointmentResponse],
+    tags=["customer-journey"],
+    summary="List PHI consultation handoffs",
+)
+def list_customer_appointments(
+    status: Optional[AppointmentStatus] = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    x_phi_admin_token: Optional[str] = Header(default=None),
+):
+    """Returns consultation records without requiring a paid booking provider."""
+    _require_admin_token(x_phi_admin_token)
+    db = SessionLocal()
+    try:
+        query = db.query(CustomerAppointment)
+        if status:
+            query = query.filter(CustomerAppointment.status == status.value)
+        appointments = query.order_by(CustomerAppointment.created_at.desc()).limit(limit).all()
+        response: list[CustomerAppointmentResponse] = []
+        for appointment in appointments:
+            lead = get_customer_lead(db, appointment.lead_id)
+            if lead:
+                response.append(_appointment_response(appointment, lead))
+        return response
+    finally:
+        db.close()
+
+
+@app.post(
+    "/api/v1/customer-journey/leads/{lead_id}/appointments",
+    response_model=CustomerAppointmentResponse,
+    tags=["customer-journey"],
+    status_code=201,
+    summary="Create a free consultation handoff for a consented PHI lead",
+)
+def create_customer_appointment(
+    lead_id: str,
+    request: AppointmentCreateRequest,
+    x_phi_admin_token: Optional[str] = Header(default=None),
+):
+    """Creates a consultation request; it does not publish calendar availability or send a confirmation."""
+    _require_admin_token(x_phi_admin_token)
+    db = SessionLocal()
+    try:
+        lead = get_customer_lead(db, lead_id)
+        if not lead:
+            raise HTTPException(status_code=404, detail="Customer lead not found.")
+        appointment = CustomerAppointment(
+            lead_id=lead.id,
+            status=AppointmentStatus.REQUESTED.value,
+            booking_url=request.booking_url,
+            host_name=request.host_name,
+            notes=request.notes,
+        )
+        db.add(appointment)
+        db.commit()
+        db.refresh(appointment)
+        log_customer_event(
+            db,
+            lead_id=lead.id,
+            event_type="appointment.requested",
+            actor="acquisition-orchestrator",
+            metadata={"appointment_id": appointment.id, "host_name": appointment.host_name},
+        )
+        return _appointment_response(appointment, lead)
+    finally:
+        db.close()
+
+
+@app.patch(
+    "/api/v1/customer-journey/appointments/{appointment_id}",
+    response_model=CustomerAppointmentResponse,
+    tags=["customer-journey"],
+    summary="Update an auditable consultation outcome",
+)
+def update_customer_appointment(
+    appointment_id: str,
+    request: AppointmentStatusUpdateRequest,
+    x_phi_admin_token: Optional[str] = Header(default=None),
+):
+    """Updates an appointment state after an authorized calendar or PHI operations action."""
+    _require_admin_token(x_phi_admin_token)
+    db = SessionLocal()
+    try:
+        appointment = db.query(CustomerAppointment).filter(CustomerAppointment.id == appointment_id).first()
+        if not appointment:
+            raise HTTPException(status_code=404, detail="Customer appointment not found.")
+        lead = get_customer_lead(db, appointment.lead_id)
+        if not lead:
+            raise HTTPException(status_code=404, detail="Related customer lead not found.")
+        appointment.status = request.status.value
+        appointment.scheduled_for = request.scheduled_for or appointment.scheduled_for
+        appointment.completed_at = request.completed_at or appointment.completed_at
+        appointment.provider_booking_id = request.provider_booking_id or appointment.provider_booking_id
+        appointment.notes = request.notes or appointment.notes
+        db.commit()
+        db.refresh(appointment)
+        log_customer_event(
+            db,
+            lead_id=lead.id,
+            event_type=f"appointment.{request.status.value}",
+            actor="customer-operations",
+            metadata={"appointment_id": appointment.id, "reason": request.reason},
+        )
+        return _appointment_response(appointment, lead)
+    finally:
+        db.close()
+
+
+@app.post(
+    "/api/v1/customer-journey/leads/{lead_id}/revenue",
+    tags=["customer-journey"],
+    summary="Record verified recurring revenue for a won PHI customer",
+)
+def record_verified_customer_revenue(
+    lead_id: str,
+    request: RevenueEntryCreateRequest,
+    x_phi_admin_token: Optional[str] = Header(default=None),
+):
+    """Records only verified revenue after an authorized commercial win; pipeline estimates are rejected."""
+    _require_admin_token(x_phi_admin_token)
+    db = SessionLocal()
+    try:
+        lead = get_customer_lead(db, lead_id)
+        if not lead:
+            raise HTTPException(status_code=404, detail="Customer lead not found.")
+        if lead.stage != CustomerLeadStage.WON.value:
+            raise HTTPException(
+                status_code=409,
+                detail="Verified revenue can only be recorded for a lead that is already marked won.",
+            )
+        entry = CustomerRevenueEntry(
+            lead_id=lead.id,
+            amount_mrr=request.amount_mrr,
+            source=request.source,
+        )
+        db.add(entry)
+        db.commit()
+        db.refresh(entry)
+        log_customer_event(
+            db,
+            lead_id=lead.id,
+            event_type="revenue.verified",
+            actor="customer-operations",
+            metadata={"revenue_entry_id": entry.id, "amount_mrr": entry.amount_mrr, "reason": request.reason},
+        )
+        return {"id": entry.id, "lead_id": lead.id, "amount_mrr": entry.amount_mrr, "status": entry.status}
     finally:
         db.close()
 

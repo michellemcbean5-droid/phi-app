@@ -189,6 +189,7 @@ export default function UnifiedPHIExperience() {
           <a href="#equipment">Equipment</a>
           <a href="#operations">Operations</a>
           <a href="#agents">AI workforce</a>
+          <a href="/operations">Operations</a>
         </div>
         <a className="phi-nav-cta" href="#assessment">Start free</a>
       </nav>

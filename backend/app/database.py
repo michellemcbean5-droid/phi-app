@@ -137,6 +137,83 @@ class CustomerJourneyEvent(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class CustomerFollowUp(Base):
+    """A prepared or delivered customer follow-up; external delivery is always auditable."""
+    __tablename__ = "customer_followups"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    lead_id = Column(String, ForeignKey("customer_leads.id", ondelete="CASCADE"), nullable=False, index=True)
+    sequence_step = Column(String, nullable=False)
+    channel = Column(String, nullable=False, default="email")
+    status = Column(String, nullable=False, default="ready", index=True)
+    subject = Column(String)
+    body = Column(Text, nullable=False)
+    scheduled_at = Column(DateTime)
+    sent_at = Column(DateTime)
+    external_message_id = Column(String)
+    suppression_reason = Column(String)
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+    __table_args__ = (
+        CheckConstraint(
+            "sequence_step in ('assessment_response', 'practical_follow_up', 'close_the_loop', 'appointment_reminder')",
+            name="ck_customer_followups_sequence_step",
+        ),
+        CheckConstraint("channel in ('email', 'calendar')", name="ck_customer_followups_channel"),
+        CheckConstraint(
+            "status in ('ready', 'held', 'sent', 'cancelled', 'failed', 'suppressed')",
+            name="ck_customer_followups_status",
+        ),
+    )
+
+
+class CustomerAppointment(Base):
+    """A consultation request or scheduled PHI customer meeting."""
+    __tablename__ = "customer_appointments"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    lead_id = Column(String, ForeignKey("customer_leads.id", ondelete="CASCADE"), nullable=False, index=True)
+    status = Column(String, nullable=False, default="requested", index=True)
+    booking_url = Column(String)
+    provider_booking_id = Column(String)
+    host_name = Column(String)
+    scheduled_for = Column(DateTime)
+    completed_at = Column(DateTime)
+    notes = Column(Text)
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status in ('requested', 'scheduled', 'completed', 'cancelled', 'no_show')",
+            name="ck_customer_appointments_status",
+        ),
+    )
+
+
+class CustomerRevenueEntry(Base):
+    """A verified recurring-revenue record; forecasts never enter this table."""
+    __tablename__ = "customer_revenue_entries"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    lead_id = Column(String, ForeignKey("customer_leads.id", ondelete="SET NULL"), index=True)
+    amount_mrr = Column(Float, nullable=False, default=0)
+    status = Column(String, nullable=False, default="active", index=True)
+    source = Column(String, nullable=False, default="manual_verified")
+    verified_at = Column(DateTime, nullable=False, default=_now)
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+    __table_args__ = (
+        CheckConstraint("amount_mrr >= 0", name="ck_customer_revenue_entries_amount_mrr"),
+        CheckConstraint(
+            "status in ('active', 'cancelled', 'paused')",
+            name="ck_customer_revenue_entries_status",
+        ),
+    )
+
+
 class ActiveLoad(Base):
     __tablename__ = "active_loads"
     id = Column(String, primary_key=True, default=_uuid)
@@ -227,6 +304,31 @@ class FinancialVault(Base):
             name="ck_financial_vault_factoring_status",
         ),
     )
+
+
+def get_customer_lead(db, lead_id: str) -> CustomerLead | None:
+    """Retrieve one customer lead without exposing customer records outside the API boundary."""
+    return db.query(CustomerLead).filter(CustomerLead.id == lead_id).first()
+
+
+def log_customer_event(
+    db,
+    lead_id: str,
+    event_type: str,
+    actor: str,
+    metadata: dict | None = None,
+) -> CustomerJourneyEvent:
+    """Append a customer-lifecycle event and persist it immediately for the audit ledger."""
+    event = CustomerJourneyEvent(
+        lead_id=lead_id,
+        event_type=event_type,
+        actor=actor,
+        event_metadata=metadata or {},
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return event
 
 
 def get_fcm_token(db, driver_id: str) -> str | None:

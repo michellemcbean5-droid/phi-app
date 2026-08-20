@@ -3,18 +3,23 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { PHI_COLORS } from '../assets/brandColors';
 import AICommandCenterScreen from '../screens/AICommandCenterScreen';
 import APIKeysScreen from '../screens/APIKeysScreen';
+import BusinessBlueprintScreen from '../screens/BusinessBlueprintScreen';
+import CashFlowScreen from '../screens/CashFlowScreen';
 import ComplianceScreen from '../screens/ComplianceScreen';
+import DriverCircleScreen from '../screens/DriverCircleScreen';
 import DispatcherRadioScreen from '../screens/DispatcherRadioScreen';
 import DocumentsScreen from '../screens/DocumentsScreen';
 import DriverPrefsScreen from '../screens/DriverPrefsScreen';
 import EquipmentMarketplaceScreen from '../screens/EquipmentMarketplaceScreen';
 import InboxScreen from '../screens/InboxScreen';
+import IndependentDispatchHubScreen from '../screens/IndependentDispatchHubScreen';
 import LoadDetailsScreen from '../screens/LoadDetailsScreen';
 import LoadingScreen from '../screens/LoadingScreen';
 import MessageThreadScreen from '../screens/MessageThreadScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import PromoCodeScreen from '../screens/PromoCodeScreen';
 import PaymentHistoryScreen from '../screens/PaymentHistoryScreen';
+import PrivacyCenterScreen from '../screens/PrivacyCenterScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import SupportChatScreen from '../screens/SupportChatScreen';
@@ -30,6 +35,11 @@ export type RootStackParamList = {
   LoadDetails: { loadId: string };
   AICommandCenter: undefined;
   Compliance: undefined;
+  BusinessBlueprint: undefined;
+  DriverCircle: undefined;
+  IndependentDispatchHub: undefined;
+  CashFlow: undefined;
+  PrivacyCenter: undefined;
   Documents: undefined;
   Notifications: undefined;
   Settings: undefined;
@@ -67,6 +77,11 @@ export default function RootNavigator() {
       <Stack.Screen name="LoadDetails" component={LoadDetailsScreen} options={{ title: 'Load Details' }} />
       <Stack.Screen name="AICommandCenter" component={AICommandCenterScreen} options={{ title: 'AI Command Center' }} />
       <Stack.Screen name="Compliance" component={ComplianceScreen} options={{ title: 'Compliance' }} />
+      <Stack.Screen name="BusinessBlueprint" component={BusinessBlueprintScreen} options={{ title: 'Business Blueprint' }} />
+      <Stack.Screen name="DriverCircle" component={DriverCircleScreen} options={{ title: 'Driver’s Circle' }} />
+      <Stack.Screen name="IndependentDispatchHub" component={IndependentDispatchHubScreen} options={{ title: 'Dispatch Hub' }} />
+      <Stack.Screen name="CashFlow" component={CashFlowScreen} options={{ title: 'Cash Flow' }} />
+      <Stack.Screen name="PrivacyCenter" component={PrivacyCenterScreen} options={{ title: 'Privacy Center' }} />
       <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: 'Documents' }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />

@@ -252,9 +252,13 @@ export default function DashboardScreen() {
         <StaggeredList staggerDelay={60} direction="up">
           <View style={styles.quickGrid}>
             {[
+              { icon: 'map-outline', color: CARTOON_COLORS.royalBlue, label: 'Business Blueprint', sub: 'LLC · EIN · Authority', screen: 'BusinessBlueprint' },
+              { icon: 'people-outline', color: CARTOON_COLORS.bubblegumPink, label: 'Driver’s Circle', sub: 'Peers · Mentors · Safety', screen: 'DriverCircle' },
               { icon: 'folder-outline', color: CARTOON_COLORS.sunshineYellow, label: 'Virtual Glovebox', sub: 'BOL · POD · Permits', screen: 'Documents' },
               { icon: 'shield-checkmark-outline', color: CARTOON_COLORS.limeGreen, label: 'Compliance', sub: 'ELD · HOS · IFTA', screen: 'Compliance' },
               { icon: 'hardware-chip-outline', color: CARTOON_COLORS.electricBlue, label: 'AI Workers', sub: `${activeWorkers} active now`, screen: 'AICommandCenter' },
+              { icon: 'navigate-outline', color: CARTOON_COLORS.moneyGreen, label: 'Dispatch Hub', sub: 'RPM · Deadhead · Checks', screen: 'IndependentDispatchHub' },
+              { icon: 'wallet-outline', color: CARTOON_COLORS.tangerine, label: 'Cash Flow', sub: 'Invoices · Reserves · Fees', screen: 'CashFlow' },
               { icon: 'trending-up-outline', color: CARTOON_COLORS.sunshineYellow, label: 'Earnings', sub: 'P&L · CPM · Trends', screen: 'Earnings' },
               { icon: 'radio-outline', color: CARTOON_COLORS.bubblegumPink, label: 'Dispatcher Radio', sub: 'Push to talk', screen: 'DispatcherRadio' },
               { icon: 'chatbubbles-outline', color: CARTOON_COLORS.neonCyan, label: 'Messages', sub: 'Dispatch & brokers', screen: 'Inbox' },

@@ -1,0 +1,39 @@
+Preview verification — 2026-08-20
+
+The Expo web preview was started from mobile/ on port 8081 and exposed at a temporary public URL. The app successfully compiled, progressed through the PHI loading screen, and reached the Welcome screen. The Welcome screen presents "Log In" and "Get Started" actions. The preview URL is temporary and is intended for immediate functional review only.
+
+Dashboard verification — 2026-08-20
+
+After completing the existing setup flow and selecting "Start My Engine," the preview reached the Dashboard. The dashboard visibly presented one-tap cards for Business Blueprint (LLC, EIN, Authority), Driver’s Circle (Peers, Mentors, Safety), Dispatch Hub (RPM, Deadhead, Checks), and Cash Flow (Invoices, Reserves, Fees). This confirms the implemented entry points are available in the running preview.
+
+Business Blueprint smoke test — 2026-08-20
+
+The Business Blueprint opened successfully from the Dashboard. Its stage filters, progress indicator, 13 persistent checklist items, legal/regulatory disclaimer, and IRS/FMCSA external-resource entries all rendered in the web preview. Returning from the screen restored the Dashboard normally.
+
+Driver’s Circle smoke test — 2026-08-20
+
+The Driver’s Circle opened successfully from the Dashboard. The live preview rendered the testing-mode disclosure, safety rules, topic selector, mentor/team-driving controls, post composer, topic filters, reporting action, and initial PHI Team safety post. A non-sensitive mentorship question was accepted into the composer for posting.
+
+Driver’s Circle interaction result — 2026-08-20
+
+The non-sensitive mentorship question was submitted successfully. The feed immediately displayed a new local post by “Driver” with the chosen Authority topic and the available Helpful, Reply, Hide, and Report actions. Returning to the Dashboard succeeded normally.
+
+Cash Flow smoke test — 2026-08-20
+
+The Cash Flow screen opened successfully from the Dashboard. It rendered cash-after-reserves, pending-receivables, protected-reserves, payment-date summaries, editable operating reserves, payment-method options, fee and timing fields, and an empty invoice-aging state. A non-production test invoice (Test Broker / TEST-1001 / $2,000) was accepted into the form.
+
+Cash Flow interaction result — 2026-08-20
+
+The Factoring option automatically applied the preview’s 95% advance assumption, a 3% fee, and one expected payment day for the $2,000 test invoice. The preview displayed a $1,900 immediate advance, $60 estimated fee, $1,940 net, and $40 reserve later. Adding the invoice succeeded: Invoice Aging displayed the pending Test Broker / TEST-1001 invoice, 3% fee, $1,940 expected net, and next expected payment date.
+
+Independent Dispatch Hub smoke test — 2026-08-20
+
+The Independent Dispatch Hub opened successfully from the Dashboard. The preview rendered minimum all-in RPM, maximum deadhead percentage, and fuel-cost-per-mile target inputs; the explanatory broker and rate-confirmation warning; and the zero-plan state directing the driver to use the Loads tab’s “Plan in Hub” action. Load-plan metrics and verification checklists are covered by unit tests; a live DAT/Truckstop credential set was not available in this preview session.
+
+Clean preview recovery — 2026-08-20
+
+After the stale port-8081 process was stopped and the Expo web bundle was rebuilt with a cleared cache, the public preview successfully rendered the PHI animated loading view and transitioned to the Welcome screen. The tested link is not blank in a fresh browser session.
+
+Clean preview end-to-end check — 2026-08-20
+
+The rebuilt public preview progressed from the Welcome screen to AI Dispatcher Settings and then to the Dashboard. The Dashboard visibly includes Business Blueprint, Driver’s Circle, Dispatch Hub, and Cash Flow. This verifies that the restarted preview provides a usable live interface rather than a blank screen.

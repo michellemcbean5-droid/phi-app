@@ -6,16 +6,16 @@
  * set to SEND_CONSENTED, and writes a verified Gmail message ID back to PHI.
  *
  * Required Script Properties:
- *   PHI_API_BASE              https://your-api.example.com/api/v1/customer-journey
- *   PHI_ADMIN_TOKEN           the same secret used by the protected PHI API
+ *   PHI_SITE_URL              https://your-single-phi-domain.example
+ *   PHI_AUTOMATION_ACCESS_KEY the limited key accepted only by /api/automation
  *   PHI_DELIVERY_MODE         DRAFT_ONLY (safe default) or SEND_CONSENTED
  *
  * Optional Script Properties:
  *   PHI_SENDER_NAME           Prince Haul Intelligence
  *   PHI_BATCH_LIMIT           10 (maximum 20)
  *
- * Do not put PHI_ADMIN_TOKEN in this source file. Set it in Apps Script
- * Project Settings > Script properties instead.
+ * Do not put PHI_AUTOMATION_ACCESS_KEY in this source file. Set it in Apps
+ * Script Project Settings > Script properties instead.
  */
 
 const PHI_DEFAULT_SENDER = 'Prince Haul Intelligence';
@@ -117,8 +117,8 @@ function getPhiConfig() {
   const properties = PropertiesService.getScriptProperties();
   const rawLimit = Number(properties.getProperty('PHI_BATCH_LIMIT') || '10');
   return {
-    apiBase: (properties.getProperty('PHI_API_BASE') || '').replace(/\/$/, ''),
-    adminToken: properties.getProperty('PHI_ADMIN_TOKEN') || '',
+    siteUrl: (properties.getProperty('PHI_SITE_URL') || '').replace(/\/$/, ''),
+    automationAccessKey: properties.getProperty('PHI_AUTOMATION_ACCESS_KEY') || '',
     deliveryMode: properties.getProperty('PHI_DELIVERY_MODE') || PHI_SAFE_MODE,
     senderName: properties.getProperty('PHI_SENDER_NAME') || PHI_DEFAULT_SENDER,
     batchLimit: Math.max(1, Math.min(20, Number.isFinite(rawLimit) ? Math.floor(rawLimit) : 10)),
@@ -126,8 +126,8 @@ function getPhiConfig() {
 }
 
 function validatePhiConfig(config) {
-  if (!config.apiBase || !config.adminToken) {
-    throw new Error('Set PHI_API_BASE and PHI_ADMIN_TOKEN in Apps Script Project Settings > Script properties before installing the PHI lead engine.');
+  if (!config.siteUrl || !config.automationAccessKey) {
+    throw new Error('Set PHI_SITE_URL and PHI_AUTOMATION_ACCESS_KEY in Apps Script Project Settings > Script properties before installing the PHI lead engine.');
   }
   if ([PHI_SAFE_MODE, PHI_LIVE_MODE].indexOf(config.deliveryMode) === -1) {
     throw new Error('PHI_DELIVERY_MODE must be DRAFT_ONLY or SEND_CONSENTED.');
@@ -137,14 +137,14 @@ function validatePhiConfig(config) {
 function phiRequest(config, path, method, payload) {
   const options = {
     method: method || 'get',
-    headers: { 'X-PHI-Admin-Token': config.adminToken },
+    headers: { 'X-PHI-Automation-Key': config.automationAccessKey },
     muteHttpExceptions: true,
   };
   if (payload) {
     options.contentType = 'application/json';
     options.payload = JSON.stringify(payload);
   }
-  const response = UrlFetchApp.fetch(config.apiBase + path, options);
+  const response = UrlFetchApp.fetch(config.siteUrl + '/api/automation' + path, options);
   const status = response.getResponseCode();
   const text = response.getContentText();
   let data = {};

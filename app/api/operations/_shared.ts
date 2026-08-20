@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 
 const apiBase = () => process.env.PHI_CUSTOMER_API_URL?.replace(/\/$/, "");
 
+function assertGatewayDependencies(): NextResponse | null {
+  if (!apiBase() || !process.env.PHI_ADMIN_TOKEN) {
+    return NextResponse.json(
+      { detail: "PHI customer operations are not connected yet." },
+      { status: 503 },
+    );
+  }
+  return null;
+}
+
 export function assertOperationsAccess(request: NextRequest): NextResponse | null {
   const expected = process.env.PHI_OPERATIONS_ACCESS_KEY;
   if (!expected) {
@@ -13,13 +23,21 @@ export function assertOperationsAccess(request: NextRequest): NextResponse | nul
   if (request.headers.get("x-phi-operations-key") !== expected) {
     return NextResponse.json({ detail: "Invalid PHI operations access key." }, { status: 401 });
   }
-  if (!apiBase() || !process.env.PHI_ADMIN_TOKEN) {
+  return assertGatewayDependencies();
+}
+
+export function assertAutomationAccess(request: NextRequest): NextResponse | null {
+  const expected = process.env.PHI_AUTOMATION_ACCESS_KEY;
+  if (!expected) {
     return NextResponse.json(
-      { detail: "PHI customer operations are not connected yet." },
+      { detail: "PHI automation access is not configured yet." },
       { status: 503 },
     );
   }
-  return null;
+  if (request.headers.get("x-phi-automation-key") !== expected) {
+    return NextResponse.json({ detail: "Invalid PHI automation access key." }, { status: 401 });
+  }
+  return assertGatewayDependencies();
 }
 
 export async function forwardCustomerRequest(

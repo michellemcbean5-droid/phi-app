@@ -184,6 +184,8 @@ The Next.js lead route relays assessment submissions to `PHI_CUSTOMER_API_URL` o
 
 The private free sales workspace lives at `/operations`. Configure `PHI_OPERATIONS_ACCESS_KEY` in the web deployment and enter that key only in the private workspace. The server-side Operations gateway also requires `PHI_CUSTOMER_API_URL` and `PHI_ADMIN_TOKEN`; neither secret is exposed to the browser. The workspace shows the consented lead pipeline, prepared follow-up queue, consultation handoffs, source counts, and **verified** recurring revenue rather than counting opportunities as revenue.
 
+The free Google delivery bridge uses the same public PHI site at `/api/automation/*`. Configure a separate `PHI_AUTOMATION_ACCESS_KEY` in the web environment and the Google Script properties. This restricted key can retrieve `ready` follow-ups and write delivery receipts only; it cannot list all leads, move deal stages, begin onboarding, record revenue, or access the PHI admin token. See [`docs/single-domain-deployment.md`](docs/single-domain-deployment.md) for the one-domain route map and deployment variables.
+
 For consented customer email, set `PHI_BUSINESS_MAILING_ADDRESS` in the FastAPI deployment. PHI currently uses `1642 McCulloch Blvd, Unit 466, Lake Havasu City, Arizona`. New prepared assessment responses include this identity and a reply-based opt-out instruction. The application never treats a follow-up as sent until an authorized delivery provider returns a delivery identifier.
 
 #### Backend Docker (local production stack)

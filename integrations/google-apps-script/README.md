@@ -22,8 +22,8 @@ Create a new standalone project at [script.google.com](https://script.google.com
 
 | Property | Required value | Purpose |
 | --- | --- | --- |
-| `PHI_API_BASE` | `https://<your-public-phi-api>/api/v1/customer-journey` | The public HTTPS address of the deployed PHI FastAPI backend. |
-| `PHI_ADMIN_TOKEN` | The secure production PHI admin token | Authenticates protected queue and receipt updates. |
+| `PHI_SITE_URL` | `https://<your-existing-PHI-site>` | The one public PHI website address. The bridge uses its restricted same-domain automation route. |
+| `PHI_AUTOMATION_ACCESS_KEY` | The restricted website automation key | Gives access only to prepared follow-up retrieval and delivery receipts; it does not expose the PHI admin token. |
 | `PHI_DELIVERY_MODE` | `DRAFT_ONLY` initially | Keeps the first activation in non-sending review mode. |
 | `PHI_SENDER_NAME` | `Prince Haul Intelligence` | The displayed sender name. |
 | `PHI_BATCH_LIMIT` | `10` initially | Caps any one run at 10 ready records; the script caps this value at 20. |
@@ -50,7 +50,7 @@ A customer reply of **UNSUBSCRIBE** must be handled promptly by moving the relat
 
 ## Production deployment prerequisites
 
-The Apps Script bridge can only contact a **public, HTTPS** PHI API. A local development address such as `localhost` will not work from Google. Before installation, deploy the Next.js site and the FastAPI backend, set `PHI_ADMIN_TOKEN` and `PHI_BUSINESS_MAILING_ADDRESS` in the backend environment, and set `PHI_CUSTOMER_API_URL`, `PHI_ADMIN_TOKEN`, and `PHI_OPERATIONS_ACCESS_KEY` in the web environment. Keep all secrets in the deployment provider’s secret manager.
+The Apps Script bridge can only contact the **public HTTPS PHI website**. A local development address such as `localhost` will not work from Google. Before installation, deploy the current PHI project, set `PHI_ADMIN_TOKEN` and `PHI_BUSINESS_MAILING_ADDRESS` in the customer lifecycle environment, and set `PHI_CUSTOMER_API_URL`, `PHI_ADMIN_TOKEN`, `PHI_OPERATIONS_ACCESS_KEY`, and `PHI_AUTOMATION_ACCESS_KEY` in the website environment. The bridge calls `https://<your-existing-PHI-site>/api/automation/...`, so no second domain or public backend URL is needed. Keep all secrets in the deployment provider’s secret manager. See the [single-domain deployment guide](../../docs/single-domain-deployment.md) for the complete route and secret map.
 
 ## References
 

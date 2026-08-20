@@ -29,6 +29,7 @@ PHI is built to automate the entire trucking lifecycle:
 - **Earnings intelligence** with net profit, RPM trend monitoring, yearly projection, and affiliate tracking
 - **Compliance, document, notification, vehicle, and subscription screens** built for PHI production flows
 - **Mock API connectors** for DAT, Google Maps, Twilio, Stripe, Samsara integrations
+- **Customer acquisition lifecycle** with a consented PHI assessment form, qualification rules, protected deal stages, onboarding gates, and an append-only audit ledger
 
 ---
 
@@ -172,6 +173,14 @@ python main.py
 | `http://localhost:8000/redoc` | ReDoc — clean reference documentation |
 | `http://localhost:8000/health` | Health check endpoint |
 | `http://localhost:8000/api/v1/agents` | All 15 CrewAI agents |
+| `POST /api/v1/customer-journey/leads` | Public, consented PHI assessment intake |
+| `GET /api/v1/customer-journey/leads` | Protected customer-operations pipeline view |
+| `PATCH /api/v1/customer-journey/leads/{lead_id}/stage` | Protected, audited deal-stage update |
+| `PATCH /api/v1/customer-journey/leads/{lead_id}/onboarding` | Protected onboarding transition after a verified win |
+
+#### Customer Journey Configuration
+
+The Next.js lead route relays assessment submissions to `PHI_CUSTOMER_API_URL` on the server. The FastAPI service must set `PHI_ADMIN_TOKEN` before staff-only pipeline, deal-stage, and onboarding endpoints are available. Keep both values in the deployment secret manager; do not expose the admin token to browsers. The public intake endpoint stores only an explicit-consent assessment and never sends messages, accepts payments, or changes a deal to won by itself.
 
 #### Backend Docker (local production stack)
 ```bash

@@ -56,6 +56,61 @@ create trigger trg_users_updated_at
   before update on users
   for each row execute function set_updated_at();
 
+-- ─── customer leads and lifecycle events ───────────────────────────────────
+-- A consented prospect enters as a lead, moves through qualification and
+-- onboarding, then links to a PHI driver account when activated.
+
+create table if not exists customer_leads (
+  id                    uuid primary key default gen_random_uuid(),
+  email                 text not null unique,
+  full_name             text not null,
+  phone                 text,
+  company_name          text,
+  journey               text not null default 'launch'
+                          check (journey in ('launch', 'dispatch', 'fleet')),
+  stage                 text not null default 'new'
+                          check (stage in ('new', 'qualified', 'opportunity', 'won', 'lost', 'nurture')),
+  lead_source           text not null default 'organic',
+  source_detail         text,
+  equipment_type        text,
+  truck_count           integer not null default 0 check (truck_count >= 0),
+  home_state            char(2),
+  top_challenge         text,
+  preferred_contact     text not null default 'email'
+                          check (preferred_contact in ('email', 'phone', 'text')),
+  consent_marketing     boolean not null default false,
+  consent_captured_at   timestamptz,
+  qualification_score   smallint not null default 0 check (qualification_score between 0 and 100),
+  recommended_offer     text,
+  owner                 text not null default 'PHI Acquisition Pod',
+  next_action_at        timestamptz,
+  external_crm_id       text,
+  onboarding_status     text not null default 'not_started'
+                          check (onboarding_status in ('not_started', 'in_progress', 'complete', 'blocked')),
+  activated_user_id     uuid references users(id) on delete set null,
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now()
+);
+
+create index if not exists idx_customer_leads_stage on customer_leads(stage, created_at desc);
+create index if not exists idx_customer_leads_journey on customer_leads(journey);
+
+create table if not exists customer_journey_events (
+  id                    bigint generated always as identity primary key,
+  lead_id               uuid not null references customer_leads(id) on delete cascade,
+  event_type            text not null,
+  actor                 text not null default 'system',
+  metadata              jsonb not null default '{}',
+  created_at            timestamptz not null default now()
+);
+
+create index if not exists idx_customer_journey_events_lead on customer_journey_events(lead_id, created_at desc);
+
+drop trigger if exists trg_customer_leads_updated_at on customer_leads;
+create trigger trg_customer_leads_updated_at
+  before update on customer_leads
+  for each row execute function set_updated_at();
+
 -- ─── active_loads ─────────────────────────────────────────────────────────
 -- Freight currently booked or in transit for a driver. rpm is derived so the
 -- UI never has to recompute it client-side.
@@ -147,6 +202,8 @@ create index if not exists idx_financial_vault_status on financial_vault(factori
 -- ═══════════════════════════════════════════════════════════════════════════
 
 alter table users enable row level security;
+alter table customer_leads enable row level security;
+alter table customer_journey_events enable row level security;
 alter table active_loads enable row level security;
 alter table ai_action_logs enable row level security;
 alter table financial_vault enable row level security;
@@ -158,6 +215,20 @@ create policy users_select_own on users
 drop policy if exists users_update_own on users;
 create policy users_update_own on users
   for update using (auth.uid() = id);
+
+drop policy if exists customer_leads_select_own on customer_leads;
+create policy customer_leads_select_own on customer_leads
+  for select using (activated_user_id = auth.uid());
+
+drop policy if exists customer_journey_events_select_own on customer_journey_events;
+create policy customer_journey_events_select_own on customer_journey_events
+  for select using (
+    exists (
+      select 1 from customer_leads
+      where customer_leads.id = customer_journey_events.lead_id
+        and customer_leads.activated_user_id = auth.uid()
+    )
+  );
 
 drop policy if exists active_loads_select_own_or_available on active_loads;
 create policy active_loads_select_own_or_available on active_loads

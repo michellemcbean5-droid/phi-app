@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 
 type Track = "launch" | "dispatch";
 type Autonomy = "assist" | "supervised" | "policy";
@@ -85,6 +85,8 @@ export default function UnifiedPHIExperience() {
   const [equipment, setEquipment] = useState("Dry Van");
   const [planReady, setPlanReady] = useState(false);
   const [showAllPods, setShowAllPods] = useState(false);
+  const [leadStatus, setLeadStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [leadMessage, setLeadMessage] = useState("");
 
   const plan = useMemo(() => {
     if (track === "launch") {
@@ -115,6 +117,56 @@ export default function UnifiedPHIExperience() {
   function selectTrack(next: Track) {
     setTrack(next);
     document.getElementById("assessment")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function submitAssessment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const truckCount = Number(formData.get("truckCount") || 0);
+    const topChallenge = String(formData.get("topChallenge") || "").trim();
+    const consent = formData.get("consent") === "on";
+
+    if (!consent) {
+      setLeadStatus("error");
+      setLeadMessage("Please confirm that PHI may follow up about the assessment you requested.");
+      return;
+    }
+
+    setLeadStatus("submitting");
+    setLeadMessage("");
+    try {
+      const response = await fetch("/api/lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          full_name: String(formData.get("fullName") || "").trim(),
+          email: String(formData.get("email") || "").trim(),
+          phone: String(formData.get("phone") || "").trim() || undefined,
+          company_name: String(formData.get("company") || "").trim() || undefined,
+          journey: truckCount >= 2 ? "fleet" : track,
+          equipment_type: equipment === "Local / last mile" ? undefined : equipment,
+          truck_count: truckCount,
+          home_state: String(formData.get("homeState") || "").trim() || undefined,
+          top_challenge: topChallenge,
+          preferred_contact: String(formData.get("preferredContact") || "email"),
+          consent_marketing: true,
+          lead_source: "phi-website",
+          source_detail: "assessment",
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.detail || "We could not save your assessment just yet.");
+      }
+      setPlanReady(true);
+      setLeadStatus("success");
+      setLeadMessage(`Your PHI ${payload.recommended_offer} is ready. Review the tailored first steps below, and PHI will use your selected contact preference once follow-up is active.`);
+      form.reset();
+    } catch (error) {
+      setLeadStatus("error");
+      setLeadMessage(error instanceof Error ? error.message : "We could not save your assessment just yet.");
+    }
   }
 
   return (
@@ -256,8 +308,38 @@ export default function UnifiedPHIExperience() {
               <h3>{track === "launch" ? "Business Launch Command Center" : "Autonomous Dispatch Command Center"}</h3>
               <p>{autonomyDetails[autonomy].description}</p>
             </div>
-            <button className="phi-button phi-button-primary" onClick={() => setPlanReady(true)}>Build my plan</button>
+            <button className="phi-button phi-button-primary" onClick={() => document.getElementById("lead-capture")?.scrollIntoView({ behavior: "smooth", block: "center" })}>Get my plan</button>
           </div>
+          <form id="lead-capture" className="phi-lead-form" onSubmit={submitAssessment}>
+            <div className="phi-lead-form-heading">
+              <span className="phi-summary-kicker">GET YOUR PHI GAME PLAN</span>
+              <p>Tell us what you are working on. We will use this only to prepare the requested assessment and follow up about PHI.</p>
+            </div>
+            <label>Full name<input name="fullName" type="text" minLength={2} required placeholder="Your name" /></label>
+            <label>Email<input name="email" type="email" required placeholder="you@example.com" /></label>
+            <label>Phone <small>optional</small><input name="phone" type="tel" placeholder="(555) 555-5555" /></label>
+            <label>Company <small>optional</small><input name="company" type="text" placeholder="Your carrier or business" /></label>
+            <label>Trucks you operate<input name="truckCount" type="number" min="0" max="10000" defaultValue="0" /></label>
+            <label>Home state <small>optional</small><input name="homeState" type="text" minLength={2} maxLength={2} placeholder="TX" /></label>
+            <label className="phi-lead-form-wide">What would make PHI most valuable right now?
+              <select name="topChallenge" required defaultValue="">
+                <option value="" disabled>Select your top priority</option>
+                <option value="I need a better first-truck and business launch plan.">Start my business the right way</option>
+                <option value="I need a clearer profit, load, and dispatch workflow.">Improve load and dispatch decisions</option>
+                <option value="I need a simpler document and post-delivery workflow.">Organize documents and closeout</option>
+                <option value="I need more visibility across my small fleet.">Improve small-fleet operations</option>
+              </select>
+            </label>
+            <label className="phi-lead-form-wide">Best follow-up channel
+              <select name="preferredContact" defaultValue="email"><option value="email">Email</option><option value="phone">Phone</option><option value="text">Text</option></select>
+            </label>
+            <label className="phi-consent phi-lead-form-wide"><input name="consent" type="checkbox" required /> <span>I agree that PHI may contact me about the assessment I requested. I can opt out of promotional follow-up at any time.</span></label>
+            <div className="phi-lead-form-footer phi-lead-form-wide">
+              <button className="phi-button phi-button-primary" type="submit" disabled={leadStatus === "submitting"}>{leadStatus === "submitting" ? "Saving your plan…" : "Get my PHI game plan"}</button>
+              <p>PHI does not promise earnings, financing, insurance approval, legal compliance, or automatic bookings.</p>
+            </div>
+            {leadStatus !== "idle" && <p className={`phi-lead-message is-${leadStatus}`} aria-live="polite">{leadMessage}</p>}
+          </form>
         </div>
         {planReady && (
           <div className="phi-plan-result" aria-live="polite">

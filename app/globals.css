@@ -268,3 +268,27 @@ button { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   *, *:before, *:after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
 }
+
+/* Customer acquisition assessment */
+.phi-lead-form { border-top: 1px solid #e4ebf6; display: grid; gap: .8rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 1.55rem; padding-top: 1.45rem; }
+.phi-lead-form-heading, .phi-lead-form-wide { grid-column: 1 / -1; }
+.phi-lead-form-heading p { color: #60718d; font-size: .76rem; line-height: 1.5; margin: .38rem 0 0; max-width: 37rem; }
+.phi-lead-form label { color: #42516a; display: grid; font-size: .66rem; font-weight: 900; gap: .38rem; letter-spacing: .01em; }
+.phi-lead-form label small { color: #71819a; font-size: .57rem; font-weight: 700; letter-spacing: 0; }
+.phi-lead-form input, .phi-lead-form select { background: #f8fbff; border: 1px solid #d6e2f3; border-radius: .48rem; color: var(--ink); font-size: .78rem; min-height: 2.5rem; outline: none; padding: .62rem .7rem; width: 100%; }
+.phi-lead-form input:focus, .phi-lead-form select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(7,87,229,.11); }
+.phi-consent { align-items: flex-start; border-top: 1px solid #e4ebf6; display: flex !important; font-size: .66rem !important; font-weight: 700 !important; gap: .55rem !important; line-height: 1.45; margin-top: .25rem; padding-top: 1rem; }
+.phi-consent input { accent-color: var(--blue); flex: 0 0 auto; height: 1rem; margin: .02rem 0 0; min-height: 0; width: 1rem; }
+.phi-lead-form-footer { align-items: center; display: flex; gap: 1rem; justify-content: space-between; }
+.phi-lead-form-footer .phi-button { font-size: .76rem; white-space: nowrap; }
+.phi-lead-form-footer .phi-button:disabled { cursor: wait; opacity: .7; transform: none; }
+.phi-lead-form-footer p { color: #71819a; font-size: .59rem; line-height: 1.45; margin: 0; max-width: 25rem; }
+.phi-lead-message { border-radius: .5rem; font-size: .72rem; font-weight: 800; grid-column: 1 / -1; margin: 0; padding: .7rem .8rem; }
+.phi-lead-message.is-success { background: #e7f8ee; color: #216949; }
+.phi-lead-message.is-error { background: #fff0ef; color: #9b342a; }
+
+@media (max-width: 720px) {
+  .phi-lead-form { grid-template-columns: 1fr; }
+  .phi-lead-form-footer { align-items: stretch; flex-direction: column; }
+  .phi-lead-form-footer .phi-button { width: 100%; }
+}

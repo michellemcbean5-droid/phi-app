@@ -41,7 +41,15 @@ from datetime import datetime, timezone
 from typing import Optional, Any
 from enum import Enum
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, WebSocket, WebSocketDisconnect
+from fastapi import (
+    BackgroundTasks,
+    FastAPI,
+    Header,
+    HTTPException,
+    Query,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
@@ -54,7 +62,16 @@ from tasks import (
 )
 from agents import ALL_AGENTS, AGENT_GROUPS
 from app.websocket_manager import manager as ws_manager
-from app.database import SessionLocal, set_fcm_token, get_fcm_token
+from app.database import (
+    CustomerJourneyEvent,
+    CustomerLead,
+    SessionLocal,
+    User,
+    get_customer_lead,
+    get_fcm_token,
+    log_customer_event,
+    set_fcm_token,
+)
 
 try:
     from services.push import notify_load_locked, notify_hos_violation, notify_emergency
@@ -309,6 +326,103 @@ class DeliveryConfirmation(BaseModel):
     )
 
 
+# ── Customer acquisition and lifecycle models ─────────────────────────────────
+
+class CustomerJourney(str, Enum):
+    LAUNCH = "launch"
+    DISPATCH = "dispatch"
+    FLEET = "fleet"
+
+
+class CustomerLeadStage(str, Enum):
+    NEW = "new"
+    QUALIFIED = "qualified"
+    OPPORTUNITY = "opportunity"
+    WON = "won"
+    LOST = "lost"
+    NURTURE = "nurture"
+
+
+class OnboardingStatus(str, Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETE = "complete"
+    BLOCKED = "blocked"
+
+
+class LeadCaptureRequest(BaseModel):
+    """Consent-based public intake request from the PHI assessment journey."""
+    full_name: str = Field(min_length=2, max_length=120)
+    email: str = Field(min_length=5, max_length=254)
+    phone: Optional[str] = Field(default=None, max_length=40)
+    company_name: Optional[str] = Field(default=None, max_length=160)
+    journey: CustomerJourney
+    equipment_type: Optional[EquipmentType] = None
+    truck_count: int = Field(default=0, ge=0, le=10_000)
+    home_state: Optional[str] = Field(default=None, min_length=2, max_length=2)
+    top_challenge: str = Field(min_length=2, max_length=500)
+    preferred_contact: str = Field(default="email", pattern="^(email|phone|text)$")
+    consent_marketing: bool = Field(
+        description="Explicit consent to receive follow-up for the requested PHI assessment."
+    )
+    lead_source: str = Field(default="website", min_length=2, max_length=80)
+    source_detail: Optional[str] = Field(default=None, max_length=180)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if "@" not in normalized or normalized.startswith("@") or normalized.endswith("@"):
+            raise ValueError("Enter a valid email address.")
+        return normalized
+
+    @field_validator("home_state")
+    @classmethod
+    def normalize_state(cls, value: Optional[str]) -> Optional[str]:
+        return value.upper() if value else None
+
+
+class LeadStageUpdateRequest(BaseModel):
+    """Admin-only stage change with a mandatory audit reason."""
+    stage: CustomerLeadStage
+    reason: str = Field(min_length=3, max_length=500)
+    owner: Optional[str] = Field(default=None, max_length=120)
+    next_action_at: Optional[datetime] = None
+
+
+class OnboardingUpdateRequest(BaseModel):
+    """Admin-only onboarding status change after a customer has agreed to proceed."""
+    status: OnboardingStatus
+    reason: str = Field(min_length=3, max_length=500)
+    activated_user_id: Optional[str] = None
+
+
+class CustomerLeadResponse(BaseModel):
+    id: str
+    full_name: str
+    email: str
+    company_name: Optional[str]
+    journey: CustomerJourney
+    stage: CustomerLeadStage
+    equipment_type: Optional[str]
+    truck_count: int
+    top_challenge: str
+    qualification_score: int
+    recommended_offer: str
+    owner: str
+    onboarding_status: OnboardingStatus
+    created_at: datetime
+    updated_at: datetime
+
+
+class CustomerJourneyEventResponse(BaseModel):
+    id: int
+    event_type: str
+    actor: str
+    event_metadata: dict
+    created_at: datetime
+
+
 # ── Response Models ───────────────────────────────────────────────────────────
 
 class JobResponse(BaseModel):
@@ -342,6 +456,62 @@ class WorkflowStarted(BaseModel):
 # ═══════════════════════════════════════════════════════════════════════════════
 # UTILITY FUNCTIONS
 # ═══════════════════════════════════════════════════════════════════════════════
+
+def _require_admin_token(
+    x_phi_admin_token: Optional[str] = Header(default=None),
+) -> None:
+    """Protect staff-only customer lifecycle records from public access."""
+    configured_token = os.getenv("PHI_ADMIN_TOKEN")
+    if not configured_token:
+        raise HTTPException(
+            status_code=503,
+            detail="Customer operations require PHI_ADMIN_TOKEN to be configured.",
+        )
+    if x_phi_admin_token != configured_token:
+        raise HTTPException(status_code=401, detail="Invalid customer operations token.")
+
+
+def _lead_score_and_offer(request: LeadCaptureRequest) -> tuple[int, str, CustomerLeadStage]:
+    """Apply transparent, deterministic qualification rules to an opted-in prospect."""
+    score = 20 if request.consent_marketing else 0
+    score += 25 if request.journey == CustomerJourney.DISPATCH else 15
+    score += 20 if request.journey == CustomerJourney.FLEET or request.truck_count >= 2 else 5
+    score += 10 if request.phone else 0
+    score += 10 if request.top_challenge.strip() else 0
+    score += 10 if request.equipment_type else 0
+    score = min(score, 100)
+
+    if request.journey == CustomerJourney.LAUNCH:
+        offer = "Business Readiness & Equipment Path"
+    elif request.journey == CustomerJourney.FLEET or request.truck_count >= 2:
+        offer = "Fleet Operations Snapshot"
+    else:
+        offer = "Dispatch & Profit Diagnostic"
+
+    stage = CustomerLeadStage.QUALIFIED if score >= 55 else CustomerLeadStage.NEW
+    return score, offer, stage
+
+
+def _lead_response(lead: CustomerLead) -> CustomerLeadResponse:
+    """Map a persisted SQLAlchemy lead into the public lifecycle response contract."""
+    return CustomerLeadResponse(
+        id=lead.id,
+        full_name=lead.full_name,
+        email=lead.email,
+        company_name=lead.company_name,
+        journey=CustomerJourney(lead.journey),
+        stage=CustomerLeadStage(lead.stage),
+        equipment_type=lead.equipment_type,
+        truck_count=lead.truck_count,
+        top_challenge=lead.top_challenge,
+        qualification_score=lead.qualification_score,
+        recommended_offer=lead.recommended_offer or "PHI Assessment",
+        owner=lead.owner,
+        onboarding_status=OnboardingStatus(lead.onboarding_status),
+        created_at=lead.created_at,
+        updated_at=lead.updated_at,
+    )
+
 
 def _create_job(workflow: str) -> str:
     """Initialize a new job record and return its job_id."""
@@ -409,6 +579,264 @@ def health_check():
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "active_jobs": sum(1 for j in _job_store.values() if j["status"] == JobStatus.RUNNING),
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CUSTOMER ACQUISITION AND LIFECYCLE ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.post(
+    "/api/v1/customer-journey/leads",
+    response_model=CustomerLeadResponse,
+    tags=["customer-journey"],
+    status_code=201,
+    summary="Capture a consented PHI assessment lead",
+)
+def capture_customer_lead(request: LeadCaptureRequest):
+    """
+    Creates or refreshes a consented website-assessment lead. This public endpoint
+    records source, product path, operating context, and consent. It does not send
+    messages, create payment obligations, or mark a deal as won.
+    """
+    if not request.consent_marketing:
+        raise HTTPException(
+            status_code=422,
+            detail="Explicit follow-up consent is required to submit a PHI assessment.",
+        )
+
+    db = SessionLocal()
+    try:
+        score, offer, suggested_stage = _lead_score_and_offer(request)
+        existing = db.query(CustomerLead).filter(CustomerLead.email == request.email).first()
+        now = datetime.now(timezone.utc)
+
+        if existing:
+            existing.full_name = request.full_name
+            existing.phone = request.phone or existing.phone
+            existing.company_name = request.company_name or existing.company_name
+            existing.journey = request.journey.value
+            existing.lead_source = request.lead_source
+            existing.source_detail = request.source_detail
+            existing.equipment_type = (
+                request.equipment_type.value if request.equipment_type else existing.equipment_type
+            )
+            existing.truck_count = request.truck_count
+            existing.home_state = request.home_state
+            existing.top_challenge = request.top_challenge
+            existing.preferred_contact = request.preferred_contact
+            existing.consent_marketing = True
+            existing.consent_captured_at = now
+            existing.qualification_score = max(existing.qualification_score, score)
+            existing.recommended_offer = offer
+            if existing.stage in {CustomerLeadStage.NEW.value, CustomerLeadStage.NURTURE.value}:
+                existing.stage = suggested_stage.value
+            db.commit()
+            db.refresh(existing)
+            log_customer_event(
+                db,
+                lead_id=existing.id,
+                event_type="lead.reengaged",
+                actor="website",
+                metadata={"source": request.lead_source, "journey": request.journey.value},
+            )
+            return _lead_response(existing)
+
+        lead = CustomerLead(
+            full_name=request.full_name,
+            email=request.email,
+            phone=request.phone,
+            company_name=request.company_name,
+            journey=request.journey.value,
+            stage=suggested_stage.value,
+            lead_source=request.lead_source,
+            source_detail=request.source_detail,
+            equipment_type=request.equipment_type.value if request.equipment_type else None,
+            truck_count=request.truck_count,
+            home_state=request.home_state,
+            top_challenge=request.top_challenge,
+            preferred_contact=request.preferred_contact,
+            consent_marketing=True,
+            consent_captured_at=now,
+            qualification_score=score,
+            recommended_offer=offer,
+        )
+        db.add(lead)
+        db.commit()
+        db.refresh(lead)
+        log_customer_event(
+            db,
+            lead_id=lead.id,
+            event_type="lead.created",
+            actor="website",
+            metadata={
+                "source": request.lead_source,
+                "journey": request.journey.value,
+                "qualification_score": score,
+                "recommended_offer": offer,
+            },
+        )
+        if lead.stage == CustomerLeadStage.QUALIFIED.value:
+            log_customer_event(
+                db,
+                lead_id=lead.id,
+                event_type="lead.qualified",
+                actor="qualification-engine",
+                metadata={"qualification_score": score, "recommended_offer": offer},
+            )
+        return _lead_response(lead)
+    finally:
+        db.close()
+
+
+@app.get(
+    "/api/v1/customer-journey/leads",
+    response_model=list[CustomerLeadResponse],
+    tags=["customer-journey"],
+    summary="List customer leads for the PHI operations team",
+)
+def list_customer_leads(
+    stage: Optional[CustomerLeadStage] = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    x_phi_admin_token: Optional[str] = Header(default=None),
+):
+    """Returns lead records for authorized PHI customer-operations users only."""
+    _require_admin_token(x_phi_admin_token)
+    db = SessionLocal()
+    try:
+        query = db.query(CustomerLead)
+        if stage:
+            query = query.filter(CustomerLead.stage == stage.value)
+        leads = query.order_by(CustomerLead.updated_at.desc()).offset(offset).limit(limit).all()
+        return [_lead_response(lead) for lead in leads]
+    finally:
+        db.close()
+
+
+@app.get(
+    "/api/v1/customer-journey/leads/{lead_id}/events",
+    response_model=list[CustomerJourneyEventResponse],
+    tags=["customer-journey"],
+    summary="List the audit trail for a customer lifecycle record",
+)
+def list_customer_lead_events(
+    lead_id: str,
+    x_phi_admin_token: Optional[str] = Header(default=None),
+):
+    """Returns the append-only lifecycle event ledger for an authorized operator."""
+    _require_admin_token(x_phi_admin_token)
+    db = SessionLocal()
+    try:
+        if not get_customer_lead(db, lead_id):
+            raise HTTPException(status_code=404, detail="Customer lead not found.")
+        events = (
+            db.query(CustomerJourneyEvent)
+            .filter(CustomerJourneyEvent.lead_id == lead_id)
+            .order_by(CustomerJourneyEvent.created_at.desc())
+            .all()
+        )
+        return [
+            CustomerJourneyEventResponse(
+                id=event.id,
+                event_type=event.event_type,
+                actor=event.actor,
+                event_metadata=event.event_metadata or {},
+                created_at=event.created_at,
+            )
+            for event in events
+        ]
+    finally:
+        db.close()
+
+
+@app.patch(
+    "/api/v1/customer-journey/leads/{lead_id}/stage",
+    response_model=CustomerLeadResponse,
+    tags=["customer-journey"],
+    summary="Update a lead stage with an auditable reason",
+)
+def update_customer_lead_stage(
+    lead_id: str,
+    request: LeadStageUpdateRequest,
+    x_phi_admin_token: Optional[str] = Header(default=None),
+):
+    """Updates a commercial stage; this route never charges, contracts, or messages a lead."""
+    _require_admin_token(x_phi_admin_token)
+    db = SessionLocal()
+    try:
+        lead = get_customer_lead(db, lead_id)
+        if not lead:
+            raise HTTPException(status_code=404, detail="Customer lead not found.")
+        previous_stage = lead.stage
+        lead.stage = request.stage.value
+        if request.owner:
+            lead.owner = request.owner
+        if request.next_action_at:
+            lead.next_action_at = request.next_action_at
+        db.commit()
+        db.refresh(lead)
+        log_customer_event(
+            db,
+            lead_id=lead.id,
+            event_type="lead.stage_changed",
+            actor="customer-operations",
+            metadata={
+                "from": previous_stage,
+                "to": request.stage.value,
+                "reason": request.reason,
+                "owner": lead.owner,
+            },
+        )
+        return _lead_response(lead)
+    finally:
+        db.close()
+
+
+@app.patch(
+    "/api/v1/customer-journey/leads/{lead_id}/onboarding",
+    response_model=CustomerLeadResponse,
+    tags=["customer-journey"],
+    summary="Start or update customer onboarding after a verified commercial decision",
+)
+def update_customer_onboarding(
+    lead_id: str,
+    request: OnboardingUpdateRequest,
+    x_phi_admin_token: Optional[str] = Header(default=None),
+):
+    """
+    Updates onboarding for an authorized operations user. A lead must be marked won
+    before onboarding can start, keeping commercial acceptance separate from automation.
+    """
+    _require_admin_token(x_phi_admin_token)
+    db = SessionLocal()
+    try:
+        lead = get_customer_lead(db, lead_id)
+        if not lead:
+            raise HTTPException(status_code=404, detail="Customer lead not found.")
+        if request.status in {OnboardingStatus.IN_PROGRESS, OnboardingStatus.COMPLETE}:
+            if lead.stage != CustomerLeadStage.WON.value:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Mark the opportunity won through an authorized commercial process before onboarding.",
+                )
+        if request.activated_user_id:
+            customer = db.query(User).filter(User.id == request.activated_user_id).first()
+            if not customer:
+                raise HTTPException(status_code=422, detail="Activated user record was not found.")
+            lead.activated_user_id = request.activated_user_id
+        lead.onboarding_status = request.status.value
+        db.commit()
+        db.refresh(lead)
+        log_customer_event(
+            db,
+            lead_id=lead.id,
+            event_type=f"onboarding.{request.status.value}",
+            actor="onboarding-operations",
+            metadata={"reason": request.reason, "activated_user_id": lead.activated_user_id},
+        )
+        return _lead_response(lead)
+    finally:
+        db.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

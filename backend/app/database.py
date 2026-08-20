@@ -70,6 +70,73 @@ class User(Base):
     )
 
 
+class CustomerLead(Base):
+    """A consented prospect or customer tracked from assessment through service delivery."""
+    __tablename__ = "customer_leads"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    email = Column(String, nullable=False, unique=True, index=True)
+    full_name = Column(String, nullable=False)
+    phone = Column(String)
+    company_name = Column(String)
+    journey = Column(String, nullable=False, default="launch")
+    stage = Column(String, nullable=False, default="new")
+    lead_source = Column(String, nullable=False, default="organic")
+    source_detail = Column(String)
+    equipment_type = Column(String)
+    truck_count = Column(Integer, nullable=False, default=0)
+    home_state = Column(String)
+    top_challenge = Column(String)
+    preferred_contact = Column(String, nullable=False, default="email")
+    consent_marketing = Column(Boolean, nullable=False, default=False)
+    consent_captured_at = Column(DateTime)
+    qualification_score = Column(Integer, nullable=False, default=0)
+    recommended_offer = Column(String)
+    owner = Column(String, nullable=False, default="PHI Acquisition Pod")
+    next_action_at = Column(DateTime)
+    external_crm_id = Column(String)
+    onboarding_status = Column(String, nullable=False, default="not_started")
+    activated_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+    __table_args__ = (
+        CheckConstraint(
+            "journey in ('launch', 'dispatch', 'fleet')",
+            name="ck_customer_leads_journey",
+        ),
+        CheckConstraint(
+            "stage in ('new', 'qualified', 'opportunity', 'won', 'lost', 'nurture')",
+            name="ck_customer_leads_stage",
+        ),
+        CheckConstraint(
+            "preferred_contact in ('email', 'phone', 'text')",
+            name="ck_customer_leads_preferred_contact",
+        ),
+        CheckConstraint(
+            "onboarding_status in ('not_started', 'in_progress', 'complete', 'blocked')",
+            name="ck_customer_leads_onboarding_status",
+        ),
+        CheckConstraint(
+            "qualification_score between 0 and 100",
+            name="ck_customer_leads_qualification_score",
+        ),
+        CheckConstraint("truck_count >= 0", name="ck_customer_leads_truck_count"),
+    )
+
+
+class CustomerJourneyEvent(Base):
+    """Append-only activity ledger for the pre-sale and post-sale customer journey."""
+    __tablename__ = "customer_journey_events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    lead_id = Column(String, ForeignKey("customer_leads.id", ondelete="CASCADE"), nullable=False)
+    event_type = Column(String, nullable=False)
+    actor = Column(String, nullable=False, default="system")
+    event_metadata = Column("metadata", JSON, default=dict)
+    created_at = Column(DateTime, default=_now)
+
+
 class ActiveLoad(Base):
     __tablename__ = "active_loads"
     id = Column(String, primary_key=True, default=_uuid)
@@ -212,6 +279,32 @@ def log_agent_action(
         driver_id=driver_id,
         load_id=load_id,
         log_metadata=metadata or {},
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+def get_customer_lead(db, lead_id: str) -> CustomerLead | None:
+    """Return a customer lead by identifier, or None when no matching record exists."""
+    return db.query(CustomerLead).filter(CustomerLead.id == lead_id).first()
+
+
+def log_customer_event(
+    db,
+    *,
+    lead_id: str,
+    event_type: str,
+    actor: str = "system",
+    metadata: dict | None = None,
+) -> CustomerJourneyEvent:
+    """Persist an append-only lead/customer lifecycle event and return it."""
+    entry = CustomerJourneyEvent(
+        lead_id=lead_id,
+        event_type=event_type,
+        actor=actor,
+        event_metadata=metadata or {},
     )
     db.add(entry)
     db.commit()

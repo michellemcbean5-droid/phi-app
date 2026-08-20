@@ -137,6 +137,12 @@ export default function SettingsScreen() {
             onPress={() => navigation.navigate('Subscription')}
           />
           <NavRow
+            icon="shield-checkmark-outline"
+            label="Privacy Center"
+            sublabel="Data use, permissions, privacy policy, terms"
+            onPress={() => navigation.navigate('PrivacyCenter')}
+          />
+          <NavRow
             icon="documents-outline"
             label="Documents"
             sublabel="Upload BOLs, insurance, registration"

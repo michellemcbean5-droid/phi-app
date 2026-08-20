@@ -8,6 +8,7 @@ import { PHI_COLORS } from '../assets/brandColors';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { TabParamList } from '../navigation/TabNavigator';
 import useLoadsStore, { SortOption } from '../store/loadsStore';
+import useDispatchStore from '../store/dispatchStore';
 import { getCurrentDriverLocation } from '../api/samsaraConnector';
 import { sendNearbyLoadAlert } from '../api/twilioConnector';
 import { calculateGPSDeadhead, Coordinates } from '../api/googleMapsConnector';
@@ -43,6 +44,7 @@ const SORT_OPTIONS: { label: string; value: SortOption }[] = [
 export default function LoadsScreen() {
   const navigation = useNavigation<LoadsNavigationProp>();
   const { activeLoads, bookingState, filter, sortBy, setLoads, setBookingState, addBookingRecord, setFilter, setSortBy } = useLoadsStore();
+  const { plans, savePlan } = useDispatchStore();
   const { getEffectiveTier } = usePromoStore();
   const [refreshing, setRefreshing] = React.useState(false);
   const [confettiTrigger, setConfettiTrigger] = React.useState(0);
@@ -108,6 +110,12 @@ export default function LoadsScreen() {
       'Route Analysis',
       `${load.id}: ${analysis.deadheadMiles.toFixed(1)} deadhead miles (${analysis.deadheadPercentage}%). ${analysis.rejected ? analysis.rejectionReason : 'Route approved.'}`,
     );
+  };
+
+  const handlePlanLoad = (load: Load): void => {
+    const alreadyPlanned = plans.some((plan) => plan.load.id === load.id);
+    if (!alreadyPlanned) savePlan(load);
+    navigation.navigate('IndependentDispatchHub');
   };
 
   const handleBookLoad = async (load: Load): Promise<void> => {
@@ -199,6 +207,9 @@ export default function LoadsScreen() {
                   <Text style={styles.secondaryButtonText}>Analyze Route</Text>
                 </AnimatedPressable>
               </View>
+              <AnimatedPressable style={styles.planButton} onPress={() => handlePlanLoad(item)}>
+                <Text style={styles.planButtonText}>{plans.some((plan) => plan.load.id === item.id) ? 'Open Dispatch Plan' : 'Plan in Hub'}</Text>
+              </AnimatedPressable>
             </TouchableOpacity>
             </StaggeredEntrance>
           );
@@ -236,6 +247,8 @@ const styles = StyleSheet.create({
   buttonRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
   primaryButton: { flex: 1, backgroundColor: PHI_COLORS.sunshineYellow, padding: 12, borderRadius: 12 },
   secondaryButton: { flex: 1, backgroundColor: PHI_COLORS.royalBlue, padding: 12, borderRadius: 12 },
+  planButton: { backgroundColor: '#1C7A4A', padding: 11, borderRadius: 12 },
+  planButtonText: { color: PHI_COLORS.white, textAlign: 'center', fontWeight: '800' },
   skeletonList: { gap: 14 },
   skeletonCard: { height: 180, borderRadius: 16 },
   emptyText: { color: '#7F9FCC', fontSize: 13, textAlign: 'center', paddingVertical: 32 },

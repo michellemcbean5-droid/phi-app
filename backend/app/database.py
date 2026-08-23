@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import os
 import uuid
 
-# Mirrors backend/db/schema.sql 1:1. If you change one, change the other —
+# Mirrors backend/db/schema.sql 1:1. If you change one, change the other \u2014
 # this file is the runtime source of truth for local/sqlite dev, schema.sql
 # is the source of truth for the hosted Postgres/Supabase instance (it also
 # carries RLS policies and Realtime config that SQLAlchemy can't express).
@@ -268,7 +268,7 @@ class AIActionLog(Base):
     agent_name = Column(String, nullable=False)
     action_type = Column(String, nullable=False)
     summary = Column(Text, nullable=False)
-    # Mapped to db column "metadata" — the Python attr can't be named
+    # Mapped to db column "metadata" \u2014 the Python attr can't be named
     # `metadata`, that's a reserved name on the declarative base.
     log_metadata = Column("metadata", JSON, default=dict)
     created_at = Column(DateTime, default=_now)
@@ -303,6 +303,64 @@ class FinancialVault(Base):
             "factoring_status in ('pending', 'submitted', 'advanced', 'paid', 'rejected')",
             name="ck_financial_vault_factoring_status",
         ),
+    )
+
+
+# Skill Domain and Skill models for PHI's enterprise engineering skill database
+class SkillDomain(Base):
+    """A domain/category that groups related skills together."""
+    __tablename__ = "skill_domains"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    name = Column(String, nullable=False, unique=True)
+    description = Column(Text)
+    display_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class Skill(Base):
+    """An individual skill within a domain."""
+    __tablename__ = "skills"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    domain_id = Column(String, ForeignKey("skill_domains.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    description = Column(Text)
+    display_order = Column(Integer, nullable=False, default=0)
+    skill_number = Column(Integer)  # Global skill number (1-100)
+    is_active = Column(Boolean, nullable=False, default=True)
+    tags = Column(JSON, default=list)  # Array of tags for filtering
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+    __table_args__ = (
+        CheckConstraint("skill_number between 1 and 100", name="ck_skills_skill_number"),
+    )
+
+
+class UserSkill(Base):
+    """Junction table for many-to-many relationship between users and skills."""
+    __tablename__ = "user_skills"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    skill_id = Column(String, ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True)
+    proficiency_level = Column(String, nullable=False, default="aware")
+    years_experience = Column(Float, default=0)
+    last_used_at = Column(DateTime)
+    verified = Column(Boolean, nullable=False, default=False)
+    verification_notes = Column(Text)
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+    __table_args__ = (
+        CheckConstraint(
+            "proficiency_level in ('aware', 'beginner', 'intermediate', 'advanced', 'expert')",
+            name="ck_user_skills_proficiency_level",
+        ),
+        CheckConstraint("years_experience >= 0", name="ck_user_skills_years_experience"),
     )
 
 
@@ -359,7 +417,7 @@ def init_db():
     Base.metadata.create_all(bind=engine)
 
 
-# ─── Write helpers ───────────────────────────────────────────────────────────
+# \u2500\u2500\u2500 Write helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 # Called from tasks.py's CrewAI task_callback hooks and main.py's workflow
 # handlers to persist agent activity and financial events as they happen, so
 # the WebSocket layer has something durable to broadcast from.

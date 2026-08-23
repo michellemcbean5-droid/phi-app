@@ -63,6 +63,9 @@ from tasks import (
 from agents import ALL_AGENTS, AGENT_GROUPS
 from app.websocket_manager import manager as ws_manager
 from app.database import (
+    Skill,
+    SkillDomain,
+    UserSkill,
     CustomerAppointment,
     CustomerFollowUp,
     CustomerJourneyEvent,
@@ -1859,6 +1862,427 @@ def push_emergency(payload: EmergencyPayload):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# SKILL MANAGEMENT ENDPOINTS
+# API endpoints for managing enterprise engineering skills database
+# 
+
+class SkillDomainResponse(BaseModel):
+    """Skill domain response model."""
+    id: str
+    name: str
+    description: str | None
+    display_order: int
+    is_active: bool
+    skill_count: int = 0
+    created_at: str
+    updated_at: str
+
+
+class SkillResponse(BaseModel):
+    """Skill response model."""
+    id: str
+    domain_id: str
+    domain_name: str
+    name: str
+    description: str | None
+    display_order: int
+    skill_number: int
+    is_active: bool
+    tags: list[str] = []
+    created_at: str
+    updated_at: str
+
+
+class UserSkillResponse(BaseModel):
+    """User skill response model."""
+    id: str
+    user_id: str
+    skill_id: str
+    skill_name: str
+    skill_number: int
+    proficiency_level: str
+    years_experience: float
+    verified: bool
+    verification_notes: str | None
+    last_used_at: str | None
+    created_at: str
+    updated_at: str
+
+
+class SkillDomainCreate(BaseModel):
+    """Create skill domain request model."""
+    name: str = Field(..., min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    display_order: int = Field(default=0, ge=0)
+    is_active: bool = Field(default=True)
+
+
+class SkillCreate(BaseModel):
+    """Create skill request model."""
+    domain_id: str = Field(..., description="ID of the domain this skill belongs to")
+    name: str = Field(..., min_length=1, max_length=300)
+    description: str | None = Field(default=None, max_length=3000)
+    display_order: int = Field(default=0, ge=0)
+    skill_number: int = Field(..., ge=1, le=100)
+    is_active: bool = Field(default=True)
+    tags: list[str] = Field(default_factory=list, max_length=50)
+
+
+class UserSkillCreate(BaseModel):
+    """Create user skill request model."""
+    skill_id: str = Field(..., description="ID of the skill")
+    proficiency_level: str = Field(default="aware")
+    years_experience: float = Field(default=0, ge=0)
+    verified: bool = Field(default=False)
+    verification_notes: str | None = Field(default=None, max_length=2000)
+
+
+class UserSkillUpdate(BaseModel):
+    """Update user skill request model."""
+    proficiency_level: str | None = Field(default=None)
+    years_experience: float | None = Field(default=None, ge=0)
+    verified: bool | None = Field(default=None)
+    verification_notes: str | None = Field(default=None, max_length=2000)
+
+
+@app.get("/api/v1/skill-domains", response_model=list[SkillDomainResponse])
+async def list_skill_domains(
+    include_inactive: bool = Query(default=False, description="Include inactive domains"),
+    db: SessionLocal = Depends(get_db),
+):
+    """
+    List all skill domains.
+    
+    Returns a list of all skill domains, optionally including inactive ones.
+    Each domain includes a count of its associated skills.
+    """
+    query = db.query(SkillDomain)
+    if not include_inactive:
+        query = query.filter(SkillDomain.is_active == True)
+    
+    domains = query.order_by(SkillDomain.display_order, SkillDomain.name).all()
+    
+    # Add skill count for each domain
+    result = []
+    for domain in domains:
+        skill_count = db.query(Skill).filter(
+            Skill.domain_id == domain.id,
+            Skill.is_active == True
+        ).count()
+        
+        result.append({
+            "id": domain.id,
+            "name": domain.name,
+            "description": domain.description,
+            "display_order": domain.display_order,
+            "is_active": domain.is_active,
+            "skill_count": skill_count,
+            "created_at": domain.created_at.isoformat(),
+            "updated_at": domain.updated_at.isoformat(),
+        })
+    
+    return result
+
+
+@app.get("/api/v1/skill-domains/{domain_id}", response_model=SkillDomainResponse)
+async def get_skill_domain(
+    domain_id: str,
+    db: SessionLocal = Depends(get_db),
+):
+    """
+    Get a specific skill domain by ID.
+    
+    Returns detailed information about a single skill domain.
+    """
+    domain = db.query(SkillDomain).filter(SkillDomain.id == domain_id).first()
+    if not domain:
+        raise HTTPException(status_code=404, detail="Skill domain not found")
+    
+    skill_count = db.query(Skill).filter(
+        Skill.domain_id == domain.id,
+        Skill.is_active == True
+    ).count()
+    
+    return {
+        "id": domain.id,
+        "name": domain.name,
+        "description": domain.description,
+        "display_order": domain.display_order,
+        "is_active": domain.is_active,
+        "skill_count": skill_count,
+        "created_at": domain.created_at.isoformat(),
+        "updated_at": domain.updated_at.isoformat(),
+    }
+
+
+@app.get("/api/v1/skills", response_model=list[SkillResponse])
+async def list_skills(
+    domain_id: str | None = Query(default=None, description="Filter by domain ID"),
+    skill_number: int | None = Query(default=None, description="Filter by skill number"),
+    search: str | None = Query(default=None, description="Search in skill name or description"),
+    tag: str | None = Query(default=None, description="Filter by tag"),
+    include_inactive: bool = Query(default=False, description="Include inactive skills"),
+    db: SessionLocal = Depends(get_db),
+):
+    """
+    List all skills with optional filtering.
+    
+    Returns a paginated list of skills with optional filters for domain, skill number,
+    search term, or tag. Skills can be sorted by display order or skill number.
+    """
+    query = db.query(Skill).join(SkillDomain, Skill.domain_id == SkillDomain.id)
+    
+    if domain_id:
+        query = query.filter(Skill.domain_id == domain_id)
+    
+    if skill_number:
+        query = query.filter(Skill.skill_number == skill_number)
+    
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.filter(
+            Skill.name.ilike(search_pattern) | 
+            Skill.description.ilike(search_pattern)
+        )
+    
+    if tag:
+        # For SQLite, we need to handle JSON array filtering differently
+        if DATABASE_URL.startswith("sqlite"):
+            query = query.filter(Skill.tags.contains([tag]))
+        else:
+            query = query.filter(Skill.tags.any(tag))
+    
+    if not include_inactive:
+        query = query.filter(Skill.is_active == True)
+    
+    skills = query.order_by(Skill.skill_number).all()
+    
+    return [
+        {
+            "id": skill.id,
+            "domain_id": skill.domain_id,
+            "domain_name": skill.domain.name,
+            "name": skill.name,
+            "description": skill.description,
+            "display_order": skill.display_order,
+            "skill_number": skill.skill_number,
+            "is_active": skill.is_active,
+            "tags": skill.tags or [],
+            "created_at": skill.created_at.isoformat(),
+            "updated_at": skill.updated_at.isoformat(),
+        }
+        for skill in skills
+    ]
+
+
+@app.get("/api/v1/skills/{skill_id}", response_model=SkillResponse)
+async def get_skill(
+    skill_id: str,
+    db: SessionLocal = Depends(get_db),
+):
+    """
+    Get a specific skill by ID.
+    
+    Returns detailed information about a single skill including its domain.
+    """
+    skill = db.query(Skill).filter(Skill.id == skill_id).first()
+    if not skill:
+        raise HTTPException(status_code=404, detail="Skill not found")
+    
+    domain = db.query(SkillDomain).filter(SkillDomain.id == skill.domain_id).first()
+    
+    return {
+        "id": skill.id,
+        "domain_id": skill.domain_id,
+        "domain_name": domain.name if domain else "Unknown",
+        "name": skill.name,
+        "description": skill.description,
+        "display_order": skill.display_order,
+        "skill_number": skill.skill_number,
+        "is_active": skill.is_active,
+        "tags": skill.tags or [],
+        "created_at": skill.created_at.isoformat(),
+        "updated_at": skill.updated_at.isoformat(),
+    }
+
+
+@app.get("/api/v1/users/{user_id}/skills", response_model=list[UserSkillResponse])
+async def list_user_skills(
+    user_id: str,
+    db: SessionLocal = Depends(get_db),
+):
+    """
+    List all skills for a specific user.
+    
+    Returns all skills associated with a user, including proficiency levels and verification status.
+    """
+    user_skills = db.query(UserSkill).filter(UserSkill.user_id == user_id).all()
+    
+    result = []
+    for user_skill in user_skills:
+        skill = db.query(Skill).filter(Skill.id == user_skill.skill_id).first()
+        if skill:
+            domain = db.query(SkillDomain).filter(SkillDomain.id == skill.domain_id).first()
+            result.append({
+                "id": user_skill.id,
+                "user_id": user_skill.user_id,
+                "skill_id": user_skill.skill_id,
+                "skill_name": skill.name,
+                "skill_number": skill.skill_number,
+                "proficiency_level": user_skill.proficiency_level,
+                "years_experience": user_skill.years_experience,
+                "verified": user_skill.verified,
+                "verification_notes": user_skill.verification_notes,
+                "last_used_at": user_skill.last_used_at.isoformat() if user_skill.last_used_at else None,
+                "created_at": user_skill.created_at.isoformat(),
+                "updated_at": user_skill.updated_at.isoformat(),
+            })
+    
+    return sorted(result, key=lambda x: x["skill_number"])
+
+
+@app.post("/api/v1/users/{user_id}/skills", response_model=UserSkillResponse, status_code=201)
+async def create_user_skill(
+    user_id: str,
+    skill_data: UserSkillCreate,
+    db: SessionLocal = Depends(get_db),
+):
+    """
+    Add a skill to a user's profile.
+    
+    Creates a new user-skill association with the specified proficiency level.
+    """
+    # Check if user exists
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if skill exists
+    skill = db.query(Skill).filter(Skill.id == skill_data.skill_id).first()
+    if not skill:
+        raise HTTPException(status_code=404, detail="Skill not found")
+    
+    # Check if user already has this skill
+    existing = db.query(UserSkill).filter(
+        UserSkill.user_id == user_id,
+        UserSkill.skill_id == skill_data.skill_id
+    ).first()
+    
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail="User already has this skill"
+        )
+    
+    user_skill = UserSkill(
+        id=_uuid(),
+        user_id=user_id,
+        skill_id=skill_data.skill_id,
+        proficiency_level=skill_data.proficiency_level,
+        years_experience=skill_data.years_experience,
+        verified=skill_data.verified,
+        verification_notes=skill_data.verification_notes,
+        created_at=_now(),
+        updated_at=_now(),
+    )
+    
+    db.add(user_skill)
+    db.commit()
+    db.refresh(user_skill)
+    
+    domain = db.query(SkillDomain).filter(SkillDomain.id == skill.domain_id).first()
+    
+    return {
+        "id": user_skill.id,
+        "user_id": user_skill.user_id,
+        "skill_id": user_skill.skill_id,
+        "skill_name": skill.name,
+        "skill_number": skill.skill_number,
+        "proficiency_level": user_skill.proficiency_level,
+        "years_experience": user_skill.years_experience,
+        "verified": user_skill.verified,
+        "verification_notes": user_skill.verification_notes,
+        "last_used_at": None,
+        "created_at": user_skill.created_at.isoformat(),
+        "updated_at": user_skill.updated_at.isoformat(),
+    }
+
+
+@app.patch("/api/v1/users/{user_id}/skills/{skill_id}", response_model=UserSkillResponse)
+async def update_user_skill(
+    user_id: str,
+    skill_id: str,
+    skill_data: UserSkillUpdate,
+    db: SessionLocal = Depends(get_db),
+):
+    """
+    Update a user's skill proficiency or verification status.
+    
+    Updates the proficiency level, years of experience, or verification status for a user's skill.
+    """
+    user_skill = db.query(UserSkill).filter(
+        UserSkill.user_id == user_id,
+        UserSkill.skill_id == skill_id
+    ).first()
+    
+    if not user_skill:
+        raise HTTPException(status_code=404, detail="User skill not found")
+    
+    # Update fields if provided
+    if skill_data.proficiency_level is not None:
+        user_skill.proficiency_level = skill_data.proficiency_level
+    if skill_data.years_experience is not None:
+        user_skill.years_experience = skill_data.years_experience
+    if skill_data.verified is not None:
+        user_skill.verified = skill_data.verified
+    if skill_data.verification_notes is not None:
+        user_skill.verification_notes = skill_data.verification_notes
+    
+    user_skill.updated_at = _now()
+    db.commit()
+    db.refresh(user_skill)
+    
+    skill = db.query(Skill).filter(Skill.id == user_skill.skill_id).first()
+    
+    return {
+        "id": user_skill.id,
+        "user_id": user_skill.user_id,
+        "skill_id": user_skill.skill_id,
+        "skill_name": skill.name if skill else "Unknown",
+        "skill_number": skill.skill_number if skill else 0,
+        "proficiency_level": user_skill.proficiency_level,
+        "years_experience": user_skill.years_experience,
+        "verified": user_skill.verified,
+        "verification_notes": user_skill.verification_notes,
+        "last_used_at": user_skill.last_used_at.isoformat() if user_skill.last_used_at else None,
+        "created_at": user_skill.created_at.isoformat(),
+        "updated_at": user_skill.updated_at.isoformat(),
+    }
+
+
+@app.delete("/api/v1/users/{user_id}/skills/{skill_id}", status_code=204)
+async def delete_user_skill(
+    user_id: str,
+    skill_id: str,
+    db: SessionLocal = Depends(get_db),
+):
+    """
+    Remove a skill from a user's profile.
+    
+    Deletes the user-skill association.
+    """
+    user_skill = db.query(UserSkill).filter(
+        UserSkill.user_id == user_id,
+        UserSkill.skill_id == skill_id
+    ).first()
+    
+    if not user_skill:
+        raise HTTPException(status_code=404, detail="User skill not found")
+    
+    db.delete(user_skill)
+    db.commit()
+
+
 # WEBSOCKET — LIVE AGENT ACTIVITY, GPS/ETA, AND IN-CAB AI CHAT
 # Persistent per-driver channel. The Driver Liaison and Track & Trace agents
 # (and the task_callback hooks in tasks.py) push events here as they happen —

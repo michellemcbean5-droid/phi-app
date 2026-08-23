@@ -262,6 +262,71 @@ create table if not exists financial_vault (
 );
 
 create index if not exists idx_financial_vault_driver_id on financial_vault(driver_id, created_at desc);
+-- skill_domains
+create table if not exists skill_domains (
+  id                  uuid primary key default gen_random_uuid(),
+  name                text not null unique,
+  description         text,
+  display_order       integer not null default 0,
+  is_active           boolean not null default true,
+  created_at          timestamptz not null default now(),
+  updated_at          timestamptz not null default now()
+);
+
+create index if not exists idx_skill_domains_name on skill_domains(name);
+
+drop trigger if exists trg_skill_domains_updated_at on skill_domains;
+create trigger trg_skill_domains_updated_at
+  before update on skill_domains
+  for each row execute function set_updated_at();
+
+-- skills
+create table if not exists skills (
+  id                  uuid primary key default gen_random_uuid(),
+  domain_id           uuid not null references skill_domains(id) on delete cascade,
+  name                text not null,
+  description         text,
+  display_order       integer not null default 0,
+  skill_number        integer check (skill_number between 1 and 100),
+  is_active           boolean not null default true,
+  tags                text[] not null default '{}',
+  created_at          timestamptz not null default now(),
+  updated_at          timestamptz not null default now()
+);
+
+create index if not exists idx_skills_domain_id on skills(domain_id);
+create index if not exists idx_skills_skill_number on skills(skill_number);
+create index if not exists idx_skills_name on skills(name);
+create index if not exists idx_skills_tags on skills using gin(tags);
+
+drop trigger if exists trg_skills_updated_at on skills;
+create trigger trg_skills_updated_at
+  before update on skills
+  for each row execute function set_updated_at();
+
+-- user_skills
+create table if not exists user_skills (
+  id                  uuid primary key default gen_random_uuid(),
+  user_id             uuid not null references users(id) on delete cascade,
+  skill_id            uuid not null references skills(id) on delete cascade,
+  proficiency_level   text not null default 'aware'
+                        check (proficiency_level in ('aware', 'beginner', 'intermediate', 'advanced', 'expert')),
+  years_experience    numeric(4,1) not null default 0 check (years_experience >= 0),
+  last_used_at         timestamptz,
+  verified            boolean not null default false,
+  verification_notes  text,
+  created_at          timestamptz not null default now(),
+  updated_at          timestamptz not null default now()
+);
+
+create index if not exists idx_user_skills_user_id on user_skills(user_id);
+create index if not exists idx_user_skills_skill_id on user_skills(skill_id);
+create unique index if not exists idx_user_skills_unique on user_skills(user_id, skill_id);
+
+drop trigger if exists trg_user_skills_updated_at on user_skills;
+create trigger trg_user_skills_updated_at
+  before update on user_skills
+  for each row execute function set_updated_at();
 create index if not exists idx_financial_vault_status on financial_vault(factoring_status);
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -271,6 +336,9 @@ create index if not exists idx_financial_vault_status on financial_vault(factori
 -- ═══════════════════════════════════════════════════════════════════════════
 
 alter table users enable row level security;
+alter table skill_domains enable row level security;
+alter table skills enable row level security;
+alter table user_skills enable row level security;
 alter table customer_leads enable row level security;
 alter table customer_journey_events enable row level security;
 alter table customer_followups enable row level security;

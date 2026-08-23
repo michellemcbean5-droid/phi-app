@@ -1,0 +1,319 @@
+# AI Instructions for Prince Haul Intelligence (PHI) Project
+# AUTOMATICALLY LOADED FOR ALL AI AGENTS
+
+**THIS FILE IS AUTOMATICALLY READ AND APPLIED BY ALL AI WORKING ON THIS PROJECT**
+
+---
+
+## MANDATORY: 100 Master Enterprise Engineering Skills
+
+**ALL AI AGENTS MUST AUTOMATICALLY LOAD AND APPLY THESE 100 SKILLS**
+
+The skills are organized into 5 domains covering all aspects of the PHI App:
+
+### 🏗️ Domain 1: Distributed Systems & Backend Engineering (Skills 1-20)
+1. Microservices Bounded Context Design
+2. Event-Driven Architecture with Apache Kafka
+3. CQRS & Event Sourcing Implementation
+4. Directed Acyclic Graph (DAG) Workflow Orchestration
+5. API Gateway and Reverse Proxy Configuration
+6. Service Mesh (Istio/Envoy) mTLS Integration
+7. Circuit Breaker and Retry Jitter Patterns
+8. Token Bucket Rate Limiting Architecture
+9. Distributed Tracing via OpenTelemetry & Jaeger
+10. Horizontal Sharding and Read Replicas
+11. CAP Theorem and Eventual Consistency Management
+12. Redis Cache Invalidation & Stampede Mitigation
+13. gRPC and Protocol Buffers Service Contract Design
+14. WebSocket Real-time Telemetry Streaming
+15. Distributed Transaction Management via Saga Pattern
+16. Dead Letter Queue (DLQ) Error Handling
+17. Database Migration and Zero-Downtime Deployment
+18. High-Throughput Message Broker Topic Partitioning
+19. OAuth2 and OpenID Connect Authorization Frameworks
+20. Automated Load Balancing and Ingress Controller Setup
+
+### 📱 Domain 2: Mobile App Architecture & UI/UX Engineering (Skills 21-40)
+21. React Native Architecture & Bridge Optimization
+22. JSI (JavaScript Interface) & TurboModules Integration
+23. Fabric Rendering Engine & UI Thread Offloading
+24. Hermes AOT Compilation & Garbage Collection Tuning
+25. 60fps Animation Worklets via Reanimated & Gesture Handler
+26. State Management Architecture (Zustand/Redux Toolkit)
+27. Virtual DOM Reconciliation & Render Jank Elimination
+28. Offline-First WatermelonDB / SQLite Database Sync
+29. Optimistic UI Updates & Asynchronous State Handling
+30. FlatList Virtualization & Component Lazy Loading
+31. Deep Linking, Universal Links, & Android App Links
+32. Background Foreground Service & WorkManager Scheduling
+33. Biometric Authentication & Secure Storage Keychains
+34. Responsive Flexbox Layouts & Safe Area Insets
+35. Dark Mode High-Contrast Truck-Cab UI Optimization
+36. Custom Native Modules (Java/Kotlin Bridge)
+37. Asset Bundling, Tree Shaking, and Code Splitting
+38. ProGuard and R8 Code Obfuscation Configuration
+39. Over-The-Air (OTA) Update Integration
+40. Comprehensive Crashlytics Error Tracking & Monitoring
+
+### 🤖 Domain 3: Agentic AI & LLM Orchestration (Skills 41-60)
+41. Multi-Agent System (MAS) Topologies & Supervisor Nets
+42. Retrieval-Augmented Generation (RAG) Pipeline Design
+43. High-Dimensional Vector Embedding Space & HNSW Indexing
+44. Semantic Search & Cosine Similarity Optimization
+45. Dynamic Prompt Template & Context Window Management
+46. Semantic Chunking & Recursive Text Splitting
+47. ReAct (Reasoning and Acting) Prompt Engineering
+48. Chain-of-Thought (CoT) & Tree-of-Thoughts (ToT) Reasoning
+49. Toolformer Function Calling & JSON Mode Enforcement
+50. Autonomous Agentic Loops & Self-Reflection Protocols
+51. Cross-Encoder Reranking & Maximum Marginal Relevance (MMR)
+52. Vector Database Architecture (Pinecone, pgvector, Weaviate)
+53. Parameter-Efficient Fine-Tuning (PEFT) & QLoRA
+54. LLM Quantization (INT8/INT4) & Tensor Parallelism
+55. Continuous Batching (vLLM) & PagedAttention Optimization
+56. RLHF & Direct Preference Optimization (DPO) Alignment
+57. Constitutional AI Guardrail & Prompt Injection Defense
+58. Knowledge Graph Grounding & Neuro-Symbolic Reasoning
+59. Episodic, Semantic, and Working Memory Buffer Management
+60. Hallucination Mitigation & Deterministic Output Verification
+
+### 🚛 Domain 4: Logistics, Telematics, & Regulatory Compliance (Skills 61-80)
+61. FMCSA USDOT & MC Authority Provisioning Automation
+62. J1939 CAN Bus Protocol & OBD-II Telematics Parsing
+63. Electronic Logging Device (ELD) HOS Rule Engine
+64. IFTA State-by-State Mileage Aggregation & Ray-Casting
+65. IRP Apportioned Registration & UCR Compliance Tracking
+66. Drug & Alcohol Clearinghouse Integration
+67. DAT & Truckstop Load Board Scraping & Arbitrage
+68. Rate Per Mile (RPM) & Deadhead Margin Calculation
+69. EDI ANSI ASC X12 (204, 214, 210) Parsing & AS2
+70. Computer Vision OCR for BOL & POD Document Extraction
+71. Automated Geofence Ingress/Egress Detention Tracking
+72. Heavy Highway Vehicle Use Tax (Form 2290) Automation
+73. CSA Safety Score & PSP Report Analytics
+74. Hazmat Routing & Bridge Clearance Validation
+75. Heavy-Duty Mobile Mechanic Network Dispatch Logic
+76. DPF Regeneration & Engine Fault Diagnostic (DTC) Routing
+77. Live Diesel Fuel Price Arbitrage & Routing Optimization
+78. Autonomous Truck Stop Parking Reservation Engine
+79. Accident Detection & First-Notice-of-Loss (FNOL) Generation
+80. Insurance & Freight Claim Mitigation Workflows
+
+### 💰 Domain 5: Fintech, Security, Robotics & DevOps (Skills 81-100)
+81. Instant Factoring API Bridge & Webhook Settlements
+82. Stripe Subscriptions & Dynamic Tiered Billing Engine
+83. 1099, W-9, & W-8BEN Tax Document Automation
+84. Escrow Management & Fuel Surcharge Calculation
+85. AES-256 Data-at-Rest Encryption & Key Rotation
+86. End-to-End mTLS & OAuth2 Token Management
+87. ROS2 & DDS Robotics Control Interface Integration
+88. Autonomous Yard Truck & Trailer Coupling Telemetry
+89. LiDAR & SLAM Point Cloud Spatial Processing
+90. Infrastructure as Code (IaC) via Terraform
+91. CI/CD Pipeline Engineering with Fastlane & GitHub Actions
+92. Monorepo Architecture & Branch by Abstraction
+93. Static Code Analysis, TDD, & Mutation Testing
+94. Immutable Infrastructure & Blue-Green Deployments
+95. Canary Release & Feature Flag Management (LaunchDarkly)
+96. Docker Containerization & Kubernetes Orchestration
+97. Prometheus Monitoring & Grafana Dashboard Visualization
+98. Log Aggregation & Structured JSON Logging (ELK)
+99. Automated App Store Connect & Google Play Console Deployments
+100. Production Release Engineering & AAB Signing Signoff
+
+---
+
+## AUTOMATIC APPLICATION RULES
+
+### ✅ DO AUTOMATICALLY:
+
+1. **LOAD ALL SKILLS** - When any AI begins work, automatically load all 100 skills into working memory
+2. **APPLY SIMULTANEOUSLY** - All skills must be considered together, not in isolation
+3. **ENFORCE STANDARDS** - Every line of code must meet the professional standards of all relevant skills
+4. **GENERATE PRODUCTION-READY CODE** - No shortcuts, no placeholders, no technical debt
+5. **CONSIDER ALL DOMAINS** - Backend, Mobile, AI, Logistics, Fintech, Security, Robotics, DevOps
+
+### ❌ DO NOT:
+
+1. **IGNORE ANY SKILL** - All 100 must be applied to every task
+2. **CHERRY-PICK SKILLS** - Don't select only some skills; use all 100 together
+3. **TAKE SHORTCUTS** - Enterprise-grade quality is mandatory
+4. **GENERATE UNTESTED CODE** - All code must have proper tests
+5. **BREAK EXISTING FUNCTIONALITY** - Maintain backward compatibility
+
+---
+
+## CODE GENERATION CHECKLIST
+
+Before delivering any code, **AUTOMATICALLY VERIFY** the following:
+
+### Backend Development
+- [ ] Proper error handling and retry logic (Skill 7)
+- [ ] Rate limiting implemented (Skill 8)
+- [ ] Distributed tracing with OpenTelemetry (Skill 9)
+- [ ] Database sharding/read replicas considered (Skill 10)
+- [ ] CAP theorem trade-offs documented (Skill 11)
+- [ ] Cache invalidation strategy (Skill 12)
+- [ ] gRPC for internal communication (Skill 13)
+- [ ] WebSocket for real-time data (Skill 14)
+- [ ] Saga pattern for distributed transactions (Skill 15)
+- [ ] DLQ for failed messages (Skill 16)
+- [ ] Zero-downtime migration path (Skill 17)
+- [ ] OAuth2/OIDC authentication (Skill 19)
+- [ ] Load balancing configured (Skill 20)
+- [ ] AES-256 encryption for sensitive data (Skill 85)
+- [ ] mTLS for service-to-service (Skill 86)
+
+### Mobile Development
+- [ ] React Native architecture optimized (Skill 21)
+- [ ] JSI/TurboModules for native modules (Skill 22)
+- [ ] Fabric rendering engine used (Skill 23)
+- [ ] Hermes configured with AOT (Skill 24)
+- [ ] 60fps animations with Reanimated (Skill 25)
+- [ ] Zustand/Redux Toolkit state management (Skill 26)
+- [ ] Virtual DOM optimized (Skill 27)
+- [ ] Offline-first data sync (Skill 28)
+- [ ] Optimistic UI updates (Skill 29)
+- [ ] FlatList virtualization (Skill 30)
+- [ ] Deep linking implemented (Skill 31)
+- [ ] Background tasks with WorkManager (Skill 32)
+- [ ] Biometric authentication (Skill 33)
+- [ ] Responsive Flexbox layouts (Skill 34)
+- [ ] Dark mode support (Skill 35)
+- [ ] Crashlytics integrated (Skill 40)
+
+### AI/ML Development
+- [ ] MAS topologies defined (Skill 41)
+- [ ] RAG pipeline implemented (Skill 42)
+- [ ] HNSW indexing for vectors (Skill 43)
+- [ ] Semantic search with cosine similarity (Skill 44)
+- [ ] Dynamic prompt templates (Skill 45)
+- [ ] Semantic chunking (Skill 46)
+- [ ] ReAct prompts (Skill 47)
+- [ ] Chain-of-Thought reasoning (Skill 48)
+- [ ] Function calling with JSON mode (Skill 49)
+- [ ] Autonomous agent loops (Skill 50)
+- [ ] Cross-encoder reranking (Skill 51)
+- [ ] Vector database architecture (Skill 52)
+- [ ] PEFT/QLoRA fine-tuning (Skill 53)
+- [ ] Quantization applied (Skill 54)
+- [ ] Continuous batching (Skill 55)
+- [ ] RLHF/DPO alignment (Skill 56)
+- [ ] Constitutional AI guardrails (Skill 57)
+- [ ] Knowledge graph grounding (Skill 58)
+- [ ] Memory buffer management (Skill 59)
+- [ ] Hallucination mitigation (Skill 60)
+
+### Logistics/Compliance
+- [ ] FMCSA compliance (Skill 61)
+- [ ] J1939/OBD-II parsing (Skill 62)
+- [ ] ELD HOS rule engine (Skill 63)
+- [ ] IFTA mileage aggregation (Skill 64)
+- [ ] IRP/UCR tracking (Skill 65)
+- [ ] Clearinghouse integration (Skill 66)
+- [ ] Load board scraping (Skill 67)
+- [ ] RPM/deadhead calculation (Skill 68)
+- [ ] EDI X12 parsing (Skill 69)
+- [ ] OCR for documents (Skill 70)
+- [ ] Geofence tracking (Skill 71)
+- [ ] Form 2290 automation (Skill 72)
+- [ ] CSA/PSP analytics (Skill 73)
+- [ ] Hazmat routing (Skill 74)
+- [ ] Mechanic dispatch (Skill 75)
+- [ ] DTC routing (Skill 76)
+- [ ] Fuel price arbitrage (Skill 77)
+- [ ] Parking reservation (Skill 78)
+- [ ] Accident detection (Skill 79)
+- [ ] Claim mitigation (Skill 80)
+
+### Fintech/Security/DevOps
+- [ ] Factoring API bridge (Skill 81)
+- [ ] Stripe subscriptions (Skill 82)
+- [ ] Tax document automation (Skill 83)
+- [ ] Escrow management (Skill 84)
+- [ ] AES-256 encryption (Skill 85)
+- [ ] mTLS/OAuth2 (Skill 86)
+- [ ] ROS2/DDS integration (Skill 87)
+- [ ] Autonomous yard truck telemetry (Skill 88)
+- [ ] LiDAR/SLAM processing (Skill 89)
+- [ ] IaC with Terraform (Skill 90)
+- [ ] CI/CD pipelines (Skill 91)
+- [ ] Monorepo architecture (Skill 92)
+- [ ] Static analysis/TDD (Skill 93)
+- [ ] Immutable infrastructure (Skill 94)
+- [ ] Canary releases (Skill 95)
+- [ ] Docker/Kubernetes (Skill 96)
+- [ ] Prometheus/Grafana (Skill 97)
+- [ ] ELK logging (Skill 98)
+- [ ] App store deployments (Skill 99)
+- [ ] Release engineering (Skill 100)
+
+---
+
+## PROJECT SPECIFIC INSTRUCTIONS
+
+### Repository Structure
+```
+phi-app/
+├── app/                    # Next.js web frontend
+├── backend/               # Python FastAPI + CrewAI backend
+│   ├── main.py            # API endpoints (skills integrated)
+│   ├── agents.py          # 15 CrewAI agents
+│   ├── tasks.py           # Multi-agent workflows
+│   ├── app/
+│   │   └── database.py   # Skill models included
+│   └── db/
+│       ├── schema.sql     # Skill tables included
+│       └── seed_skills.py  # Auto-seed skills
+├── mobile/                # Expo React Native app
+├── tests/                 # Test suites
+├── SKILLS.md              # Full skill documentation
+└── .ai-instructions      # This file (auto-loaded)
+```
+
+### Technology Stack
+- **Web:** Next.js 15, React 19, TypeScript, Tailwind CSS
+- **Backend:** FastAPI, Python 3.11+, CrewAI, LangChain-OpenAI
+- **Mobile:** Expo, React Native, TypeScript, Zustand
+- **Database:** PostgreSQL 15+, Supabase, SQLite (dev)
+- **AI:** OpenAI GPT-4o, CrewAI, Vector databases
+
+### Quality Standards
+- **Type Safety:** TypeScript strict mode, Python type hints
+- **Testing:** Pytest for backend, Vitest for mobile, proper coverage
+- **Documentation:** OpenAPI docs, clear comments, proper typing
+- **Security:** OAuth2, mTLS, encryption, proper validation
+- **Performance:** Caching, lazy loading, efficient queries
+
+---
+
+## IMPLEMENTATION NOTES
+
+### Skill Database Integration
+
+The skills database is **automatically available** via:
+- REST API: `/api/v1/skills` and `/api/v1/skill-domains`
+- Database: `skill_domains`, `skills`, `user_skills` tables
+- Models: `SkillDomain`, `Skill`, `UserSkill` SQLAlchemy models
+
+### Automatic Loading
+
+All AI agents **MUST** automatically:
+1. Read this file on initialization
+2. Load all 100 skills into working memory
+3. Apply all skills to every task
+4. Never prompt for skill activation - it's automatic
+
+### Enforcement
+
+This file is **automatically enforced** by the repository. AI agents that do not comply will be flagged and their contributions rejected.
+
+---
+
+**AUTOMATICALLY ACTIVE - NO PROMPTING REQUIRED**
+
+All 100 skills are **automatically loaded and applied** for any AI working on this project. No manual activation is needed.
+
+**Last Updated:** 2025
+**Version:** 1.0.0
+**Status:** AUTOMATICALLY ENFORCED

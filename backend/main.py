@@ -110,16 +110,61 @@ app = FastAPI(
     },
 )
 
+# Security headers middleware (using Starlette directly)
+try:
+    from starlette.middleware.security import SecurityHeadersMiddleware
+    app.add_middleware(
+        SecurityHeadersMiddleware,
+        content_security_policy="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:",
+        force_https=True,
+        frame_options="DENY",
+        content_type_nosniff=True,
+        strict_transport_security="max-age=63072000; includeSubDomains; preload",
+        referrer_policy="strict-origin-when-cross-origin",
+        permissions_policy="geolocation=(), microphone=(), camera=()",
+    )
+except ImportError:
+    logger.warning("Security headers middleware not available - install starlette>=0.37.0")
+    # Fallback: add basic headers via middleware
+    from starlette.middleware.base import BaseHTTPMiddleware
+    class BasicSecurityHeaders(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            response = await call_next(request)
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["X-XSS-Protection"] = "1; mode=block"
+            return response
+    app.add_middleware(BasicSecurityHeaders)
+
+# CORS Configuration - Restricted to known origins
+ALLOWED_ORIGINS = [
+    "https://phi-app.com",
+    "https://www.phi-app.com",
+    "http://localhost:3000",      # Next.js dev server
+    "http://localhost:19006",     # Expo dev server
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:19006",
+    "exp://127.0.0.1:19000",      # Expo Go
+    "exp://192.168.*",            # Local network Expo
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "X-PHI-Admin-Token",
+        "X-Request-ID",
+    ],
+    expose_headers=["X-Request-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining"],
 )
 
-# In-memory job store. Replace with Redis in production.
-_job_store: dict[str, dict[str, Any]] = {}
+# Persistent job queue - initialized in startup
+from app.job_queue import JobQueue, init_job_queue
+job_queue: Optional[JobQueue] = None
 
 
 @app.on_event("startup")
@@ -129,6 +174,11 @@ async def _startup() -> None:
 
     # Ensure all SQLAlchemy tables exist (SQLite dev + bare Postgres without schema.sql).
     init_db()
+    
+    # Initialize persistent job queue
+    global job_queue
+    job_queue = init_job_queue()
+    
     # CrewAI task_callback fires from a worker thread; capture the main event loop
     # so broadcast_to_driver_sync can hop back onto it.
     ws_manager.bind_loop(asyncio.get_running_loop())
@@ -714,7 +764,7 @@ def _queue_assessment_followup(db, lead: CustomerLead) -> CustomerFollowUp | Non
 def _create_job(workflow: str):
     """Initialize a new job record and return its job_id."""
     job_id = str(uuid.uuid4())
-    _job_store[job_id] = {
+    job_data = {
         "job_id": job_id,
         "status": JobStatus.RUNNING,
         "workflow": workflow,
@@ -724,13 +774,19 @@ def _create_job(workflow: str):
         "completed_at": None,
         "duration_seconds": None,
     }
+    if job_queue:
+        job_queue.create_job(job_id, job_data)
+    else:
+        # Fallback to in-memory dict for backward compatibility
+        from app.job_queue import _memory_store
+        _memory_store[job_id] = job_data
     return job_id
 
 
 def _complete_job(job_id: str, result: str, start_time: datetime) -> None:
     """Mark a job as completed with its result and duration."""
     end_time = datetime.now(timezone.utc)
-    _job_store[job_id].update({
+    job_queue.get_job(job_id) if job_queue else {}.update({
         "status": JobStatus.COMPLETED,
         "result": result,
         "completed_at": end_time.isoformat(),
@@ -741,7 +797,7 @@ def _complete_job(job_id: str, result: str, start_time: datetime) -> None:
 def _fail_job(job_id: str, error: str, start_time: datetime) -> None:
     """Mark a job as failed with the error message and duration."""
     end_time = datetime.now(timezone.utc)
-    _job_store[job_id].update({
+    job_queue.get_job(job_id) if job_queue else {}.update({
         "status": JobStatus.FAILED,
         "error": error,
         "completed_at": end_time.isoformat(),
@@ -775,7 +831,7 @@ def health_check():
     return {
         "status": "ok",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "active_jobs": sum(1 for j in _job_store.values() if j["status"] == JobStatus.RUNNING),
+        "active_jobs": job_queue.count_active_jobs() if job_queue else 0,
     }
 
 
@@ -1394,7 +1450,7 @@ def get_job(job_id: str):
     Poll the status of a background crew workflow job.
     Returns status, result (when complete), error (if failed), and duration.
     """
-    job = _job_store.get(job_id)
+    job = job_queue.get_job(job_id) if job_queue else None
     if not job:
         raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
     return JobResponse(**job)
@@ -1413,7 +1469,7 @@ def list_jobs(
     offset: int = Query(default=0, ge=0),
 ):
     """List all crew workflow jobs with optional filtering and pagination."""
-    jobs = list(_job_store.values())
+    jobs = job_queue.list_jobs() if job_queue else []
 
     if status:
         jobs = [j for j in jobs if j["status"] == status]

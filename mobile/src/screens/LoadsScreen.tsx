@@ -170,6 +170,9 @@ export default function LoadsScreen() {
               <Text style={styles.headerTitle}>PHI Load Board</Text>
               <Text style={styles.headerSubtitle}>Pull to refresh live dry van opportunities from DAT, Truckstop, 123Loadboard, and Uber Freight.</Text>
             </View>
+            <TouchableOpacity style={styles.tripPlannerLink} onPress={() => navigation.navigate('TripPlanner')}>
+              <Text style={styles.tripPlannerLinkText}>🗺️ Plan a Multi-Stop Trip</Text>
+            </TouchableOpacity>
             <View style={styles.controlRow}>
               {SCORE_FILTERS.map((f) => (
                 <TouchableOpacity
@@ -249,6 +252,8 @@ const styles = StyleSheet.create({
   sortLabel: { color: '#D7E3FF', fontWeight: '700', fontSize: 13 },
   headerTitle: { color: PHI_COLORS.white, fontSize: 24, fontWeight: '900' },
   headerSubtitle: { color: '#E7EEFF', marginTop: 8, lineHeight: 20 },
+  tripPlannerLink: { backgroundColor: PHI_COLORS.card, borderRadius: 12, padding: 12, marginBottom: 10, alignItems: 'center' },
+  tripPlannerLinkText: { color: PHI_COLORS.sunshineYellow, fontSize: 14, fontWeight: '700' },
   card: { backgroundColor: PHI_COLORS.card, borderRadius: 16, padding: 16, gap: 10, marginBottom: 14 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   loadId: { color: PHI_COLORS.white, fontWeight: '800', fontSize: 18 },

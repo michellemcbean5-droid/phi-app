@@ -1,12 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
-import useLoadsStore from '../store/loadsStore';
+import useLoadsStore, { GateEvent } from '../store/loadsStore';
+import useDriverPrefsStore from '../store/driverPrefsStore';
 import { Load } from '../workers/workers-15x';
+import { summarizeLoadDetention } from '../workers/DetentionTrackerWorker';
+import { findBackhauls } from '../workers/BackhaulPlannerWorker';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LoadDetails'>;
 
@@ -16,12 +19,19 @@ interface LoadDetailRow {
   value: string;
 }
 
-export default function LoadDetailsScreen({ route }: Props) {
-  const { activeLoads } = useLoadsStore();
+const GATE_STOPS: { checkIn: GateEvent; checkOut: GateEvent; label: string }[] = [
+  { checkIn: 'pickupCheckIn', checkOut: 'pickupCheckOut', label: 'Pickup' },
+  { checkIn: 'deliveryCheckIn', checkOut: 'deliveryCheckOut', label: 'Delivery' },
+];
+
+export default function LoadDetailsScreen({ route, navigation }: Props) {
+  const { activeLoads, bookingHistory, logGateEvent } = useLoadsStore();
+  const { prefs } = useDriverPrefsStore();
   const loadId = route.params.loadId;
-  
+
   // Find the load from activeLoads
   const load = activeLoads.find(l => l.id === loadId);
+  const bookedRecord = bookingHistory.find((r) => r.id === loadId);
 
   if (!load) return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -63,6 +73,82 @@ export default function LoadDetailsScreen({ route }: Props) {
             <Text style={styles.value}>{r.value}</Text>
           </View>
         ))}
+
+        {bookedRecord && (
+          <View style={styles.detentionCard}>
+            <Text style={styles.detentionTitle}>Gate Check-In / Detention Tracker</Text>
+            <Text style={styles.detentionSubtitle}>
+              First {prefs.detentionFreeTimeHours}h free at each stop, then ${prefs.detentionRatePerHour}/hr detention.
+            </Text>
+            {GATE_STOPS.map(({ checkIn, checkOut, label }) => {
+              const checkInTime = bookedRecord.gateTimes?.[checkIn];
+              const checkOutTime = bookedRecord.gateTimes?.[checkOut];
+              const summary = summarizeLoadDetention(bookedRecord.gateTimes ?? {}, prefs.detentionFreeTimeHours, prefs.detentionRatePerHour);
+              const stopResult = summary.stops.find((s) => s.stop === label.toLowerCase())?.result;
+              return (
+                <View key={label} style={styles.stopBlock}>
+                  <Text style={styles.stopLabel}>{label}</Text>
+                  <View style={styles.gateButtonRow}>
+                    <Pressable
+                      style={[styles.gateButton, checkInTime && styles.gateButtonDone]}
+                      disabled={!!checkInTime}
+                      onPress={() => logGateEvent(bookedRecord.id, checkIn, new Date().toISOString())}
+                    >
+                      <Text style={styles.gateButtonText}>{checkInTime ? `In: ${new Date(checkInTime).toLocaleTimeString()}` : 'Check In'}</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.gateButton, (!checkInTime || checkOutTime) && styles.gateButtonDisabled, checkOutTime && styles.gateButtonDone]}
+                      disabled={!checkInTime || !!checkOutTime}
+                      onPress={() => logGateEvent(bookedRecord.id, checkOut, new Date().toISOString())}
+                    >
+                      <Text style={styles.gateButtonText}>{checkOutTime ? `Out: ${new Date(checkOutTime).toLocaleTimeString()}` : 'Check Out'}</Text>
+                    </Pressable>
+                  </View>
+                  {stopResult?.isComplete && (
+                    <Text style={styles.detentionResult}>
+                      {stopResult.totalMinutesOnSite} min on site · {stopResult.detentionMinutes} min billable
+                      {stopResult.detentionOwed > 0 ? ` · $${stopResult.detentionOwed.toFixed(2)} detention owed` : ' · within free time'}
+                    </Text>
+                  )}
+                </View>
+              );
+            })}
+            {(() => {
+              const summary = summarizeLoadDetention(bookedRecord.gateTimes ?? {}, prefs.detentionFreeTimeHours, prefs.detentionRatePerHour);
+              return summary.totalDetentionOwed > 0 ? (
+                <Text style={styles.totalDetention}>Total detention owed: ${summary.totalDetentionOwed.toFixed(2)}</Text>
+              ) : null;
+            })()}
+          </View>
+        )}
+
+        {bookedRecord && (() => {
+          const suggestions = findBackhauls(load.destination, activeLoads, load.id, { minRPM: prefs.minRPM }).slice(0, 3);
+          if (suggestions.length === 0) return null;
+          return (
+            <View style={styles.detentionCard}>
+              <Text style={styles.detentionTitle}>Backhaul Suggestions</Text>
+              <Text style={styles.detentionSubtitle}>
+                Loads originating near {load.destination.city}, {load.destination.state} — avoid running empty on the way back.
+              </Text>
+              {suggestions.map((s) => (
+                <Pressable
+                  key={s.load.id}
+                  style={styles.backhaulRow}
+                  onPress={() => navigation.push('LoadDetails', { loadId: s.load.id })}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.backhaulLane}>
+                      {s.load.origin.city}, {s.load.origin.state} → {s.load.destination.city}, {s.load.destination.state}
+                    </Text>
+                    <Text style={styles.backhaulMeta}>{s.distanceFromDropMiles.toFixed(0)} mi away · ${s.load.rate.toFixed(0)} · {s.load.rpm.toFixed(2)} RPM</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={PHI_COLORS.sunshineYellow} />
+                </Pressable>
+              ))}
+            </View>
+          );
+        })()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -76,4 +162,19 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', backgroundColor: PHI_COLORS.card, borderRadius: 14, padding: 14, marginBottom: 10 },
   label: { color: '#A8B7D8', fontSize: 14, flex: 1, marginLeft: 4 },
   value: { color: PHI_COLORS.white, fontSize: 14, fontWeight: '700', flex: 2, textAlign: 'right' },
+  detentionCard: { backgroundColor: PHI_COLORS.card, borderRadius: 14, padding: 14, marginTop: 10 },
+  detentionTitle: { color: PHI_COLORS.white, fontSize: 16, fontWeight: '800', marginBottom: 4 },
+  detentionSubtitle: { color: '#A8B7D8', fontSize: 12, marginBottom: 12 },
+  stopBlock: { marginBottom: 12 },
+  stopLabel: { color: PHI_COLORS.sunshineYellow, fontSize: 13, fontWeight: '700', marginBottom: 6 },
+  gateButtonRow: { flexDirection: 'row', gap: 8 },
+  gateButton: { flex: 1, backgroundColor: PHI_COLORS.surface, borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#2A3A5C' },
+  gateButtonDone: { borderColor: PHI_COLORS.moneyGreen },
+  gateButtonDisabled: { opacity: 0.5 },
+  gateButtonText: { color: PHI_COLORS.white, fontSize: 12, fontWeight: '700' },
+  detentionResult: { color: '#A8B7D8', fontSize: 12, marginTop: 6 },
+  totalDetention: { color: PHI_COLORS.moneyGreen, fontSize: 15, fontWeight: '800', textAlign: 'center', marginTop: 4 },
+  backhaulRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: PHI_COLORS.surface, borderRadius: 10, padding: 12, marginBottom: 8 },
+  backhaulLane: { color: PHI_COLORS.white, fontSize: 13, fontWeight: '700' },
+  backhaulMeta: { color: '#A8B7D8', fontSize: 12, marginTop: 3 },
 });

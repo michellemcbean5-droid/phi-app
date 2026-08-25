@@ -20,6 +20,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import SupportChatScreen from '../screens/SupportChatScreen';
 import SystemCheckScreen from '../screens/SystemCheckScreen';
+import TripPlannerScreen from '../screens/TripPlannerScreen';
 import TruckStopFinderScreen from '../screens/TruckStopFinderScreen';
 import VehicleScreen from '../screens/VehicleScreen';
 import WalkthroughScreen from '../screens/WalkthroughScreen';
@@ -51,6 +52,7 @@ export type RootStackParamList = {
   TruckStopFinder: undefined;
   PayoutSettings: undefined;
   Walkthrough: undefined;
+  TripPlanner: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -95,6 +97,7 @@ export default function RootNavigator() {
       <Stack.Screen name="RouteMap" component={RouteMapScreen} options={{ title: 'Route Analysis' }} />
       <Stack.Screen name="PayoutSettings" component={PayoutSettingsScreen} options={{ title: 'Payout Settings' }} />
       <Stack.Screen name="Walkthrough" component={WalkthroughScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="TripPlanner" component={TripPlannerScreen} options={{ title: 'Multi-Stop Trip Planner' }} />
     </Stack.Navigator>
   );
 }

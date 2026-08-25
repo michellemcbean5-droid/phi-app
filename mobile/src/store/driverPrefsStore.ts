@@ -20,6 +20,8 @@ export interface DriverPrefs {
   minTripMiles: number;
   targetDailyRevenue: number;
   hosWarningThresholdHours: number;
+  detentionFreeTimeHours: number;
+  detentionRatePerHour: number;
 }
 
 const DEFAULT_PREFS: DriverPrefs = {
@@ -37,6 +39,8 @@ const DEFAULT_PREFS: DriverPrefs = {
   minTripMiles: 200,
   targetDailyRevenue: 1500,
   hosWarningThresholdHours: 2,
+  detentionFreeTimeHours: 2,
+  detentionRatePerHour: 50,
 };
 
 interface DriverPrefsState {

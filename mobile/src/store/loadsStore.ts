@@ -7,6 +7,8 @@ export type BookingState = 'unbooked' | 'pending' | 'booked' | 'rejected';
 export type SortOption = 'rpm' | 'rate' | 'miles';
 export type PaymentStatus = 'unpaid' | 'invoice_sent' | 'paid';
 
+export type GateEvent = 'pickupCheckIn' | 'pickupCheckOut' | 'deliveryCheckIn' | 'deliveryCheckOut';
+
 export interface BookedLoadRecord {
   id: string;
   brokerName: string;
@@ -15,6 +17,7 @@ export interface BookedLoadRecord {
   rpm: number;
   bookedAt: string;
   paymentStatus: PaymentStatus;
+  gateTimes?: Partial<Record<GateEvent, string>>;
 }
 
 interface LoadsState {
@@ -27,6 +30,7 @@ interface LoadsState {
   setBookingState: (loadId: string, state: BookingState) => void;
   addBookingRecord: (record: BookedLoadRecord) => void;
   setPaymentStatus: (recordId: string, status: PaymentStatus) => void;
+  logGateEvent: (recordId: string, event: GateEvent, timestampISO: string) => void;
   setFilter: (filter: LoadsState['filter']) => void;
   setSortBy: (sortBy: SortOption) => void;
 }
@@ -49,6 +53,12 @@ const useLoadsStore = create<LoadsState>()(
       setPaymentStatus: (recordId, status) =>
         set((currentState) => ({
           bookingHistory: currentState.bookingHistory.map((r) => (r.id === recordId ? { ...r, paymentStatus: status } : r)),
+        })),
+      logGateEvent: (recordId, event, timestampISO) =>
+        set((currentState) => ({
+          bookingHistory: currentState.bookingHistory.map((r) =>
+            r.id === recordId ? { ...r, gateTimes: { ...r.gateTimes, [event]: timestampISO } } : r,
+          ),
         })),
       setFilter: (filter) => set({ filter }),
       setSortBy: (sortBy) => set({ sortBy }),

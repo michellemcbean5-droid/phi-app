@@ -137,7 +137,7 @@ export default function LoadsScreen() {
     const runAutoPilot = async (): Promise<void> => {
       const candidates = loadBoard.filter((load) => {
         if (autoPilotRanForLoadIds.current.has(load.id)) return false;
-        if (bookingState[load.id] === 'booked' || bookingState[load.id] === 'pending') return false;
+        if (bookingState[load.id] === 'booked' || bookingState[load.id] === 'pending' || bookingState[load.id] === 'cancelled') return false;
         try {
           return scoreLoad(load) === 'Diamond' || scoreLoad(load) === 'Gold';
         } catch {

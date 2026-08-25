@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Load } from '../workers/workers-15x';
 
-export type BookingState = 'unbooked' | 'pending' | 'booked' | 'rejected';
+export type BookingState = 'unbooked' | 'pending' | 'booked' | 'rejected' | 'cancelled';
 export type SortOption = 'rpm' | 'rate' | 'miles';
 export type PaymentStatus = 'unpaid' | 'invoice_sent' | 'paid';
 

@@ -10,6 +10,7 @@ import useDriverPrefsStore from '../store/driverPrefsStore';
 import { Load } from '../workers/workers-15x';
 import { summarizeLoadDetention } from '../workers/DetentionTrackerWorker';
 import { findBackhauls } from '../workers/BackhaulPlannerWorker';
+import { filterUpcomingLoads } from '../workers/NextDayPlannerWorker';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LoadDetails'>;
 
@@ -25,7 +26,7 @@ const GATE_STOPS: { checkIn: GateEvent; checkOut: GateEvent; label: string }[] =
 ];
 
 export default function LoadDetailsScreen({ route, navigation }: Props) {
-  const { activeLoads, bookingHistory, logGateEvent } = useLoadsStore();
+  const { activeLoads, bookingHistory, logGateEvent, bookingState, setBookingState } = useLoadsStore();
   const { prefs } = useDriverPrefsStore();
   const loadId = route.params.loadId;
 
@@ -149,6 +150,76 @@ export default function LoadDetailsScreen({ route, navigation }: Props) {
             </View>
           );
         })()}
+
+        {bookedRecord && (() => {
+          const upcoming = filterUpcomingLoads(activeLoads, load.deliveryDate);
+          const suggestions = findBackhauls(load.destination, upcoming, load.id, { minRPM: prefs.minRPM }).slice(0, 3);
+          if (suggestions.length === 0) return null;
+          return (
+            <View style={styles.detentionCard}>
+              <Text style={styles.detentionTitle}>Next-Day Load Options</Text>
+              <Text style={styles.detentionSubtitle}>
+                Lined up before you even deliver — loads that pick up on or after {load.deliveryDate}.
+              </Text>
+              {suggestions.map((s) => (
+                <Pressable
+                  key={s.load.id}
+                  style={styles.backhaulRow}
+                  onPress={() => navigation.push('LoadDetails', { loadId: s.load.id })}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.backhaulLane}>
+                      {s.load.origin.city}, {s.load.origin.state} → {s.load.destination.city}, {s.load.destination.state}
+                    </Text>
+                    <Text style={styles.backhaulMeta}>Pickup {s.load.pickupDate} · ${s.load.rate.toFixed(0)} · {s.load.rpm.toFixed(2)} RPM</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={PHI_COLORS.sunshineYellow} />
+                </Pressable>
+              ))}
+            </View>
+          );
+        })()}
+
+        {bookedRecord && bookingState[load.id] === 'booked' && (
+          <Pressable
+            style={styles.cancelButton}
+            onPress={() => setBookingState(load.id, 'cancelled')}
+          >
+            <Ionicons name="warning-outline" size={16} color="#FF6B6B" style={{ marginRight: 6 }} />
+            <Text style={styles.cancelButtonText}>Broker Cancelled This Load</Text>
+          </Pressable>
+        )}
+
+        {bookedRecord && bookingState[load.id] === 'cancelled' && (() => {
+          const suggestions = findBackhauls(load.origin, activeLoads, load.id, {}).slice(0, 3);
+          return (
+            <View style={[styles.detentionCard, styles.emergencyCard]}>
+              <Text style={styles.emergencyTitle}>⚠️ Load Cancelled — Emergency Re-Dispatch</Text>
+              <Text style={styles.detentionSubtitle}>
+                {load.brokerName} cancelled this load. Here's what's available near {load.origin.city}, {load.origin.state} right now.
+              </Text>
+              {suggestions.length === 0 ? (
+                <Text style={styles.detentionResult}>No nearby replacement loads found yet — pull to refresh the load board.</Text>
+              ) : (
+                suggestions.map((s) => (
+                  <Pressable
+                    key={s.load.id}
+                    style={styles.backhaulRow}
+                    onPress={() => navigation.push('LoadDetails', { loadId: s.load.id })}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.backhaulLane}>
+                        {s.load.origin.city}, {s.load.origin.state} → {s.load.destination.city}, {s.load.destination.state}
+                      </Text>
+                      <Text style={styles.backhaulMeta}>{s.distanceFromDropMiles.toFixed(0)} mi away · ${s.load.rate.toFixed(0)} · {s.load.rpm.toFixed(2)} RPM</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={PHI_COLORS.sunshineYellow} />
+                  </Pressable>
+                ))
+              )}
+            </View>
+          );
+        })()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -177,4 +248,8 @@ const styles = StyleSheet.create({
   backhaulRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: PHI_COLORS.surface, borderRadius: 10, padding: 12, marginBottom: 8 },
   backhaulLane: { color: PHI_COLORS.white, fontSize: 13, fontWeight: '700' },
   backhaulMeta: { color: '#A8B7D8', fontSize: 12, marginTop: 3 },
+  cancelButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: PHI_COLORS.card, borderRadius: 12, padding: 14, marginTop: 10, borderWidth: 1, borderColor: '#FF6B6B' },
+  cancelButtonText: { color: '#FF6B6B', fontSize: 13, fontWeight: '700' },
+  emergencyCard: { borderWidth: 1, borderColor: '#FF6B6B' },
+  emergencyTitle: { color: '#FF6B6B', fontSize: 16, fontWeight: '800', marginBottom: 4 },
 });

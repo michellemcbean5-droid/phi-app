@@ -18,6 +18,7 @@ export interface BookedLoadRecord {
   bookedAt: string;
   paymentStatus: PaymentStatus;
   gateTimes?: Partial<Record<GateEvent, string>>;
+  checkCallLog?: string[];
 }
 
 interface LoadsState {
@@ -31,6 +32,7 @@ interface LoadsState {
   addBookingRecord: (record: BookedLoadRecord) => void;
   setPaymentStatus: (recordId: string, status: PaymentStatus) => void;
   logGateEvent: (recordId: string, event: GateEvent, timestampISO: string) => void;
+  logCheckCall: (recordId: string, timestampISO: string) => void;
   setFilter: (filter: LoadsState['filter']) => void;
   setSortBy: (sortBy: SortOption) => void;
 }
@@ -58,6 +60,12 @@ const useLoadsStore = create<LoadsState>()(
         set((currentState) => ({
           bookingHistory: currentState.bookingHistory.map((r) =>
             r.id === recordId ? { ...r, gateTimes: { ...r.gateTimes, [event]: timestampISO } } : r,
+          ),
+        })),
+      logCheckCall: (recordId, timestampISO) =>
+        set((currentState) => ({
+          bookingHistory: currentState.bookingHistory.map((r) =>
+            r.id === recordId ? { ...r, checkCallLog: [...(r.checkCallLog ?? []), timestampISO] } : r,
           ),
         })),
       setFilter: (filter) => set({ filter }),

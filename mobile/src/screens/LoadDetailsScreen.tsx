@@ -11,6 +11,8 @@ import { Load } from '../workers/workers-15x';
 import { summarizeLoadDetention } from '../workers/DetentionTrackerWorker';
 import { findBackhauls } from '../workers/BackhaulPlannerWorker';
 import { filterUpcomingLoads } from '../workers/NextDayPlannerWorker';
+import { evaluateCheckCallStatus } from '../workers/CheckCallWorker';
+import { sendCheckCallUpdate } from '../api/twilioConnector';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LoadDetails'>;
 
@@ -26,7 +28,7 @@ const GATE_STOPS: { checkIn: GateEvent; checkOut: GateEvent; label: string }[] =
 ];
 
 export default function LoadDetailsScreen({ route, navigation }: Props) {
-  const { activeLoads, bookingHistory, logGateEvent, bookingState, setBookingState } = useLoadsStore();
+  const { activeLoads, bookingHistory, logGateEvent, bookingState, setBookingState, logCheckCall } = useLoadsStore();
   const { prefs } = useDriverPrefsStore();
   const loadId = route.params.loadId;
 
@@ -122,6 +124,37 @@ export default function LoadDetailsScreen({ route, navigation }: Props) {
             })()}
           </View>
         )}
+
+        {bookedRecord && bookingState[load.id] === 'booked' && (() => {
+          const checkCall = evaluateCheckCallStatus({
+            bookedAtISO: bookedRecord.bookedAt,
+            deliveredAtISO: bookedRecord.gateTimes?.deliveryCheckOut ?? null,
+            checkCallLog: bookedRecord.checkCallLog ?? [],
+            intervalHours: 4,
+          });
+          if (!checkCall.inTransit) return null;
+          return (
+            <View style={styles.detentionCard}>
+              <Text style={styles.detentionTitle}>Broker Check Calls</Text>
+              <Text style={styles.detentionSubtitle}>
+                Automated status updates every 4 hours in transit — no need to call the broker yourself.
+              </Text>
+              <Text style={styles.detentionResult}>
+                {checkCall.lastCheckCallISO ? `Last sent: ${new Date(checkCall.lastCheckCallISO).toLocaleTimeString()}` : 'No check call sent yet.'}
+              </Text>
+              <Pressable
+                style={[styles.gateButton, checkCall.isDue && styles.gateButtonDone, { marginTop: 10 }]}
+                onPress={() => {
+                  const now = new Date().toISOString();
+                  logCheckCall(bookedRecord.id, now);
+                  void sendCheckCallUpdate(load.id, load.brokerName, load.origin.city);
+                }}
+              >
+                <Text style={styles.gateButtonText}>{checkCall.isDue ? '📞 Check Call Due — Send Now' : '📞 Send Check Call'}</Text>
+              </Pressable>
+            </View>
+          );
+        })()}
 
         {bookedRecord && (() => {
           const suggestions = findBackhauls(load.destination, activeLoads, load.id, { minRPM: prefs.minRPM }).slice(0, 3);

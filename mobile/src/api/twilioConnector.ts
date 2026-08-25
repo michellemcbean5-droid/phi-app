@@ -94,6 +94,33 @@ export const sendWorkerStatusAlert = async (workerName: string, status: string):
   }
 };
 
+export const sendCheckCallUpdate = async (
+  loadId: string,
+  brokerName: string,
+  currentCity: string | null,
+): Promise<void> => {
+  const locationPart = currentCity ? ` Currently near ${currentCity}.` : '';
+  useRadioStore.getState().addMessage(
+    'Dispatcher',
+    `Check call sent to ${brokerName} for ${loadId} — on schedule, no issues to report.${locationPart}`,
+  );
+  try {
+    const granted = await requestNotificationPermission();
+    if (!granted) return;
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '📞 Check Call Sent',
+        body: `${brokerName} notified — ${loadId} is on schedule.${locationPart}`,
+        data: { type: 'check-call', loadId },
+        color: '#0057FF',
+      },
+      trigger: null,
+    });
+  } catch {
+    // Non-critical
+  }
+};
+
 export const sendNearbyLoadAlert = async (
   loadId: string,
   originCity: string,

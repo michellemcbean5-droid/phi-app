@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -13,6 +13,7 @@ import { findBackhauls } from '../workers/BackhaulPlannerWorker';
 import { filterUpcomingLoads } from '../workers/NextDayPlannerWorker';
 import { evaluateCheckCallStatus } from '../workers/CheckCallWorker';
 import { sendCheckCallUpdate } from '../api/twilioConnector';
+import usePHIOrchestratorStore from '../store/phiOrchestratorStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LoadDetails'>;
 
@@ -30,6 +31,7 @@ const GATE_STOPS: { checkIn: GateEvent; checkOut: GateEvent; label: string }[] =
 export default function LoadDetailsScreen({ route, navigation }: Props) {
   const { activeLoads, bookingHistory, logGateEvent, bookingState, setBookingState, logCheckCall } = useLoadsStore();
   const { prefs } = useDriverPrefsStore();
+  const { log: orchestratorLog } = usePHIOrchestratorStore();
   const loadId = route.params.loadId;
 
   // Find the load from activeLoads
@@ -253,6 +255,40 @@ export default function LoadDetailsScreen({ route, navigation }: Props) {
             </View>
           );
         })()}
+
+        {(() => {
+          const auditEntries = orchestratorLog.filter((e) => e.loadId === load.id).slice().reverse();
+          if (auditEntries.length === 0) return null;
+          return (
+            <View style={styles.detentionCard}>
+              <Text style={styles.detentionTitle}>Dispatch Audit Trail</Text>
+              <Text style={styles.detentionSubtitle}>Every automated decision made on this load, in order — for broker disputes or a DOT audit.</Text>
+              {auditEntries.map((entry) => (
+                <View key={entry.id} style={styles.auditRow}>
+                  <View style={[styles.auditDot, entry.outcome === 'pass' ? styles.auditDotPass : entry.outcome === 'rejected' ? styles.auditDotRejected : styles.auditDotError]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.auditMessage}>{entry.message}</Text>
+                    <Text style={styles.auditMeta}>{entry.stage} · {new Date(entry.timestamp).toLocaleString()}</Text>
+                  </View>
+                </View>
+              ))}
+              <Pressable
+                style={styles.shareAuditButton}
+                onPress={() => {
+                  const lines = [
+                    `PHI DISPATCH AUDIT TRAIL — ${load.id}`,
+                    `${load.origin.city}, ${load.origin.state} → ${load.destination.city}, ${load.destination.state} · Broker: ${load.brokerName}`,
+                    '',
+                    ...auditEntries.map((e) => `[${new Date(e.timestamp).toLocaleString()}] ${e.stage.toUpperCase()} (${e.outcome}): ${e.message}`),
+                  ];
+                  void Share.share({ message: lines.join('\n'), title: `PHI Audit Trail — ${load.id}` });
+                }}
+              >
+                <Text style={styles.shareAuditButtonText}>📤 Share Audit Trail</Text>
+              </Pressable>
+            </View>
+          );
+        })()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -285,4 +321,13 @@ const styles = StyleSheet.create({
   cancelButtonText: { color: '#FF6B6B', fontSize: 13, fontWeight: '700' },
   emergencyCard: { borderWidth: 1, borderColor: '#FF6B6B' },
   emergencyTitle: { color: '#FF6B6B', fontSize: 16, fontWeight: '800', marginBottom: 4 },
+  auditRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10, gap: 8 },
+  auditDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
+  auditDotPass: { backgroundColor: PHI_COLORS.moneyGreen },
+  auditDotRejected: { backgroundColor: PHI_COLORS.sunshineYellow },
+  auditDotError: { backgroundColor: '#FF6B6B' },
+  auditMessage: { color: PHI_COLORS.white, fontSize: 12, lineHeight: 17 },
+  auditMeta: { color: '#7F8FB3', fontSize: 11, marginTop: 2 },
+  shareAuditButton: { backgroundColor: PHI_COLORS.surface, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 6, borderWidth: 1, borderColor: PHI_COLORS.sunshineYellow },
+  shareAuditButtonText: { color: PHI_COLORS.sunshineYellow, fontSize: 13, fontWeight: '700' },
 });

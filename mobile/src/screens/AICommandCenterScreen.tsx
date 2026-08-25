@@ -131,7 +131,7 @@ export default function AICommandCenterScreen() {
               No activity yet — book a load or turn on Master Auto-Pilot to watch the PHI Brain work in real time.
             </Text>
           ) : (
-            log.map((entry) => (
+            log.slice(0, 60).map((entry) => (
               <View key={entry.id} style={styles.streamRow}>
                 <View
                   style={[

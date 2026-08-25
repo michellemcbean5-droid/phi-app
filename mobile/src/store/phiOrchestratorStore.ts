@@ -27,7 +27,10 @@ export interface OrchestratorLogEntry {
   outcome: PipelineOutcome;
 }
 
-const MAX_LOG_ENTRIES = 60;
+// Capped well above what the live-stream UI ever renders — this is the durable
+// audit trail (task 15: "maintain automated dispatch event logs for legal and
+// operational audits"), not just a scrolling feed, so it needs real history depth.
+const MAX_LOG_ENTRIES = 1000;
 
 interface PHIOrchestratorState {
   currentStage: PipelineStage;

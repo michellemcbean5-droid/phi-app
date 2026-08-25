@@ -22,6 +22,7 @@ import useWorkerStore from '../store/workerStore';
 import usePromoStore from '../store/promoStore';
 import useDriverPrefsStore from '../store/driverPrefsStore';
 import { getProximityRefreshMinutes } from '../utils/subscriptionGating';
+import { evaluateHomeTimeFit } from '../workers/HomeTimeBalancerWorker';
 import AnimatedPressable from '../components/game/AnimatedPressable';
 
 type LoadsNavigationProp = CompositeNavigationProp<
@@ -211,6 +212,14 @@ export default function LoadsScreen() {
               <Text style={styles.routeText}>{item.origin.city}, {item.origin.state} → {item.destination.city}, {item.destination.state}</Text>
               <Text style={styles.metaText}>Rate: ${item.rate.toFixed(0)} • RPM: {item.rpm.toFixed(2)} • Broker: {item.brokerRating.toFixed(1)}★</Text>
               <Text style={styles.metaText}>Equipment: {item.equipmentType} • Miles: {item.totalMiles}</Text>
+              {prefs.homeTimeTargetDate && (() => {
+                const fit = evaluateHomeTimeFit(item, prefs.homeTimeTargetDate, prefs.minRPM, prefs.homeTimePremiumThresholdPercent);
+                if (fit.recommendation === 'take') return null;
+                const label = fit.recommendation === 'take-if-premium'
+                  ? `💰 Delays home time ${fit.daysPastHomeTarget}d but pays +${fit.rpmPremiumPercent.toFixed(0)}% RPM`
+                  : `⚠️ Delays home time by ${fit.daysPastHomeTarget}d`;
+                return <Text style={styles.homeTimeBadge}>{label}</Text>;
+              })()}
               <Text style={styles.bookingState}>Booking: {bookingState[item.id] ?? 'unbooked'}</Text>
               <View style={styles.buttonRow}>
                 <AnimatedPressable
@@ -254,6 +263,7 @@ const styles = StyleSheet.create({
   headerSubtitle: { color: '#E7EEFF', marginTop: 8, lineHeight: 20 },
   tripPlannerLink: { backgroundColor: PHI_COLORS.card, borderRadius: 12, padding: 12, marginBottom: 10, alignItems: 'center' },
   tripPlannerLinkText: { color: PHI_COLORS.sunshineYellow, fontSize: 14, fontWeight: '700' },
+  homeTimeBadge: { color: '#FFB84D', fontSize: 12, fontWeight: '700', marginTop: 4 },
   card: { backgroundColor: PHI_COLORS.card, borderRadius: 16, padding: 16, gap: 10, marginBottom: 14 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   loadId: { color: PHI_COLORS.white, fontWeight: '800', fontSize: 18 },

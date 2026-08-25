@@ -122,6 +122,29 @@ export default function DriverPrefsScreen() {
             maxLength={2}
             autoCapitalize="characters"
           />
+          <Text style={styles.fieldLabel}>Be Home By (optional, YYYY-MM-DD)</Text>
+          <TextInput
+            style={styles.input}
+            value={prefs.homeTimeTargetDate ?? ''}
+            onChangeText={(v) => updatePref('homeTimeTargetDate', v.trim().length === 0 ? null : v.trim())}
+            placeholder="2026-09-01"
+            placeholderTextColor="#7F8FB3"
+          />
+          <Text style={styles.fieldLabel}>Pay Premium Needed to Delay Home Time</Text>
+          <View style={styles.rpmRow}>
+            {[10, 20, 30, 50].map((pct) => (
+              <TouchableOpacity
+                key={pct}
+                style={[styles.chip, prefs.homeTimePremiumThresholdPercent === pct && styles.chipActive]}
+                onPress={() => updatePref('homeTimePremiumThresholdPercent', pct)}
+              >
+                <Text style={[styles.chipText, prefs.homeTimePremiumThresholdPercent === pct && styles.chipTextActive]}>+{pct}%</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={styles.helpText}>
+            Loads that get you home by this date are always fine. Loads that would run past it only get recommended if they pay this much more than your minimum RPM.
+          </Text>
         </View>
 
         {/* Equipment */}

@@ -7,6 +7,8 @@ import { auditDailyTransactions, DailyTransaction, runAIComplianceAudit } from '
 import useLoadsStore from '../store/loadsStore';
 import useWorkerStore from '../store/workerStore';
 import useProfileStore from '../store/profileStore';
+import useDutyStatusStore from '../store/dutyStatusStore';
+import { calculateHOSClock, DutyStatus } from '../workers/HOSClockWorker';
 
 const DRIVER_ID = 'driver-001';
 const AVG_ROAD_SPEED_MPH = 50;
@@ -15,9 +17,19 @@ const LOAD_UNLOAD_HOURS = 1;
 export default function ComplianceScreen() {
   const { bookingHistory } = useLoadsStore();
   const { fullName, cdlNumber, cdlState } = useProfileStore();
+  const { events: dutyEvents, logStatus, currentStatus } = useDutyStatusStore();
   const [hosSnapshot, setHosSnapshot] = useState<DriverAvailability | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
   const [aiRecommendations, setAiRecommendations] = useState<string[]>([]);
+  const [clockTick, setClockTick] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => setClockTick((t) => t + 1), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const liveClock = useMemo(() => calculateHOSClock(dutyEvents), [dutyEvents, clockTick]);
+  const activeDutyStatus = currentStatus();
 
   const transactions: DailyTransaction[] = useMemo(
     () =>
@@ -138,6 +150,42 @@ export default function ComplianceScreen() {
           </View>
         </View>
 
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Live HOS Clock</Text>
+          <Text style={styles.sectionText}>Log your duty status as it changes — the clock tracks your real 11-hour drive limit and 14-hour window, and warns you the moment a 30-minute break is required.</Text>
+          <View style={styles.dutyButtonRow}>
+            {(['driving', 'on-duty-not-driving', 'off-duty', 'sleeper-berth'] as DutyStatus[]).map((status) => (
+              <TouchableOpacity
+                key={status}
+                style={[styles.dutyButton, activeDutyStatus === status && styles.dutyButtonActive]}
+                onPress={() => logStatus(status)}
+              >
+                <Text style={[styles.dutyButtonText, activeDutyStatus === status && styles.dutyButtonTextActive]}>
+                  {status === 'on-duty-not-driving' ? 'On-Duty' : status === 'off-duty' ? 'Off-Duty' : status === 'sleeper-berth' ? 'Sleeper' : 'Driving'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {dutyEvents.length === 0 ? (
+            <Text style={styles.sectionText}>No duty status logged yet today — tap a button above to start the clock.</Text>
+          ) : (
+            <>
+              <View style={styles.clockRow}>
+                <Text style={styles.sectionText}>Drive time used: <Text style={styles.clockValue}>{liveClock.driveHoursUsed}h</Text> of 11h</Text>
+                <Text style={styles.sectionText}>On-duty window: <Text style={styles.clockValue}>{liveClock.onDutyWindowHoursUsed}h</Text> of 14h</Text>
+              </View>
+              {liveClock.breakRequired && (
+                <Text style={styles.hosWarning}>⚠️ {liveClock.hoursSinceLastQualifyingBreak}h driven since your last qualifying break — a 30-minute break is required before driving further.</Text>
+              )}
+              {liveClock.driveHoursRemaining <= 0 && <Text style={styles.hosWarning}>⚠️ 11-hour drive limit reached.</Text>}
+              {liveClock.onDutyWindowHoursRemaining <= 0 && <Text style={styles.hosWarning}>⚠️ 14-hour on-duty window expired.</Text>}
+              {liveClock.splitSleeperBerthDetected && (
+                <Text style={styles.hosNote}>Split sleeper-berth pattern detected — this is a conservative estimate that doesn't apply the split exception, so your real remaining hours may be higher. Verify against your ELD.</Text>
+              )}
+            </>
+          )}
+        </View>
+
         <TouchableOpacity style={styles.auditButton} onPress={() => void handleGenerateAuditReport()} disabled={auditLoading}>
           {auditLoading ? (
             <ActivityIndicator color={PHI_COLORS.charcoalBlack} />
@@ -214,4 +262,13 @@ const styles = StyleSheet.create({
   ledgerTextWrap: { flex: 1, flexShrink: 1 },
   ledgerTitle: { color: PHI_COLORS.white, fontWeight: '700', marginBottom: 4 },
   amount: { color: PHI_COLORS.moneyGreen, fontWeight: '800' },
+  dutyButtonRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  dutyButton: { flexGrow: 1, backgroundColor: PHI_COLORS.surface, borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#2A3A5C' },
+  dutyButtonActive: { backgroundColor: PHI_COLORS.sunshineYellow, borderColor: PHI_COLORS.sunshineYellow },
+  dutyButtonText: { color: PHI_COLORS.white, fontSize: 12, fontWeight: '700' },
+  dutyButtonTextActive: { color: PHI_COLORS.charcoalBlack },
+  clockRow: { gap: 4 },
+  clockValue: { color: PHI_COLORS.white, fontWeight: '800' },
+  hosWarning: { color: '#FF6B6B', fontSize: 13, fontWeight: '700', lineHeight: 18 },
+  hosNote: { color: '#A8B7D8', fontSize: 12, lineHeight: 17, fontStyle: 'italic' },
 });

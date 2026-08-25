@@ -22,6 +22,8 @@ export interface DriverPrefs {
   hosWarningThresholdHours: number;
   detentionFreeTimeHours: number;
   detentionRatePerHour: number;
+  homeTimeTargetDate: string | null;
+  homeTimePremiumThresholdPercent: number;
 }
 
 const DEFAULT_PREFS: DriverPrefs = {
@@ -41,6 +43,8 @@ const DEFAULT_PREFS: DriverPrefs = {
   hosWarningThresholdHours: 2,
   detentionFreeTimeHours: 2,
   detentionRatePerHour: 50,
+  homeTimeTargetDate: null,
+  homeTimePremiumThresholdPercent: 20,
 };
 
 interface DriverPrefsState {

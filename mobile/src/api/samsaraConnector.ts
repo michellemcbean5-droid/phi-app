@@ -17,6 +17,15 @@ export interface DriverAvailability {
 const MAX_DRIVE_HOURS = 11;
 const MAX_ONDUTY_HOURS = 14;
 const MAX_CYCLE_HOURS = 70;
+const GPS_TIMEOUT_MS = 5000;
+
+// A denied or never-answered location permission prompt must not hang the HOS fetch
+// forever — same hard-deadline pattern used by PHIOrchestrator and TripPlannerScreen.
+const withTimeout = <T,>(promise: Promise<T>, fallback: T, ms = GPS_TIMEOUT_MS): Promise<T> =>
+  Promise.race([
+    promise.catch(() => fallback),
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
 
 const sessionRegistry: Record<string, number> = {};
 
@@ -76,9 +85,9 @@ export const fetchHOSData = async (driverId: string): Promise<DriverAvailability
 
   let currentLocation: DriverAvailability['currentLocation'];
   try {
-    const loc = await getCurrentDriverLocation();
+    const loc = await withTimeout(getCurrentDriverLocation(), null);
     if (loc) {
-      const [address] = await Location.reverseGeocodeAsync(loc);
+      const [address] = await withTimeout(Location.reverseGeocodeAsync(loc), []);
       currentLocation = {
         ...loc,
         city: address ? `${address.city ?? ''}, ${address.region ?? ''}`.trim() : undefined,

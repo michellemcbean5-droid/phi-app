@@ -23,6 +23,7 @@ import usePromoStore from '../store/promoStore';
 import useDriverPrefsStore from '../store/driverPrefsStore';
 import { getProximityRefreshMinutes } from '../utils/subscriptionGating';
 import { evaluateHomeTimeFit } from '../workers/HomeTimeBalancerWorker';
+import { detectDoubleBrokeredLoads, FraudFlag } from '../workers/DoubleBrokerDetectorWorker';
 import AnimatedPressable from '../components/game/AnimatedPressable';
 
 type LoadsNavigationProp = CompositeNavigationProp<
@@ -56,6 +57,13 @@ export default function LoadsScreen() {
     });
     return [...scored].sort((a, b) => b[sortBy] - a[sortBy]);
   }, [activeLoads, filter, sortBy]);
+
+  const fraudFlagsByLoadId = useMemo(() => {
+    const flags = detectDoubleBrokeredLoads(activeLoads);
+    const map = new Map<string, FraudFlag[]>();
+    flags.forEach((flag) => map.set(flag.loadId, [...(map.get(flag.loadId) ?? []), flag]));
+    return map;
+  }, [activeLoads]);
 
   const refreshLoads = useCallback(async (): Promise<void> => {
     setRefreshing(true);
@@ -220,6 +228,20 @@ export default function LoadsScreen() {
                   : `⚠️ Delays home time by ${fit.daysPastHomeTarget}d`;
                 return <Text style={styles.homeTimeBadge}>{label}</Text>;
               })()}
+              {(() => {
+                const flags = fraudFlagsByLoadId.get(item.id);
+                if (!flags || flags.length === 0) return null;
+                const highest = flags.find((f) => f.severity === 'high') ?? flags[0];
+                return (
+                  <TouchableOpacity
+                    onPress={() => Alert.alert('⚠️ Flagged for Review', flags.map((f) => f.reason).join('\n\n'))}
+                  >
+                    <Text style={styles.fraudBadge}>
+                      🚩 {highest.severity === 'high' ? 'Possible double-broker' : 'Bait-rate pattern'} — tap for details
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })()}
               <Text style={styles.bookingState}>Booking: {bookingState[item.id] ?? 'unbooked'}</Text>
               <View style={styles.buttonRow}>
                 <AnimatedPressable
@@ -264,6 +286,7 @@ const styles = StyleSheet.create({
   tripPlannerLink: { backgroundColor: PHI_COLORS.card, borderRadius: 12, padding: 12, marginBottom: 10, alignItems: 'center' },
   tripPlannerLinkText: { color: PHI_COLORS.sunshineYellow, fontSize: 14, fontWeight: '700' },
   homeTimeBadge: { color: '#FFB84D', fontSize: 12, fontWeight: '700', marginTop: 4 },
+  fraudBadge: { color: '#FF5252', fontSize: 12, fontWeight: '700', marginTop: 4, textDecorationLine: 'underline' },
   card: { backgroundColor: PHI_COLORS.card, borderRadius: 16, padding: 16, gap: 10, marginBottom: 14 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   loadId: { color: PHI_COLORS.white, fontWeight: '800', fontSize: 18 },

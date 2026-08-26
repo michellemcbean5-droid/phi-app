@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
@@ -20,6 +20,7 @@ import {
   projectYearlyRevenue,
 } from '../utils/profitFormula';
 import useDriverPrefsStore from '../store/driverPrefsStore';
+import { buildBrokerScorebook } from '../workers/BrokerScorebookWorker';
 
 const TARGET_PROFIT_MARGIN_PERCENT = 60;
 
@@ -64,6 +65,7 @@ export default function EarningsScreen() {
   const { prefs } = useDriverPrefsStore();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
+  const brokerScorebook = useMemo(() => buildBrokerScorebook(bookingHistory), [bookingHistory]);
 
   const handleRequestPayment = async (record: typeof bookingHistory[number]): Promise<void> => {
     const message = [
@@ -279,6 +281,33 @@ export default function EarningsScreen() {
             </View>
           ))}
         </View>
+
+        {brokerScorebook.length > 0 && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Broker Scorebook</Text>
+            <Text style={styles.helperText}>Built from your own booking history — how each broker actually pays, not a generic credit score.</Text>
+            {brokerScorebook.map((broker) => (
+              <View key={broker.brokerName} style={styles.brokerRow}>
+                <View style={styles.brokerHeaderRow}>
+                  <Text style={styles.brokerName}>{broker.brokerName}</Text>
+                  <View style={[styles.brokerScoreBadge, { backgroundColor: broker.reliabilityScore >= 80 ? PHI_COLORS.moneyGreen + '33' : broker.reliabilityScore >= 50 ? PHI_COLORS.sunshineYellow + '33' : '#FF525233' }]}>
+                    <Text style={[styles.brokerScoreText, { color: broker.reliabilityScore >= 80 ? PHI_COLORS.moneyGreen : broker.reliabilityScore >= 50 ? PHI_COLORS.sunshineYellow : '#FF5252' }]}>
+                      {broker.reliabilityScore}/100
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.paymentSub}>
+                  {broker.loadsBooked} load{broker.loadsBooked === 1 ? '' : 's'} · ${broker.totalRevenue.toFixed(0)} total · {broker.avgRPM.toFixed(2)} avg RPM
+                </Text>
+                <Text style={styles.paymentSub}>
+                  {broker.avgDaysToPay !== null
+                    ? `Avg ${broker.avgDaysToPay}d to pay · ${broker.onTimePaymentRate}% on-time`
+                    : 'No payment history yet with this broker'}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -320,4 +349,9 @@ const styles = StyleSheet.create({
   paymentBadge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   paymentBadgeText: { fontWeight: '800', fontSize: 10 },
   paymentActionButton: { backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 8, width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+  brokerRow: { paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#21406F' },
+  brokerHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  brokerName: { color: PHI_COLORS.white, fontWeight: '700', fontSize: 13, flexShrink: 1 },
+  brokerScoreBadge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  brokerScoreText: { fontWeight: '800', fontSize: 11 },
 });

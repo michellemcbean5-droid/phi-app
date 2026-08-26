@@ -19,6 +19,8 @@ export interface BookedLoadRecord {
   paymentStatus: PaymentStatus;
   gateTimes?: Partial<Record<GateEvent, string>>;
   checkCallLog?: string[];
+  invoiceSentAt?: string;
+  paidAt?: string;
 }
 
 interface LoadsState {
@@ -54,7 +56,16 @@ const useLoadsStore = create<LoadsState>()(
         set((currentState) => ({ bookingHistory: [record, ...currentState.bookingHistory] })),
       setPaymentStatus: (recordId, status) =>
         set((currentState) => ({
-          bookingHistory: currentState.bookingHistory.map((r) => (r.id === recordId ? { ...r, paymentStatus: status } : r)),
+          bookingHistory: currentState.bookingHistory.map((r) => {
+            if (r.id !== recordId) return r;
+            const now = new Date().toISOString();
+            return {
+              ...r,
+              paymentStatus: status,
+              invoiceSentAt: status === 'invoice_sent' && !r.invoiceSentAt ? now : r.invoiceSentAt,
+              paidAt: status === 'paid' && !r.paidAt ? now : r.paidAt,
+            };
+          }),
         })),
       logGateEvent: (recordId, event, timestampISO) =>
         set((currentState) => ({

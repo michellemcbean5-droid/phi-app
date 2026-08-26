@@ -12,6 +12,7 @@ import { summarizeLoadDetention } from '../workers/DetentionTrackerWorker';
 import { findBackhauls } from '../workers/BackhaulPlannerWorker';
 import { filterUpcomingLoads } from '../workers/NextDayPlannerWorker';
 import { evaluateCheckCallStatus } from '../workers/CheckCallWorker';
+import { evaluateTONUEligibility } from '../workers/TONUWorker';
 import { sendCheckCallUpdate } from '../api/twilioConnector';
 import usePHIOrchestratorStore from '../store/phiOrchestratorStore';
 
@@ -252,6 +253,40 @@ export default function LoadDetailsScreen({ route, navigation }: Props) {
                   </Pressable>
                 ))
               )}
+            </View>
+          );
+        })()}
+
+        {bookedRecord && bookingState[load.id] === 'cancelled' && (() => {
+          const tonu = evaluateTONUEligibility({
+            bookingState: bookingState[load.id],
+            pickupCheckInISO: bookedRecord.gateTimes?.pickupCheckIn ?? null,
+            standardTONURate: prefs.standardTONURate,
+          });
+          if (!tonu.eligible) return null;
+          return (
+            <View style={styles.detentionCard}>
+              <Text style={styles.detentionTitle}>💰 TONU Claim Available</Text>
+              <Text style={styles.detentionSubtitle}>{tonu.reason}</Text>
+              <Pressable
+                style={styles.gateButton}
+                onPress={() => {
+                  const lines = [
+                    `TRUCK ORDER NOT USED (TONU) CLAIM — ${load.id}`,
+                    `Broker: ${load.brokerName}`,
+                    `Pickup location: ${load.origin.city}, ${load.origin.state}`,
+                    `Checked in at pickup: ${new Date(bookedRecord.gateTimes?.pickupCheckIn as string).toLocaleString()}`,
+                    `Load cancelled after driver arrival.`,
+                    '',
+                    `TONU fee claimed: $${tonu.claimAmount.toFixed(2)}`,
+                    '',
+                    'Per standard industry practice, this fee is owed when a carrier arrives at pickup as scheduled and the load is cancelled or unavailable. Please remit payment at your earliest convenience.',
+                  ];
+                  void Share.share({ message: lines.join('\n'), title: `TONU Claim — ${load.id}` });
+                }}
+              >
+                <Text style={styles.gateButtonText}>📤 File TONU Claim (${tonu.claimAmount.toFixed(0)})</Text>
+              </Pressable>
             </View>
           );
         })()}

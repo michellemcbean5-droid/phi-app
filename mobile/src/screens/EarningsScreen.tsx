@@ -23,6 +23,7 @@ import useDriverPrefsStore from '../store/driverPrefsStore';
 import { buildBrokerScorebook } from '../workers/BrokerScorebookWorker';
 import { totalAccessorialCharges } from '../workers/AccessorialWorker';
 import { calculatePerDiem, countLoggedDaysOnRoad } from '../workers/PerDiemWorker';
+import { calculateIFTAQuarterly, JurisdictionData } from '../workers/IFTAWorker';
 
 const TARGET_PROFIT_MARGIN_PERCENT = 60;
 
@@ -71,6 +72,27 @@ export default function EarningsScreen() {
   const loggedDaysOnRoad = useMemo(() => countLoggedDaysOnRoad(bookingHistory), [bookingHistory]);
   const [perDiemDays, setPerDiemDays] = useState(String(loggedDaysOnRoad));
   const [perDiemRate, setPerDiemRate] = useState('69');
+
+  interface JurisdictionRow { state: string; milesDriven: string; gallonsPurchased: string; taxRatePerGallon: string }
+  const [jurisdictionRows, setJurisdictionRows] = useState<JurisdictionRow[]>([
+    { state: 'TX', milesDriven: '', gallonsPurchased: '', taxRatePerGallon: '' },
+  ]);
+  const addJurisdictionRow = () => setJurisdictionRows((rows) => [...rows, { state: '', milesDriven: '', gallonsPurchased: '', taxRatePerGallon: '' }]);
+  const removeJurisdictionRow = (index: number) => setJurisdictionRows((rows) => rows.filter((_, i) => i !== index));
+  const updateJurisdictionRow = (index: number, field: keyof JurisdictionRow, value: string) =>
+    setJurisdictionRows((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+
+  const iftaResult = useMemo(() => {
+    const parsed: JurisdictionData[] = jurisdictionRows
+      .filter((r) => r.state.trim().length > 0)
+      .map((r) => ({
+        state: r.state.trim().toUpperCase(),
+        milesDriven: Number(r.milesDriven) || 0,
+        gallonsPurchased: Number(r.gallonsPurchased) || 0,
+        taxRatePerGallon: Number(r.taxRatePerGallon) || 0,
+      }));
+    return parsed.length > 0 ? calculateIFTAQuarterly(parsed) : null;
+  }, [jurisdictionRows]);
 
   const handleRequestPayment = async (record: typeof bookingHistory[number]): Promise<void> => {
     const accessorialTotal = totalAccessorialCharges(record.accessorialCharges ?? []);
@@ -349,6 +371,77 @@ export default function EarningsScreen() {
             );
           })()}
         </View>
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>IFTA Quarterly Estimator</Text>
+          <Text style={styles.helperText}>
+            Enter miles driven and fuel purchased in each state this quarter with that state's current diesel tax
+            rate per gallon (rates change — verify current figures before filing). This calculates what you'd owe
+            or get credited using the standard fleet-MPG method, same as the official return.
+          </Text>
+          {jurisdictionRows.map((row, index) => (
+            <View key={index} style={styles.iftaJurisdictionBlock}>
+              <View style={styles.iftaRow}>
+                <TextInput
+                  style={[styles.expenseInput, styles.iftaStateInput]}
+                  value={row.state}
+                  onChangeText={(v) => updateJurisdictionRow(index, 'state', v.toUpperCase().slice(0, 2))}
+                  placeholder="TX"
+                  placeholderTextColor="#7F8FB3"
+                  autoCapitalize="characters"
+                  maxLength={2}
+                />
+                <TextInput
+                  style={[styles.expenseInput, styles.iftaFlexInput]}
+                  value={row.milesDriven}
+                  onChangeText={(v) => updateJurisdictionRow(index, 'milesDriven', v)}
+                  placeholder="Miles"
+                  placeholderTextColor="#7F8FB3"
+                  keyboardType="numeric"
+                />
+                {jurisdictionRows.length > 1 && (
+                  <TouchableOpacity onPress={() => removeJurisdictionRow(index)}>
+                    <Ionicons name="close-circle" size={20} color="#FF5252" />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <View style={styles.iftaRow}>
+                <TextInput
+                  style={[styles.expenseInput, styles.iftaFlexInput]}
+                  value={row.gallonsPurchased}
+                  onChangeText={(v) => updateJurisdictionRow(index, 'gallonsPurchased', v)}
+                  placeholder="Gallons Purchased"
+                  placeholderTextColor="#7F8FB3"
+                  keyboardType="numeric"
+                />
+                <TextInput
+                  style={[styles.expenseInput, styles.iftaFlexInput]}
+                  value={row.taxRatePerGallon}
+                  onChangeText={(v) => updateJurisdictionRow(index, 'taxRatePerGallon', v)}
+                  placeholder="Rate $/gal"
+                  placeholderTextColor="#7F8FB3"
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+          ))}
+          <TouchableOpacity style={styles.addJurisdictionButton} onPress={addJurisdictionRow}>
+            <Text style={styles.addJurisdictionButtonText}>+ Add State</Text>
+          </TouchableOpacity>
+          {iftaResult && iftaResult.totalGallonsPurchased > 0 && (
+            <View style={styles.iftaResultBox}>
+              <Text style={styles.perDiemResult}>Fleet MPG this quarter: {iftaResult.fleetMPG.toFixed(2)}</Text>
+              {iftaResult.jurisdictions.map((j) => (
+                <Text key={j.state} style={styles.paymentSub}>
+                  {j.state}: {j.taxDue >= 0 ? `owe $${j.taxDue.toFixed(2)}` : `credit $${Math.abs(j.taxDue).toFixed(2)}`}
+                </Text>
+              ))}
+              <Text style={styles.perDiemResult}>
+                {iftaResult.netTaxDue >= 0 ? `Net owed: $${iftaResult.netTaxDue.toFixed(2)}` : `Net credit: $${Math.abs(iftaResult.netTaxDue).toFixed(2)}`}
+              </Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -398,4 +491,11 @@ const styles = StyleSheet.create({
   perDiemRow: { flexDirection: 'row', gap: 10 },
   perDiemFieldLabel: { color: '#A8B7D8', fontSize: 12, fontWeight: '700', marginBottom: 4 },
   perDiemResult: { color: PHI_COLORS.moneyGreen, fontSize: 14, fontWeight: '800', textAlign: 'center', marginTop: 12 },
+  iftaJurisdictionBlock: { gap: 6, borderTopWidth: 1, borderTopColor: '#21406F', paddingTop: 10, marginTop: 4 },
+  iftaRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  iftaStateInput: { width: 50 },
+  iftaFlexInput: { flex: 1, minWidth: 0 },
+  addJurisdictionButton: { backgroundColor: '#132B52', borderRadius: 10, paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: '#29508C' },
+  addJurisdictionButtonText: { color: PHI_COLORS.sunshineYellow, fontSize: 12, fontWeight: '700' },
+  iftaResultBox: { backgroundColor: '#132B52', borderRadius: 12, padding: 14, marginTop: 4, gap: 4 },
 });

@@ -3,7 +3,9 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type EquipmentTypeLabel = string;
-export type ProfileField = 'fullName' | 'phone' | 'cdlNumber' | 'cdlState' | 'cdlClass' | 'mcNumber' | 'dotNumber' | 'equipmentType';
+export type ProfileField =
+  | 'fullName' | 'phone' | 'cdlNumber' | 'cdlState' | 'cdlClass' | 'mcNumber' | 'dotNumber' | 'equipmentType'
+  | 'cdlExpiry' | 'medicalCardExpiry' | 'nextInspectionDue';
 
 interface ProfileState {
   fullName: string;
@@ -14,6 +16,9 @@ interface ProfileState {
   mcNumber: string;
   dotNumber: string;
   equipmentType: string;
+  cdlExpiry: string;
+  medicalCardExpiry: string;
+  nextInspectionDue: string;
   setField: (field: ProfileField, value: string) => void;
   isComplete: () => boolean;
 }
@@ -29,6 +34,9 @@ const useProfileStore = create<ProfileState>()(
       mcNumber: '',
       dotNumber: '',
       equipmentType: '',
+      cdlExpiry: '',
+      medicalCardExpiry: '',
+      nextInspectionDue: '',
       setField: (field, value) => set({ [field]: value }),
       isComplete: () => Boolean(get().fullName.trim() && get().cdlNumber.trim() && get().cdlState.trim()),
     }),

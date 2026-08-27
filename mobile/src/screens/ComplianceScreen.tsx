@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DriverAvailability, fetchHOSData } from '../api/samsaraConnector';
 import { PHI_COLORS } from '../assets/brandColors';
@@ -9,6 +9,7 @@ import useWorkerStore from '../store/workerStore';
 import useProfileStore from '../store/profileStore';
 import useDutyStatusStore from '../store/dutyStatusStore';
 import { calculateHOSClock, DutyStatus } from '../workers/HOSClockWorker';
+import { getExpirationAlerts } from '../workers/ComplianceExpirationWorker';
 
 const DRIVER_ID = 'driver-001';
 const AVG_ROAD_SPEED_MPH = 50;
@@ -16,7 +17,15 @@ const LOAD_UNLOAD_HOURS = 1;
 
 export default function ComplianceScreen() {
   const { bookingHistory } = useLoadsStore();
-  const { fullName, cdlNumber, cdlState } = useProfileStore();
+  const { fullName, cdlNumber, cdlState, cdlExpiry, medicalCardExpiry, nextInspectionDue, setField } = useProfileStore();
+  const expirationAlerts = useMemo(
+    () => getExpirationAlerts([
+      { label: 'CDL', dateISO: cdlExpiry || null },
+      { label: 'Medical Card', dateISO: medicalCardExpiry || null },
+      { label: 'Annual Inspection', dateISO: nextInspectionDue || null },
+    ]),
+    [cdlExpiry, medicalCardExpiry, nextInspectionDue],
+  );
   const { events: dutyEvents, logStatus, currentStatus } = useDutyStatusStore();
   const [hosSnapshot, setHosSnapshot] = useState<DriverAvailability | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -186,6 +195,33 @@ export default function ComplianceScreen() {
           )}
         </View>
 
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Expiration Tracker</Text>
+          <Text style={styles.sectionText}>Set these once — PHI flags anything expiring within 30 days before it puts you out of service at a roadside check.</Text>
+
+          <Text style={styles.expiryLabel}>CDL Expiration (YYYY-MM-DD)</Text>
+          <TextInput style={styles.expiryInput} value={cdlExpiry} onChangeText={(v) => setField('cdlExpiry', v)} placeholder="2027-06-01" placeholderTextColor="#7F8FB3" />
+
+          <Text style={styles.expiryLabel}>Medical Card Expiration (YYYY-MM-DD)</Text>
+          <TextInput style={styles.expiryInput} value={medicalCardExpiry} onChangeText={(v) => setField('medicalCardExpiry', v)} placeholder="2026-12-01" placeholderTextColor="#7F8FB3" />
+
+          <Text style={styles.expiryLabel}>Next Annual Inspection Due (YYYY-MM-DD)</Text>
+          <TextInput style={styles.expiryInput} value={nextInspectionDue} onChangeText={(v) => setField('nextInspectionDue', v)} placeholder="2026-09-15" placeholderTextColor="#7F8FB3" />
+
+          {expirationAlerts.map((alert) => (
+            <Text
+              key={alert.label}
+              style={alert.urgency === 'expired' ? styles.expiryExpired : alert.urgency === 'expiring-soon' ? styles.expiryWarning : styles.expiryOk}
+            >
+              {alert.urgency === 'expired'
+                ? `🚫 ${alert.label} expired ${Math.abs(alert.daysRemaining)} day${Math.abs(alert.daysRemaining) === 1 ? '' : 's'} ago`
+                : alert.urgency === 'expiring-soon'
+                  ? `⚠️ ${alert.label} expires in ${alert.daysRemaining} day${alert.daysRemaining === 1 ? '' : 's'}`
+                  : `✅ ${alert.label} good until ${alert.dateISO.split('T')[0]}`}
+            </Text>
+          ))}
+        </View>
+
         <TouchableOpacity style={styles.auditButton} onPress={() => void handleGenerateAuditReport()} disabled={auditLoading}>
           {auditLoading ? (
             <ActivityIndicator color={PHI_COLORS.charcoalBlack} />
@@ -271,4 +307,9 @@ const styles = StyleSheet.create({
   clockValue: { color: PHI_COLORS.white, fontWeight: '800' },
   hosWarning: { color: '#FF6B6B', fontSize: 13, fontWeight: '700', lineHeight: 18 },
   hosNote: { color: '#A8B7D8', fontSize: 12, lineHeight: 17, fontStyle: 'italic' },
+  expiryLabel: { color: '#A8B7D8', fontSize: 12, fontWeight: '700', marginTop: 6 },
+  expiryInput: { backgroundColor: PHI_COLORS.surface, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, color: PHI_COLORS.white, borderWidth: 1, borderColor: '#2A3A5C', marginTop: 4 },
+  expiryOk: { color: PHI_COLORS.moneyGreen, fontSize: 12, marginTop: 8 },
+  expiryWarning: { color: PHI_COLORS.sunshineYellow, fontSize: 12, fontWeight: '700', marginTop: 8 },
+  expiryExpired: { color: '#FF5252', fontSize: 12, fontWeight: '800', marginTop: 8 },
 });

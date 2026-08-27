@@ -173,9 +173,33 @@ export default function LoadDetailsScreen({ route, navigation }: Props) {
             })}
             {(() => {
               const summary = summarizeLoadDetention(bookedRecord.gateTimes ?? {}, prefs.detentionFreeTimeHours, prefs.detentionRatePerHour);
-              return summary.totalDetentionOwed > 0 ? (
-                <Text style={styles.totalDetention}>Total detention owed: ${summary.totalDetentionOwed.toFixed(2)}</Text>
-              ) : null;
+              if (summary.totalDetentionOwed <= 0) return null;
+              return (
+                <>
+                  <Text style={styles.totalDetention}>Total detention owed: ${summary.totalDetentionOwed.toFixed(2)}</Text>
+                  <Pressable
+                    style={[styles.gateButton, { marginTop: 10 }]}
+                    onPress={() => {
+                      const lines = [
+                        `DETENTION PAY CLAIM — ${load.id}`,
+                        `Broker: ${load.brokerName}`,
+                        `Free time: ${prefs.detentionFreeTimeHours}h per stop · Rate: $${prefs.detentionRatePerHour}/hr thereafter`,
+                        '',
+                        ...summary.stops
+                          .filter((s) => s.result.isComplete)
+                          .map((s) => `${s.stop === 'pickup' ? 'Pickup' : 'Delivery'}: ${s.result.totalMinutesOnSite} min on site, ${s.result.detentionMinutes} min billable — $${s.result.detentionOwed.toFixed(2)}`),
+                        '',
+                        `Total detention claimed: $${summary.totalDetentionOwed.toFixed(2)}`,
+                        '',
+                        'Please remit payment for the above detention charges at your earliest convenience. Thank you for your business.',
+                      ];
+                      void Share.share({ message: lines.join('\n'), title: `Detention Claim — ${load.id}` });
+                    }}
+                  >
+                    <Text style={styles.gateButtonText}>📤 File Detention Claim (${summary.totalDetentionOwed.toFixed(0)})</Text>
+                  </Pressable>
+                </>
+              );
             })()}
           </View>
         )}

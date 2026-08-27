@@ -25,6 +25,8 @@ export interface DriverPrefs {
   homeTimeTargetDate: string | null;
   homeTimePremiumThresholdPercent: number;
   standardTONURate: number;
+  truckMPG: number;
+  fscBaselineDieselPrice: number;
 }
 
 const DEFAULT_PREFS: DriverPrefs = {
@@ -47,6 +49,8 @@ const DEFAULT_PREFS: DriverPrefs = {
   homeTimeTargetDate: null,
   homeTimePremiumThresholdPercent: 20,
   standardTONURate: 250,
+  truckMPG: 6.5,
+  fscBaselineDieselPrice: 1.20,
 };
 
 interface DriverPrefsState {

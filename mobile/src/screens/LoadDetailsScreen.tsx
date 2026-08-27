@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Share } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Share, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -14,6 +14,8 @@ import { filterUpcomingLoads } from '../workers/NextDayPlannerWorker';
 import { evaluateCheckCallStatus } from '../workers/CheckCallWorker';
 import { evaluateTONUEligibility } from '../workers/TONUWorker';
 import { benchmarkLoadRate } from '../workers/LaneRateBenchmarkWorker';
+import { verifyFuelSurcharge } from '../workers/FuelSurchargeWorker';
+import { fetchLiveDieselPrice } from '../utils/fuelOptimizer';
 import { sendCheckCallUpdate } from '../api/twilioConnector';
 import usePHIOrchestratorStore from '../store/phiOrchestratorStore';
 
@@ -35,6 +37,12 @@ export default function LoadDetailsScreen({ route, navigation }: Props) {
   const { prefs } = useDriverPrefsStore();
   const { log: orchestratorLog } = usePHIOrchestratorStore();
   const loadId = route.params.loadId;
+  const [dieselPrice, setDieselPrice] = useState<number | null>(null);
+  const [quotedFSCInput, setQuotedFSCInput] = useState('');
+
+  useEffect(() => {
+    void fetchLiveDieselPrice().then((price) => setDieselPrice(price.nationalAverage));
+  }, []);
 
   // Find the load from activeLoads
   const load = activeLoads.find(l => l.id === loadId);
@@ -89,6 +97,39 @@ export default function LoadDetailsScreen({ route, navigation }: Props) {
             <Text style={styles.value}>{r.value}</Text>
           </View>
         ))}
+
+        <View style={styles.detentionCard}>
+          <Text style={styles.detentionTitle}>Fuel Surcharge Checker</Text>
+          <Text style={styles.detentionSubtitle}>
+            {dieselPrice
+              ? `Verify the broker's quoted FSC against a fair calculation using today's $${dieselPrice.toFixed(2)}/gal national diesel average.`
+              : 'Loading current diesel price...'}
+          </Text>
+          <TextInput
+            style={styles.fscInput}
+            value={quotedFSCInput}
+            onChangeText={setQuotedFSCInput}
+            placeholder="Broker's quoted FSC ($)"
+            placeholderTextColor="#7F8FB3"
+            keyboardType="numeric"
+          />
+          {dieselPrice && quotedFSCInput.trim().length > 0 && !Number.isNaN(Number(quotedFSCInput)) && (() => {
+            const result = verifyFuelSurcharge({
+              currentDieselPricePerGallon: dieselPrice,
+              baselineDieselPricePerGallon: prefs.fscBaselineDieselPrice,
+              truckMPG: prefs.truckMPG,
+              tripMiles: load.totalMiles,
+              quotedFSC: Number(quotedFSCInput),
+            });
+            return (
+              <Text style={result.isFair ? styles.fscFair : styles.fscUnfair}>
+                {result.isFair
+                  ? `✅ Fair — a fully fair FSC for this trip is about $${result.fairFSCTotal.toFixed(2)} ($${result.fairFSCPerMile.toFixed(3)}/mi).`
+                  : `⚠️ Short by $${result.shortfall.toFixed(2)} — fair FSC for this trip is about $${result.fairFSCTotal.toFixed(2)} ($${result.fairFSCPerMile.toFixed(3)}/mi), not $${Number(quotedFSCInput).toFixed(2)}.`}
+              </Text>
+            );
+          })()}
+        </View>
 
         {bookedRecord && (
           <View style={styles.detentionCard}>
@@ -375,4 +416,7 @@ const styles = StyleSheet.create({
   auditMeta: { color: '#7F8FB3', fontSize: 11, marginTop: 2 },
   shareAuditButton: { backgroundColor: PHI_COLORS.surface, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 6, borderWidth: 1, borderColor: PHI_COLORS.sunshineYellow },
   shareAuditButtonText: { color: PHI_COLORS.sunshineYellow, fontSize: 13, fontWeight: '700' },
+  fscInput: { backgroundColor: PHI_COLORS.surface, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, color: PHI_COLORS.white, borderWidth: 1, borderColor: '#2A3A5C', marginTop: 4 },
+  fscFair: { color: PHI_COLORS.moneyGreen, fontSize: 12, lineHeight: 17, marginTop: 8 },
+  fscUnfair: { color: '#FF5252', fontSize: 12, lineHeight: 17, marginTop: 8, fontWeight: '700' },
 });

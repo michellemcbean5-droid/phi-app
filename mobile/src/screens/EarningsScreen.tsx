@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/RootNavigator';
 import { PHI_COLORS } from '../assets/brandColors';
 import PrinceHaulMascot from '../components/mascot/PrinceHaulMascot';
 import FloatingShapes from '../components/animations/FloatingShapes';
@@ -29,6 +32,7 @@ const groupEarningsByDay = (history: { rate: number; bookedAt: string }[]): numb
 };
 
 export default function EarningsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { bookingHistory } = useLoadsStore();
   const { entries, addExpense, totalsByCategory, totalExpenses } = useExpenseStore();
   const [description, setDescription] = useState('');
@@ -59,6 +63,9 @@ export default function EarningsScreen() {
             Book your first load from the Loads tab and PHI will start tracking your real revenue, RPM trend, and
             profit here — no sample data, just what you actually haul.
           </Text>
+          <TouchableOpacity style={styles.cashFlowLink} onPress={() => navigation.navigate('CashFlow')}>
+            <Text style={styles.cashFlowLinkText}>Plan cash flow and reserves</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -102,6 +109,10 @@ export default function EarningsScreen() {
           </Text>
         </View>
         </StaggeredEntrance>
+
+        <TouchableOpacity style={styles.cashFlowLink} onPress={() => navigation.navigate('CashFlow')}>
+          <Text style={styles.cashFlowLinkText}>Open Cash Flow & Factoring →</Text>
+        </TouchableOpacity>
 
         {projection && (
           <StaggeredEntrance index={1}>
@@ -179,6 +190,8 @@ const styles = StyleSheet.create({
   emptyState: { flex: 1, padding: 32, alignItems: 'center', justifyContent: 'center', gap: 10 },
   emptyTitle: { color: PHI_COLORS.white, fontSize: 20, fontWeight: '900' },
   emptyText: { color: '#D7E3FF', fontSize: 14, lineHeight: 21, textAlign: 'center' },
+  cashFlowLink: { alignSelf: 'stretch', backgroundColor: '#F4C542', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, marginTop: 6 },
+  cashFlowLinkText: { color: '#1A1A1A', textAlign: 'center', fontSize: 13, fontWeight: '900' },
   heroCard: { backgroundColor: PHI_COLORS.royalBlue, borderRadius: 20, padding: 20 },
   heroLabel: { color: PHI_COLORS.sunshineYellow, fontWeight: '800' },
   heroValue: { color: PHI_COLORS.white, fontSize: 36, fontWeight: '900', marginTop: 8 },

@@ -3,7 +3,6 @@
     "name": "Prince Haul Intelligence",
     "slug": "phi-app-nq3snqwc6jnfmxn3kazn",
     "version": "1.0.0",
-    "sdkVersion": "52.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -13,24 +12,21 @@
       "resizeMode": "contain",
       "backgroundColor": "#01092C"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.princehaulintelligence.app",
       "buildNumber": "1",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "PHI uses your location to calculate deadhead miles and find nearby loads.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "PHI uses your location in the background to track route progress and HOS drive time.",
-        "NSCameraUsageDescription": "PHI uses your camera to scan bills of lading and freight documents.",
-        "NSPhotoLibraryUsageDescription": "PHI accesses your photos to attach freight documents and proof-of-delivery images."
+        "NSLocationWhenInUseUsageDescription": "PHI uses your location when you request route, deadhead, nearby-load, or HOS features.",
+        "NSCameraUsageDescription": "PHI uses your camera when you choose to scan bills of lading and freight documents."
       }
     },
     "android": {
       "package": "com.princehaulintelligence.app",
       "versionCode": 1,
-      "compileSdkVersion": 35,
-      "targetSdkVersion": 35,
-      "minSdkVersion": 24,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0057FF"
@@ -38,12 +34,7 @@
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.CAMERA",
-        "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_MEDIA_VIDEO",
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.FOREGROUND_SERVICE",
         "android.permission.VIBRATE",
         "android.permission.INTERNET"
       ],
@@ -51,7 +42,8 @@
         "android.permission.READ_CONTACTS",
         "android.permission.WRITE_CONTACTS",
         "android.permission.READ_CALL_LOG",
-        "android.permission.WRITE_CALL_LOG"
+        "android.permission.WRITE_CALL_LOG",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -72,8 +64,11 @@
       "firebaseProjectId": ""
     },
     "owner": "q-empire-ai-automation",
-    "privacy": "public",
-    "platforms": ["android", "ios", "web"],
+    "platforms": [
+      "android",
+      "ios",
+      "web"
+    ],
     "plugins": [
       [
         "expo-notifications",
@@ -86,15 +81,13 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "PHI uses your location to calculate deadhead miles and find nearby loads.",
-          "locationAlwaysAndWhenInUsePermission": "PHI uses your location in the background to track route progress and HOS drive time."
+          "locationWhenInUsePermission": "PHI uses your location when you request route, deadhead, nearby-load, or HOS features."
         }
       ],
       [
         "expo-image-picker",
         {
-          "cameraPermission": "PHI uses your camera to scan bills of lading and freight documents.",
-          "photosPermission": "PHI accesses your photos to attach freight documents and proof-of-delivery images."
+          "cameraPermission": "PHI uses your camera when you choose to scan bills of lading and freight documents."
         }
       ],
       [

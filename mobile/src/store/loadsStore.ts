@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Load } from '../workers/workers-15x';
+import { AccessorialCharge } from '../workers/AccessorialWorker';
 
 export type BookingState = 'unbooked' | 'pending' | 'booked' | 'rejected' | 'cancelled';
 export type SortOption = 'rpm' | 'rate' | 'miles';
@@ -21,6 +22,7 @@ export interface BookedLoadRecord {
   checkCallLog?: string[];
   invoiceSentAt?: string;
   paidAt?: string;
+  accessorialCharges?: AccessorialCharge[];
 }
 
 interface LoadsState {
@@ -35,6 +37,7 @@ interface LoadsState {
   setPaymentStatus: (recordId: string, status: PaymentStatus) => void;
   logGateEvent: (recordId: string, event: GateEvent, timestampISO: string) => void;
   logCheckCall: (recordId: string, timestampISO: string) => void;
+  logAccessorialCharge: (recordId: string, charge: AccessorialCharge) => void;
   setFilter: (filter: LoadsState['filter']) => void;
   setSortBy: (sortBy: SortOption) => void;
 }
@@ -77,6 +80,12 @@ const useLoadsStore = create<LoadsState>()(
         set((currentState) => ({
           bookingHistory: currentState.bookingHistory.map((r) =>
             r.id === recordId ? { ...r, checkCallLog: [...(r.checkCallLog ?? []), timestampISO] } : r,
+          ),
+        })),
+      logAccessorialCharge: (recordId, charge) =>
+        set((currentState) => ({
+          bookingHistory: currentState.bookingHistory.map((r) =>
+            r.id === recordId ? { ...r, accessorialCharges: [...(r.accessorialCharges ?? []), charge] } : r,
           ),
         })),
       setFilter: (filter) => set({ filter }),

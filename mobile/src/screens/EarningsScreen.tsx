@@ -21,6 +21,7 @@ import {
 } from '../utils/profitFormula';
 import useDriverPrefsStore from '../store/driverPrefsStore';
 import { buildBrokerScorebook } from '../workers/BrokerScorebookWorker';
+import { totalAccessorialCharges } from '../workers/AccessorialWorker';
 
 const TARGET_PROFIT_MARGIN_PERCENT = 60;
 
@@ -68,12 +69,20 @@ export default function EarningsScreen() {
   const brokerScorebook = useMemo(() => buildBrokerScorebook(bookingHistory), [bookingHistory]);
 
   const handleRequestPayment = async (record: typeof bookingHistory[number]): Promise<void> => {
+    const accessorialTotal = totalAccessorialCharges(record.accessorialCharges ?? []);
     const message = [
       `Invoice Request — Load ${record.id}`,
       `From: ${fullName.trim() || '(driver name not set)'}`,
       `Broker: ${record.brokerName}`,
       `Miles: ${record.miles}`,
-      `Rate: $${record.rate.toFixed(2)}`,
+      `Linehaul Rate: $${record.rate.toFixed(2)}`,
+      ...(accessorialTotal > 0
+        ? [
+            ...(record.accessorialCharges ?? []).map((c) => `  + ${c.type}: $${c.amount.toFixed(2)}`),
+            `Accessorial Total: $${accessorialTotal.toFixed(2)}`,
+            `Grand Total: $${(record.rate + accessorialTotal).toFixed(2)}`,
+          ]
+        : []),
       `Booked: ${new Date(record.bookedAt).toLocaleDateString()}`,
       '',
       'Please remit payment for the above load at your earliest convenience. Thank you for your business.',

@@ -16,6 +16,7 @@ import { evaluateTONUEligibility } from '../workers/TONUWorker';
 import { benchmarkLoadRate } from '../workers/LaneRateBenchmarkWorker';
 import { verifyFuelSurcharge } from '../workers/FuelSurchargeWorker';
 import { fetchLiveDieselPrice } from '../utils/fuelOptimizer';
+import { AccessorialType, STANDARD_ACCESSORIAL_RATES, totalAccessorialCharges } from '../workers/AccessorialWorker';
 import { sendCheckCallUpdate } from '../api/twilioConnector';
 import usePHIOrchestratorStore from '../store/phiOrchestratorStore';
 
@@ -33,7 +34,7 @@ const GATE_STOPS: { checkIn: GateEvent; checkOut: GateEvent; label: string }[] =
 ];
 
 export default function LoadDetailsScreen({ route, navigation }: Props) {
-  const { activeLoads, bookingHistory, logGateEvent, bookingState, setBookingState, logCheckCall } = useLoadsStore();
+  const { activeLoads, bookingHistory, logGateEvent, bookingState, setBookingState, logCheckCall, logAccessorialCharge } = useLoadsStore();
   const { prefs } = useDriverPrefsStore();
   const { log: orchestratorLog } = usePHIOrchestratorStore();
   const loadId = route.params.loadId;
@@ -176,6 +177,32 @@ export default function LoadDetailsScreen({ route, navigation }: Props) {
                 <Text style={styles.totalDetention}>Total detention owed: ${summary.totalDetentionOwed.toFixed(2)}</Text>
               ) : null;
             })()}
+          </View>
+        )}
+
+        {bookedRecord && (
+          <View style={styles.detentionCard}>
+            <Text style={styles.detentionTitle}>Accessorial Charges</Text>
+            <Text style={styles.detentionSubtitle}>Log extra work you actually did on this load — it gets billed, not absorbed for free.</Text>
+            <View style={styles.accessorialButtonRow}>
+              {(Object.keys(STANDARD_ACCESSORIAL_RATES) as AccessorialType[]).map((type) => (
+                <Pressable
+                  key={type}
+                  style={styles.accessorialButton}
+                  onPress={() => logAccessorialCharge(bookedRecord.id, { type, amount: STANDARD_ACCESSORIAL_RATES[type], loggedAt: new Date().toISOString() })}
+                >
+                  <Text style={styles.accessorialButtonText}>+ {type} (${STANDARD_ACCESSORIAL_RATES[type]})</Text>
+                </Pressable>
+              ))}
+            </View>
+            {(bookedRecord.accessorialCharges ?? []).length > 0 && (
+              <>
+                {(bookedRecord.accessorialCharges ?? []).map((charge, index) => (
+                  <Text key={index} style={styles.detentionResult}>{charge.type} — ${charge.amount.toFixed(2)} at {new Date(charge.loggedAt).toLocaleTimeString()}</Text>
+                ))}
+                <Text style={styles.totalDetention}>Total accessorial: ${totalAccessorialCharges(bookedRecord.accessorialCharges ?? []).toFixed(2)}</Text>
+              </>
+            )}
           </View>
         )}
 
@@ -419,4 +446,7 @@ const styles = StyleSheet.create({
   fscInput: { backgroundColor: PHI_COLORS.surface, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, color: PHI_COLORS.white, borderWidth: 1, borderColor: '#2A3A5C', marginTop: 4 },
   fscFair: { color: PHI_COLORS.moneyGreen, fontSize: 12, lineHeight: 17, marginTop: 8 },
   fscUnfair: { color: '#FF5252', fontSize: 12, lineHeight: 17, marginTop: 8, fontWeight: '700' },
+  accessorialButtonRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  accessorialButton: { backgroundColor: PHI_COLORS.surface, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: '#2A3A5C' },
+  accessorialButtonText: { color: PHI_COLORS.sunshineYellow, fontSize: 11, fontWeight: '700' },
 });

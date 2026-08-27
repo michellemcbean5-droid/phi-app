@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { PHI_COLORS } from '../assets/brandColors';
 import useAffiliateStore from '../store/affiliateStore';
+import { compareLeaseVsBuy } from '../workers/LeaseVsBuyWorker';
 
 interface EquipmentLink {
   name: string;
@@ -60,9 +61,36 @@ const KIND_COLORS: Record<EquipmentLink['kind'], string> = {
   Rent: '#7EA5FF',
 };
 
+const LEASE_CALC_DEFAULTS = {
+  truckPrice: '120000',
+  downPayment: '20000',
+  loanAPRPercent: '8',
+  termMonths: '60',
+  estimatedResidualValue: '45000',
+  leaseMonthlyPayment: '2200',
+  monthlyMaintenanceBuy: '300',
+  monthlyMaintenanceLease: '0',
+};
+
 export default function EquipmentMarketplaceScreen() {
   const { affiliateId, setAffiliateId } = useAffiliateStore();
   const [input, setInput] = useState(affiliateId);
+  const [leaseCalcInputs, setLeaseCalcInputs] = useState(LEASE_CALC_DEFAULTS);
+
+  const updateLeaseCalcField = (field: keyof typeof LEASE_CALC_DEFAULTS, value: string) =>
+    setLeaseCalcInputs((prev) => ({ ...prev, [field]: value }));
+
+  const leaseCalcResult = (() => {
+    const parsed = Object.fromEntries(
+      Object.entries(leaseCalcInputs).map(([key, value]) => [key, Number(value)]),
+    ) as Record<keyof typeof LEASE_CALC_DEFAULTS, number>;
+    if (Object.values(parsed).some((v) => !Number.isFinite(v)) || parsed.termMonths <= 0) return null;
+    try {
+      return compareLeaseVsBuy(parsed);
+    } catch {
+      return null;
+    }
+  })();
 
   const handleOpen = async (link: EquipmentLink): Promise<void> => {
     const url = affiliateId ? `${link.url}?ref=${encodeURIComponent(affiliateId)}` : link.url;
@@ -105,6 +133,46 @@ export default function EquipmentMarketplaceScreen() {
             Sign up for each partner's own affiliate program to earn a commission when other drivers you refer buy
             or lease through these links.
           </Text>
+        </View>
+
+        <View style={styles.affiliateCard}>
+          <Text style={styles.affiliateLabel}>Lease vs. Buy Calculator</Text>
+          <Text style={styles.affiliateHint}>
+            Model the real cost of financing a truck versus leasing one over the same time horizon — down payment,
+            loan interest, maintenance, and what the truck is worth at the end all factor in.
+          </Text>
+          <View style={styles.calcGrid}>
+            {([
+              ['truckPrice', 'Truck Price ($)'],
+              ['downPayment', 'Down Payment ($)'],
+              ['loanAPRPercent', 'Loan APR (%)'],
+              ['termMonths', 'Term (months)'],
+              ['estimatedResidualValue', 'Residual Value ($)'],
+              ['leaseMonthlyPayment', 'Lease Payment ($/mo)'],
+              ['monthlyMaintenanceBuy', 'Maintenance if Buying ($/mo)'],
+              ['monthlyMaintenanceLease', 'Maintenance if Leasing ($/mo)'],
+            ] as [keyof typeof LEASE_CALC_DEFAULTS, string][]).map(([field, label]) => (
+              <View key={field} style={styles.calcField}>
+                <Text style={styles.calcFieldLabel}>{label}</Text>
+                <TextInput
+                  style={styles.calcInput}
+                  value={leaseCalcInputs[field]}
+                  onChangeText={(v) => updateLeaseCalcField(field, v)}
+                  keyboardType="numeric"
+                />
+              </View>
+            ))}
+          </View>
+          {leaseCalcResult && (
+            <View style={styles.calcResultBox}>
+              <Text style={styles.calcResultLine}>Est. monthly loan payment: ${leaseCalcResult.monthlyLoanPayment.toFixed(2)}</Text>
+              <Text style={styles.calcResultLine}>Total cost to buy over {leaseCalcInputs.termMonths} months: ${leaseCalcResult.totalBuyCost.toFixed(2)}</Text>
+              <Text style={styles.calcResultLine}>Total cost to lease over {leaseCalcInputs.termMonths} months: ${leaseCalcResult.totalLeaseCost.toFixed(2)}</Text>
+              <Text style={styles.calcRecommendation}>
+                {leaseCalcResult.recommendation === 'buy' ? '💰 Buying' : '📋 Leasing'} looks ${leaseCalcResult.costDifference.toFixed(2)} cheaper over this term.
+              </Text>
+            </View>
+          )}
         </View>
 
         {CATEGORIES.map((category) => (
@@ -155,4 +223,11 @@ const styles = StyleSheet.create({
   linkDescription: { color: '#A8B7D8', fontSize: 12, marginTop: 2 },
   kindBadge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   kindBadgeText: { color: PHI_COLORS.charcoalBlack, fontWeight: '800', fontSize: 10 },
+  calcGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  calcField: { width: '47%' },
+  calcFieldLabel: { color: '#A8B7D8', fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  calcInput: { backgroundColor: '#132B52', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, color: PHI_COLORS.white, borderWidth: 1, borderColor: '#29508C', fontSize: 13 },
+  calcResultBox: { backgroundColor: '#132B52', borderRadius: 12, padding: 14, marginTop: 4, gap: 4 },
+  calcResultLine: { color: '#D7E3FF', fontSize: 12 },
+  calcRecommendation: { color: PHI_COLORS.moneyGreen, fontSize: 14, fontWeight: '800', marginTop: 6, textAlign: 'center' },
 });

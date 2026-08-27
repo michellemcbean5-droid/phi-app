@@ -13,6 +13,8 @@ import { getTruckLimit } from '../utils/subscriptionGating';
 import { getMaintenanceSuggestions, MaintenanceStatus } from '../utils/vehicleMaintenance';
 import useTireStore from '../store/tireStore';
 import { evaluateTireWear, TirePosition } from '../workers/TireWearWorker';
+import { estimateDEFStatus } from '../workers/DEFTrackerWorker';
+import useDriverPrefsStore from '../store/driverPrefsStore';
 
 const TIRE_POSITIONS: TirePosition[] = [
   'Steer Left', 'Steer Right', 'Drive Left Outer', 'Drive Left Inner', 'Drive Right Outer', 'Drive Right Inner', 'Trailer',
@@ -57,6 +59,7 @@ export default function VehicleScreen() {
   const { getEffectiveTier } = usePromoStore();
   const truckLimit = getTruckLimit(getEffectiveTier());
   const { readingsByVehicle, logReading } = useTireStore();
+  const { prefs } = useDriverPrefsStore();
   const [tirePosition, setTirePosition] = useState<Record<string, TirePosition>>({});
   const [tireDepthInput, setTireDepthInput] = useState<Record<string, string>>({});
 
@@ -233,6 +236,52 @@ export default function VehicleScreen() {
                     </View>
                   </View>
                 ))}
+              </View>
+
+              <View style={styles.maintenanceSection}>
+                <Text style={styles.title}>DEF Level Monitor</Text>
+                <Text style={styles.helper}>
+                  Estimated from typical DEF consumption (~2.5% of diesel burned) — a real gauge reading always wins if it disagrees with this estimate.
+                </Text>
+                <View style={styles.tireLogRow}>
+                  <TextInput
+                    style={[styles.input, { flex: 1 }]}
+                    value={vehicle.defTankCapacity}
+                    onChangeText={(text) => updateVehicle(vehicle.id, 'defTankCapacity', text.replace(/[^0-9.]/g, ''))}
+                    placeholder="Tank size (gal)"
+                    placeholderTextColor="#7F8FB3"
+                    keyboardType="numeric"
+                  />
+                  <TouchableOpacity
+                    style={styles.tireLogButton}
+                    onPress={() => updateVehicle(vehicle.id, 'defMileageAtFill', vehicle.mileage)}
+                  >
+                    <Text style={styles.tireLogButtonText}>Log Fill-Up</Text>
+                  </TouchableOpacity>
+                </View>
+                {(() => {
+                  const tankCapacity = Number(vehicle.defTankCapacity);
+                  const mileageAtFill = Number(vehicle.defMileageAtFill);
+                  const currentMileage = Number(vehicle.mileage);
+                  if (!Number.isFinite(tankCapacity) || tankCapacity <= 0 || !Number.isFinite(mileageAtFill) || !Number.isFinite(currentMileage)) {
+                    return <Text style={styles.helper}>Enter your DEF tank size and tap Log Fill-Up right after you fill it to start tracking.</Text>;
+                  }
+                  const milesSinceFill = Math.max(0, currentMileage - mileageAtFill);
+                  const status = estimateDEFStatus(tankCapacity, milesSinceFill, prefs.truckMPG);
+                  return (
+                    <View style={styles.maintenanceRow}>
+                      <View style={styles.maintenanceTextWrap}>
+                        <Text style={styles.label}>~{status.estimatedGallonsRemaining.toFixed(1)} gal remaining ({status.estimatedPercentRemaining.toFixed(0)}%)</Text>
+                        <Text style={styles.helper}>~{status.estimatedMilesUntilEmpty.toLocaleString()} mi until empty at current usage</Text>
+                      </View>
+                      <View style={[styles.maintenanceBadge, { backgroundColor: (status.refillSoon ? '#FF5252' : PHI_COLORS.moneyGreen) + '33' }]}>
+                        <Text style={[styles.maintenanceBadgeText, { color: status.refillSoon ? '#FF5252' : PHI_COLORS.moneyGreen }]}>
+                          {status.refillSoon ? 'Refill Soon' : 'OK'}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })()}
               </View>
             </View>
           );

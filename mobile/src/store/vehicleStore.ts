@@ -12,6 +12,8 @@ export interface VehicleRecord {
   mileage: string;
   photoUri: string;
   gpsEnabled: boolean;
+  defTankCapacity: string;
+  defMileageAtFill: string;
 }
 
 const createBlankVehicle = (): VehicleRecord => ({
@@ -24,6 +26,8 @@ const createBlankVehicle = (): VehicleRecord => ({
   mileage: '',
   photoUri: '',
   gpsEnabled: true,
+  defTankCapacity: '',
+  defMileageAtFill: '',
 });
 
 interface VehicleState {

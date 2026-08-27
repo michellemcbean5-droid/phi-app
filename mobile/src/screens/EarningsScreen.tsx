@@ -22,6 +22,7 @@ import {
 import useDriverPrefsStore from '../store/driverPrefsStore';
 import { buildBrokerScorebook } from '../workers/BrokerScorebookWorker';
 import { totalAccessorialCharges } from '../workers/AccessorialWorker';
+import { calculatePerDiem, countLoggedDaysOnRoad } from '../workers/PerDiemWorker';
 
 const TARGET_PROFIT_MARGIN_PERCENT = 60;
 
@@ -67,6 +68,9 @@ export default function EarningsScreen() {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const brokerScorebook = useMemo(() => buildBrokerScorebook(bookingHistory), [bookingHistory]);
+  const loggedDaysOnRoad = useMemo(() => countLoggedDaysOnRoad(bookingHistory), [bookingHistory]);
+  const [perDiemDays, setPerDiemDays] = useState(String(loggedDaysOnRoad));
+  const [perDiemRate, setPerDiemRate] = useState('69');
 
   const handleRequestPayment = async (record: typeof bookingHistory[number]): Promise<void> => {
     const accessorialTotal = totalAccessorialCharges(record.accessorialCharges ?? []);
@@ -317,6 +321,34 @@ export default function EarningsScreen() {
             ))}
           </View>
         )}
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Per Diem Deduction Estimator</Text>
+          <Text style={styles.helperText}>
+            Self-employed drivers can deduct 80% of the standard meal-allowance per diem rate for each day away from home. Pre-filled from your logged pickup/delivery check-ins ({loggedDaysOnRoad} day{loggedDaysOnRoad === 1 ? '' : 's'} logged) — adjust if that undercounts your actual days on the road. This is an estimate for your CPA, not a filed deduction; confirm the current IRS rate and rules with them.
+          </Text>
+          <View style={styles.perDiemRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.perDiemFieldLabel}>Days on Road</Text>
+              <TextInput style={styles.expenseInput} value={perDiemDays} onChangeText={setPerDiemDays} keyboardType="numeric" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.perDiemFieldLabel}>Daily Rate ($)</Text>
+              <TextInput style={styles.expenseInput} value={perDiemRate} onChangeText={setPerDiemRate} keyboardType="numeric" />
+            </View>
+          </View>
+          {(() => {
+            const days = Number(perDiemDays);
+            const rate = Number(perDiemRate);
+            if (!Number.isFinite(days) || !Number.isFinite(rate) || days <= 0 || rate <= 0) return null;
+            const result = calculatePerDiem(days, rate, 80);
+            return (
+              <Text style={styles.perDiemResult}>
+                ${result.grossPerDiem.toFixed(2)} gross × 80% = ${result.deductibleAmount.toFixed(2)} estimated deduction
+              </Text>
+            );
+          })()}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -363,4 +395,7 @@ const styles = StyleSheet.create({
   brokerName: { color: PHI_COLORS.white, fontWeight: '700', fontSize: 13, flexShrink: 1 },
   brokerScoreBadge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   brokerScoreText: { fontWeight: '800', fontSize: 11 },
+  perDiemRow: { flexDirection: 'row', gap: 10 },
+  perDiemFieldLabel: { color: '#A8B7D8', fontSize: 12, fontWeight: '700', marginBottom: 4 },
+  perDiemResult: { color: PHI_COLORS.moneyGreen, fontSize: 14, fontWeight: '800', textAlign: 'center', marginTop: 12 },
 });

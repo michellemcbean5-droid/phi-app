@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -11,6 +11,12 @@ import useVehicleStore, { VehicleRecord } from '../store/vehicleStore';
 import usePromoStore from '../store/promoStore';
 import { getTruckLimit } from '../utils/subscriptionGating';
 import { getMaintenanceSuggestions, MaintenanceStatus } from '../utils/vehicleMaintenance';
+import useTireStore from '../store/tireStore';
+import { evaluateTireWear, TirePosition } from '../workers/TireWearWorker';
+
+const TIRE_POSITIONS: TirePosition[] = [
+  'Steer Left', 'Steer Right', 'Drive Left Outer', 'Drive Left Inner', 'Drive Right Outer', 'Drive Right Inner', 'Trailer',
+];
 
 type VehicleNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Vehicle'>;
 
@@ -50,6 +56,9 @@ export default function VehicleScreen() {
   const { vehicles, addVehicle, updateVehicle, setPhoto, toggleGps, removeVehicle } = useVehicleStore();
   const { getEffectiveTier } = usePromoStore();
   const truckLimit = getTruckLimit(getEffectiveTier());
+  const { readingsByVehicle, logReading } = useTireStore();
+  const [tirePosition, setTirePosition] = useState<Record<string, TirePosition>>({});
+  const [tireDepthInput, setTireDepthInput] = useState<Record<string, string>>({});
 
   const handleAddVehicle = (): void => {
     if (vehicles.length >= truckLimit) {
@@ -166,6 +175,65 @@ export default function VehicleScreen() {
                   ))
                 )}
               </View>
+
+              <View style={styles.maintenanceSection}>
+                <Text style={styles.title}>Tire Wear Tracker</Text>
+                <Text style={styles.helper}>Log tread depth (32nds of an inch) per position — PHI flags anything below the FMCSA minimum and projects when you'll need a replacement.</Text>
+                <View style={styles.tirePositionRow}>
+                  {TIRE_POSITIONS.map((pos) => (
+                    <TouchableOpacity
+                      key={pos}
+                      style={[styles.tirePositionChip, (tirePosition[vehicle.id] ?? TIRE_POSITIONS[0]) === pos && styles.tirePositionChipActive]}
+                      onPress={() => setTirePosition((prev) => ({ ...prev, [vehicle.id]: pos }))}
+                    >
+                      <Text style={[styles.tirePositionChipText, (tirePosition[vehicle.id] ?? TIRE_POSITIONS[0]) === pos && styles.tirePositionChipTextActive]}>{pos}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View style={styles.tireLogRow}>
+                  <TextInput
+                    style={[styles.input, { flex: 1 }]}
+                    value={tireDepthInput[vehicle.id] ?? ''}
+                    onChangeText={(v) => setTireDepthInput((prev) => ({ ...prev, [vehicle.id]: v }))}
+                    placeholder="Tread depth (32nds)"
+                    placeholderTextColor="#7F8FB3"
+                    keyboardType="numeric"
+                  />
+                  <TouchableOpacity
+                    style={styles.tireLogButton}
+                    onPress={() => {
+                      const depth = Number(tireDepthInput[vehicle.id]);
+                      const currentMileage = Number(vehicle.mileage);
+                      if (!Number.isFinite(depth) || depth <= 0 || !Number.isFinite(currentMileage) || currentMileage <= 0) return;
+                      logReading(vehicle.id, {
+                        position: tirePosition[vehicle.id] ?? TIRE_POSITIONS[0],
+                        treadDepth32nds: depth,
+                        mileageAtReading: currentMileage,
+                        dateISO: new Date().toISOString(),
+                      });
+                      setTireDepthInput((prev) => ({ ...prev, [vehicle.id]: '' }));
+                    }}
+                  >
+                    <Text style={styles.tireLogButtonText}>Log</Text>
+                  </TouchableOpacity>
+                </View>
+                {evaluateTireWear(readingsByVehicle[vehicle.id] ?? []).map((status) => (
+                  <View key={status.position} style={styles.maintenanceRow}>
+                    <View style={styles.maintenanceTextWrap}>
+                      <Text style={styles.label}>{status.position}</Text>
+                      <Text style={styles.helper}>
+                        {status.latestTreadDepth32nds}/32" · min {status.minimumRequired32nds}/32"
+                        {status.milesUntilMinimum !== null ? ` · ~${status.milesUntilMinimum.toLocaleString()} mi until minimum` : ''}
+                      </Text>
+                    </View>
+                    <View style={[styles.maintenanceBadge, { backgroundColor: (status.belowMinimum ? '#FF5252' : PHI_COLORS.moneyGreen) + '33' }]}>
+                      <Text style={[styles.maintenanceBadgeText, { color: status.belowMinimum ? '#FF5252' : PHI_COLORS.moneyGreen }]}>
+                        {status.belowMinimum ? 'Below Min' : 'OK'}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
             </View>
           );
         })}
@@ -199,4 +267,12 @@ const styles = StyleSheet.create({
   maintenanceTextWrap: { flex: 1, flexShrink: 1 },
   maintenanceBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   maintenanceBadgeText: { fontWeight: '800', fontSize: 11 },
+  tirePositionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  tirePositionChip: { backgroundColor: '#132B52', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: '#29508C' },
+  tirePositionChipActive: { backgroundColor: PHI_COLORS.sunshineYellow, borderColor: PHI_COLORS.sunshineYellow },
+  tirePositionChipText: { color: '#D7E3FF', fontSize: 11, fontWeight: '700' },
+  tirePositionChipTextActive: { color: PHI_COLORS.charcoalBlack },
+  tireLogRow: { flexDirection: 'row', gap: 8 },
+  tireLogButton: { backgroundColor: PHI_COLORS.sunshineYellow, borderRadius: 12, paddingHorizontal: 18, justifyContent: 'center' },
+  tireLogButtonText: { color: PHI_COLORS.charcoalBlack, fontWeight: '800' },
 });

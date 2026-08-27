@@ -13,6 +13,7 @@ import { findBackhauls } from '../workers/BackhaulPlannerWorker';
 import { filterUpcomingLoads } from '../workers/NextDayPlannerWorker';
 import { evaluateCheckCallStatus } from '../workers/CheckCallWorker';
 import { evaluateTONUEligibility } from '../workers/TONUWorker';
+import { benchmarkLoadRate } from '../workers/LaneRateBenchmarkWorker';
 import { sendCheckCallUpdate } from '../api/twilioConnector';
 import usePHIOrchestratorStore from '../store/phiOrchestratorStore';
 
@@ -49,6 +50,8 @@ export default function LoadDetailsScreen({ route, navigation }: Props) {
     </SafeAreaView>
   );
 
+  const benchmark = benchmarkLoadRate(load, activeLoads.filter((l) => l.id !== load.id));
+
   const rows: LoadDetailRow[] = [
     { icon: 'location-outline', label: 'Origin', value: `${load.origin.city}, ${load.origin.state}` },
     { icon: 'flag-outline', label: 'Destination', value: `${load.destination.city}, ${load.destination.state}` },
@@ -57,6 +60,13 @@ export default function LoadDetailsScreen({ route, navigation }: Props) {
     { icon: 'cube-outline', label: 'Equipment', value: load.equipmentType },
     { icon: 'cash-outline', label: 'Rate', value: `$${load.rate.toFixed(2)}` },
     { icon: 'cash-outline', label: 'RPM', value: `$${load.rpm.toFixed(2)}` },
+    ...(benchmark.sampleSize > 0
+      ? [{
+          icon: 'stats-chart-outline' as const,
+          label: `vs. ${load.equipmentType} Board Avg`,
+          value: `${benchmark.percentVsAverage > 0 ? '+' : ''}${benchmark.percentVsAverage.toFixed(0)}% (${benchmark.classification.replace('-', ' ')})`,
+        }]
+      : []),
     { icon: 'time-outline', label: 'Pickup Date', value: load.pickupDate },
     { icon: 'checkmark-circle-outline', label: 'Delivery Date', value: load.deliveryDate },
     { icon: 'business-outline', label: 'Broker', value: load.brokerName },
